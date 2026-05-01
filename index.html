@@ -455,6 +455,65 @@
   .section-toggle.open .section-toggle-arrow { transform: rotate(180deg); }
   .section-body { display: none; }
   .section-body.open { display: block; }
+
+  /* Folder system */
+  .folder-toolbar {
+    display: flex; gap: 8px; margin-bottom: 14px;
+  }
+  .folder-toolbar-btn {
+    flex: 1; padding: 9px 8px; font-size: 13px; font-weight: 500;
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-muted);
+    cursor: pointer; transition: background 0.15s, border-color 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .folder-toolbar-btn:hover { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
+
+  .breadcrumb {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    margin-bottom: 12px; font-size: 13px; color: var(--text-hint);
+  }
+  .breadcrumb-item { cursor: pointer; color: var(--teal); }
+  .breadcrumb-item:hover { text-decoration: underline; }
+  .breadcrumb-sep { color: var(--text-hint); }
+  .breadcrumb-current { color: var(--text-muted); }
+
+  .folder-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    margin-bottom: 6px; cursor: pointer;
+    transition: border-color 0.15s;
+    display: flex; align-items: center; gap: 10px;
+    user-select: none;
+  }
+  .folder-item:hover { border-color: var(--teal); }
+  .folder-item.drag-over { border-color: var(--teal); background: var(--teal-light); }
+  .folder-item.dragging { opacity: 0.4; }
+  .folder-icon { font-size: 18px; flex-shrink: 0; }
+  .folder-info { flex: 1; min-width: 0; }
+  .folder-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .folder-meta { font-size: 11px; color: var(--text-hint); margin-top: 1px; }
+  .folder-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .folder-action-btn {
+    padding: 3px 7px; font-size: 11px; border-radius: 4px;
+    background: none; border: 1px solid var(--border); color: var(--text-hint);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .folder-action-btn:hover { background: var(--bg); }
+  .folder-action-btn.del:hover { background: #FCEBEB; color: #A32D2D; border-color: #F09595; }
+  .drag-handle { cursor: grab; color: var(--text-hint); font-size: 16px; padding: 0 2px; flex-shrink: 0; }
+  .drag-handle:active { cursor: grabbing; }
+
+  /* Move-to-folder modal */
+  .folder-select-list { max-height: 260px; overflow-y: auto; margin-bottom: 16px; }
+  .folder-select-item {
+    padding: 10px 14px; border-radius: var(--radius-sm); cursor: pointer;
+    font-size: 14px; display: flex; align-items: center; gap: 8px;
+    transition: background 0.1s;
+  }
+  .folder-select-item:hover { background: var(--teal-light); }
+  .folder-select-item.selected { background: var(--teal-light); color: var(--teal-dark); font-weight: 500; }
 </style>
 </head>
 <body>
@@ -467,6 +526,49 @@
     <div class="modal-btns">
       <button class="modal-btn cancel" onclick="closeLogoutModal()">取消</button>
       <button class="modal-btn confirm" onclick="confirmLogout()">登出</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Folder Modal -->
+<div class="modal-overlay" id="new-folder-modal">
+  <div class="modal-box">
+    <div class="modal-title">📁 新增資料夾</div>
+    <div class="auth-field" style="margin-bottom:16px;margin-top:12px;">
+      <input class="auth-input" id="new-folder-name" type="text" placeholder="資料夾名稱" maxlength="30">
+    </div>
+    <div class="auth-error" id="new-folder-error"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeNewFolderModal()">取消</button>
+      <button class="modal-btn confirm" style="background:var(--teal)" onclick="confirmNewFolder()">建立</button>
+    </div>
+  </div>
+</div>
+
+<!-- Move Recipe Modal -->
+<div class="modal-overlay" id="move-recipe-modal">
+  <div class="modal-box">
+    <div class="modal-title">📂 移動食譜</div>
+    <div style="font-size:13px;color:var(--text-muted);margin:8px 0 12px;" id="move-recipe-label"></div>
+    <div class="folder-select-list" id="move-folder-list"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeMoveModal()">取消</button>
+      <button class="modal-btn confirm" style="background:var(--teal)" onclick="confirmMove()">移動</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="rename-modal-title">重新命名</div>
+    <div class="auth-field" style="margin-bottom:16px;margin-top:12px;">
+      <input class="auth-input" id="rename-input" type="text" maxlength="30">
+    </div>
+    <div class="auth-error" id="rename-error"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeRenameModal()">取消</button>
+      <button class="modal-btn confirm" style="background:var(--teal)" onclick="confirmRename()">確認</button>
     </div>
   </div>
 </div>
@@ -551,7 +653,7 @@
   <div class="serving-row">
     <div class="label">原始份量</div>
     <div class="serving-input-wrap">
-      <input type="number" id="original-servings" value="2" min="0.1" step="0.5">
+      <input type="text" id="original-servings" value="2" style="width:80px;padding:10px 12px;font-size:16px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--teal)'" onblur="this.style.borderColor='var(--border)'">
       <span class="serving-unit">人份</span>
     </div>
   </div>
@@ -601,7 +703,7 @@
     <div class="label">目標人數</div>
     <div class="convert-input-row">
       <div class="convert-input-wrap">
-        <input type="number" id="target-servings" value="4" min="0.5" step="0.5">
+        <input type="text" id="target-servings" value="4" style="ime-mode:disabled">
         <span class="convert-input-unit">人份</span>
       </div>
     </div>
@@ -611,7 +713,7 @@
     <div class="label">目標總重量（克）</div>
     <div class="convert-input-row">
       <div class="convert-input-wrap">
-        <input type="number" id="target-weight" placeholder="例：800" min="1">
+        <input type="text" id="target-weight" placeholder="例：800 或 1/2" style="ime-mode:disabled">
         <span class="convert-input-unit">g</span>
       </div>
     </div>
@@ -625,7 +727,7 @@
     <div class="label">這個食材要用多少？</div>
     <div class="convert-input-row">
       <div class="convert-input-wrap">
-        <input type="number" id="anchor-new-amount" placeholder="輸入新份量" min="0" step="any">
+        <input type="text" id="anchor-new-amount" placeholder="輸入份量 (如1/2)" style="ime-mode:disabled">
         <span class="convert-input-unit" id="anchor-unit-label">g</span>
       </div>
     </div>
@@ -641,7 +743,11 @@
 
 <!-- Saved Recipes Page -->
 <div id="page-saved" class="page">
-  <div class="label">我的食譜</div>
+  <div class="folder-toolbar">
+    <button class="folder-toolbar-btn" onclick="showNewFolderModal()">📁 新增資料夾</button>
+    <button class="folder-toolbar-btn" onclick="goUpFolder()" id="btn-up" style="display:none">⬆️ 上一層</button>
+  </div>
+  <div class="breadcrumb" id="breadcrumb"></div>
   <div id="saved-list"></div>
 </div>
 
@@ -754,6 +860,7 @@ function loginSuccess(username) {
   // Update header badge
   $('user-badge-avatar').textContent = username[0].toUpperCase();
   $('user-badge-name').textContent = username;
+  currentFolderPath = [];
   // Reset UI
   $('ingredient-list').innerHTML = '';
   $('steps-list').innerHTML = '';
@@ -904,7 +1011,7 @@ function addIngredient(name = '', amount = '', unit = 'g') {
   div.innerHTML = `
     <div class="ingredient-inputs">
       <input type="text" placeholder="食材名稱" value="${name}" class="ing-name">
-      <input type="number" placeholder="份量" value="${amount}" min="0" step="any" class="ing-amount">
+      <input type="text" placeholder="份量 (如1/2)" value="${amount}" class="ing-amount" style="ime-mode:disabled">
       <select class="ing-unit">${opts}</select>
     </div>
     <button class="ingredient-del" onclick="removeIngredient(${id})">×</button>`;
@@ -916,10 +1023,28 @@ function removeIngredient(id) {
   if (el) el.remove();
 }
 
+// Parse fraction strings like "1/2", "2 1/3", "0.5", "½" etc.
+function parseFraction(str) {
+  if (!str && str !== 0) return 0;
+  str = String(str).trim()
+    .replace('½','1/2').replace('⅓','1/3').replace('⅔','2/3')
+    .replace('¼','1/4').replace('¾','3/4').replace('⅛','1/8');
+  // mixed number: "2 1/3"
+  const mixed = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+  // fraction: "1/3"
+  const frac = str.match(/^(\d+)\/(\d+)$/);
+  if (frac) return parseInt(frac[1]) / parseInt(frac[2]);
+  // plain number
+  const n = parseFloat(str);
+  return isNaN(n) ? 0 : n;
+}
+
 function getIngredients() {
   return Array.from(document.querySelectorAll('.ingredient-card')).map(card => ({
     name: card.querySelector('.ing-name').value.trim(),
-    amount: parseFloat(card.querySelector('.ing-amount').value) || 0,
+    amount: parseFraction(card.querySelector('.ing-amount').value),
+    amountRaw: card.querySelector('.ing-amount').value.trim(),
     unit: card.querySelector('.ing-unit').value
   })).filter(i => i.name);
 }
@@ -936,15 +1061,15 @@ function formatNum(n) {
 function doConvert() {
   const ingredients = getIngredients();
   if (!ingredients.length) { showToast('請先在「編輯食譜」頁面加入食材！'); return; }
-  const origServings = parseFloat($('original-servings').value) || 2;
+  const origServings = parseFraction($('original-servings').value) || 2;
   let ratio;
 
   if (currentMode === 'servings') {
-    const target = parseFloat($('target-servings').value);
+    const target = parseFraction($('target-servings').value);
     if (!target || target <= 0) { showToast('請輸入有效的目標人數'); return; }
     ratio = target / origServings;
   } else if (currentMode === 'weight') {
-    const targetW = parseFloat($('target-weight').value);
+    const targetW = parseFraction($('target-weight').value);
     if (!targetW || targetW <= 0) { showToast('請輸入目標總重量'); return; }
     const totalG = ingredients.filter(i => ['g','kg','ml','L'].includes(i.unit))
       .reduce((sum, i) => sum + (i.unit === 'kg' || i.unit === 'L' ? i.amount * 1000 : i.amount), 0);
@@ -953,7 +1078,7 @@ function doConvert() {
   } else {
     const idx = parseInt($('anchor-ingredient-select').value);
     if (isNaN(idx) || !ingredients[idx]) { showToast('請選擇基準食材'); return; }
-    const newAmt = parseFloat($('anchor-new-amount').value);
+    const newAmt = parseFraction($('anchor-new-amount').value);
     if (!newAmt || newAmt <= 0) { showToast('請輸入新份量'); return; }
     if (!ingredients[idx].amount) { showToast('基準食材的原始份量為 0，無法計算'); return; }
     ratio = newAmt / ingredients[idx].amount;
@@ -996,7 +1121,7 @@ function saveRecipe() {
   if (!name) { showToast('請先輸入食譜名稱'); return; }
   const ingredients = getIngredients();
   if (!ingredients.length) { showToast('請先加入食材'); return; }
-  const servings = parseFloat($('original-servings').value) || 2;
+  const servings = parseFraction($('original-servings').value) || 2;
   const notes = $('recipe-notes').value.trim();
   const steps = getSteps();
   const recipes = JSON.parse(localStorage.getItem(getRecipesKey()) || '[]');
@@ -1037,23 +1162,334 @@ function deleteRecipe(name) {
 }
 
 function renderSaved() {
+  renderFolder(currentFolderPath);
+}
+
+// ─── FOLDER SYSTEM ────────────────────────────────────────────────────────────
+
+let currentFolderPath = []; // array of folder ids, empty = root
+let moveTargetRecipeName = null;
+let moveSelectedFolderId = '__root__';
+let renameTarget = null; // {type:'folder'|'recipe', id, name}
+let dragSrcEl = null;
+
+function getFolderKey() { return 'rp_folders_' + currentUser.username; }
+
+function getFolders() { return JSON.parse(localStorage.getItem(getFolderKey()) || '[]'); }
+function saveFolders(f) { localStorage.setItem(getFolderKey(), JSON.stringify(f)); }
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// Get folder object by id (recursive)
+function findFolder(folders, id) {
+  for (const f of folders) {
+    if (f.id === id) return f;
+    if (f.children) { const found = findFolder(f.children, id); if (found) return found; }
+  }
+  return null;
+}
+
+// Get folder at current path
+function getCurrentFolder() {
+  if (!currentFolderPath.length) return null;
+  const folders = getFolders();
+  let cur = null;
+  let list = folders;
+  for (const id of currentFolderPath) {
+    cur = list.find(f => f.id === id);
+    if (!cur) return null;
+    list = cur.children || [];
+  }
+  return cur;
+}
+
+// Get folders and recipes at current level
+function getCurrentLevelData() {
+  const folders = getFolders();
+  if (!currentFolderPath.length) {
+    const recipes = JSON.parse(localStorage.getItem(getRecipesKey()) || '[]');
+    const rootRecipes = recipes.filter(r => !r.folderId);
+    const rootFolders = folders;
+    return { folders: rootFolders, recipes: rootRecipes };
+  }
+  const curFolder = getCurrentFolder();
+  if (!curFolder) return { folders: [], recipes: [] };
   const recipes = JSON.parse(localStorage.getItem(getRecipesKey()) || '[]');
+  const folderRecipes = recipes.filter(r => r.folderId === curFolder.id);
+  return { folders: curFolder.children || [], recipes: folderRecipes };
+}
+
+function renderFolder(path) {
+  currentFolderPath = path;
+  const { folders, recipes } = getCurrentLevelData();
   const list = $('saved-list');
-  if (!recipes.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div>還沒有儲存的食譜<br>在「編輯食譜」頁面輸入後按「儲存食譜」</div>`;
+  const allFolders = getFolders();
+
+  // Breadcrumb
+  const bc = $('breadcrumb');
+  if (!path.length) {
+    bc.innerHTML = '<span class="breadcrumb-current">🏠 全部食譜</span>';
+    $('btn-up').style.display = 'none';
+  } else {
+    let crumbs = '<span class="breadcrumb-item" onclick="renderFolder([])">🏠 首頁</span>';
+    let curList = allFolders;
+    path.forEach((id, i) => {
+      const f = curList.find(x => x.id === id);
+      if (!f) return;
+      const subPath = path.slice(0, i+1);
+      if (i < path.length - 1) {
+        crumbs += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item" onclick='renderFolder(${JSON.stringify(subPath)})'>${f.name}</span>`;
+      } else {
+        crumbs += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-current">${f.name}</span>`;
+      }
+      curList = f.children || [];
+    });
+    bc.innerHTML = crumbs;
+    $('btn-up').style.display = '';
+  }
+
+  if (!folders.length && !recipes.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div>這裡還沒有食譜<br>在「編輯食譜」頁面輸入後按「儲存食譜」</div>`;
     return;
   }
-  list.innerHTML = recipes.map(r => `
-    <div class="recipe-list-item" onclick="loadRecipe(${JSON.stringify(r).replace(/"/g,'&quot;')})">
-      <div>
-        <div class="recipe-list-name">${r.name}</div>
-        <div class="recipe-list-meta">${r.servings} 人份 · ${r.ingredients.length} 種食材</div>
+
+  list.innerHTML = '';
+
+  // Render folders
+  folders.forEach((folder, fi) => {
+    const allRecipes = JSON.parse(localStorage.getItem(getRecipesKey()) || '[]');
+    const count = countFolderItems(folder, allRecipes);
+    const div = document.createElement('div');
+    div.className = 'folder-item';
+    div.draggable = true;
+    div.dataset.type = 'folder';
+    div.dataset.id = folder.id;
+    div.innerHTML = `
+      <span class="drag-handle" title="拖曳排序">⠿</span>
+      <span class="folder-icon">📁</span>
+      <div class="folder-info">
+        <div class="folder-name">${folder.name}</div>
+        <div class="folder-meta">${count} 個項目</div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="recipe-list-del" onclick="event.stopPropagation();deleteRecipe('${r.name}')">刪除</button>
-        <span class="recipe-list-arrow">›</span>
+      <div class="folder-actions">
+        <button class="folder-action-btn" onclick="event.stopPropagation();openRenameFolder('${folder.id}','${folder.name.replace(/'/g,"\\'")}')">改名</button>
+        <button class="folder-action-btn del" onclick="event.stopPropagation();deleteFolder('${folder.id}')">刪除</button>
+      </div>`;
+    div.addEventListener('click', () => renderFolder([...currentFolderPath, folder.id]));
+    setupDrag(div);
+    list.appendChild(div);
+  });
+
+  // Render recipes
+  recipes.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'folder-item';
+    div.draggable = true;
+    div.dataset.type = 'recipe';
+    div.dataset.name = r.name;
+    div.innerHTML = `
+      <span class="drag-handle" title="拖曳排序">⠿</span>
+      <span class="folder-icon">🍽️</span>
+      <div class="folder-info">
+        <div class="folder-name">${r.name}</div>
+        <div class="folder-meta">${r.servings} 人份 · ${r.ingredients.length} 種食材</div>
       </div>
-    </div>`).join('');
+      <div class="folder-actions">
+        <button class="folder-action-btn" onclick="event.stopPropagation();openMoveModal('${r.name.replace(/'/g,"\\'")}')">移動</button>
+        <button class="folder-action-btn del" onclick="event.stopPropagation();deleteRecipe('${r.name.replace(/'/g,"\\'")}')">刪除</button>
+      </div>`;
+    div.addEventListener('click', () => loadRecipe(r));
+    setupDrag(div);
+    list.appendChild(div);
+  });
+}
+
+function countFolderItems(folder, allRecipes) {
+  const direct = allRecipes.filter(r => r.folderId === folder.id).length;
+  const subFolders = (folder.children || []).length;
+  return direct + subFolders;
+}
+
+function goUpFolder() {
+  renderFolder(currentFolderPath.slice(0, -1));
+}
+
+// ─── DRAG & DROP SORT ─────────────────────────────────────────────────────────
+
+function setupDrag(el) {
+  el.addEventListener('dragstart', e => {
+    dragSrcEl = el;
+    el.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+    document.querySelectorAll('.folder-item').forEach(i => i.classList.remove('drag-over'));
+  });
+  el.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (el !== dragSrcEl) el.classList.add('drag-over');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    if (!dragSrcEl || dragSrcEl === el) return;
+    const list = $('saved-list');
+    const items = [...list.children];
+    const srcIdx = items.indexOf(dragSrcEl);
+    const tgtIdx = items.indexOf(el);
+    if (srcIdx < tgtIdx) list.insertBefore(dragSrcEl, el.nextSibling);
+    else list.insertBefore(dragSrcEl, el);
+    persistOrder();
+  });
+}
+
+function persistOrder() {
+  // Save new order for folders and recipes at current level
+  const items = [...$('saved-list').children];
+  const newFolderOrder = [];
+  const newRecipeOrder = [];
+  items.forEach(el => {
+    if (el.dataset.type === 'folder') newFolderOrder.push(el.dataset.id);
+    else if (el.dataset.type === 'recipe') newRecipeOrder.push(el.dataset.name);
+  });
+
+  // Reorder folders
+  const allFolders = getFolders();
+  if (!currentFolderPath.length) {
+    const reordered = newFolderOrder.map(id => allFolders.find(f => f.id === id)).filter(Boolean);
+    const others = allFolders.filter(f => !newFolderOrder.includes(f.id));
+    saveFolders([...reordered, ...others]);
+  } else {
+    const parent = getCurrentFolder();
+    if (parent) {
+      parent.children = newFolderOrder.map(id => (parent.children||[]).find(f => f.id === id)).filter(Boolean);
+      saveFolders(allFolders);
+    }
+  }
+
+  // Reorder recipes
+  const allRecipes = JSON.parse(localStorage.getItem(getRecipesKey()) || '[]');
+  const curFolderId = currentFolderPath.length ? getCurrentFolder()?.id : null;
+  const levelRecipes = allRecipes.filter(r => (curFolderId ? r.folderId === curFolderId : !r.folderId));
+  const reorderedRecipes = newRecipeOrder.map(name => levelRecipes.find(r => r.name === name)).filter(Boolean);
+  const otherRecipes = allRecipes.filter(r => !levelRecipes.find(lr => lr.name === r.name));
+  localStorage.setItem(getRecipesKey(), JSON.stringify([...reorderedRecipes, ...otherRecipes]));
+}
+
+// ─── FOLDER MODALS ────────────────────────────────────────────────────────────
+
+function showNewFolderModal() {
+  $('new-folder-name').value = '';
+  $('new-folder-error').textContent = '';
+  $('new-folder-modal').classList.add('show');
+  setTimeout(() => $('new-folder-name').focus(), 100);
+}
+function closeNewFolderModal() { $('new-folder-modal').classList.remove('show'); }
+function confirmNewFolder() {
+  const name = $('new-folder-name').value.trim();
+  if (!name) { $('new-folder-error').textContent = '請輸入資料夾名稱'; return; }
+  const allFolders = getFolders();
+  const newFolder = { id: genId(), name, children: [] };
+  if (!currentFolderPath.length) {
+    allFolders.push(newFolder);
+    saveFolders(allFolders);
+  } else {
+    const parent = getCurrentFolder();
+    if (parent) { if (!parent.children) parent.children = []; parent.children.push(newFolder); saveFolders(allFolders); }
+  }
+  closeNewFolderModal();
+  renderSaved();
+  showToast('📁 資料夾已建立');
+}
+
+function deleteFolder(id) {
+  const allFolders = getFolders();
+  const allRecipes = JSON.parse(localStorage.getItem(getRecipesKey()) || '[]');
+  // Move recipes in this folder to parent
+  const folder = findFolder(allFolders, id);
+  if (folder) {
+    const parentId = currentFolderPath.length > 0 ? currentFolderPath[currentFolderPath.length-1] : null;
+    allRecipes.forEach(r => { if (r.folderId === id) r.folderId = parentId || undefined; });
+    localStorage.setItem(getRecipesKey(), JSON.stringify(allRecipes));
+  }
+  removeFolder(allFolders, id);
+  saveFolders(allFolders);
+  renderSaved();
+  showToast('資料夾已刪除');
+}
+
+function removeFolder(list, id) {
+  const idx = list.findIndex(f => f.id === id);
+  if (idx >= 0) { list.splice(idx, 1); return; }
+  list.forEach(f => { if (f.children) removeFolder(f.children, id); });
+}
+
+function openRenameFolder(id, name) {
+  renameTarget = { type: 'folder', id };
+  $('rename-modal-title').textContent = '📁 重新命名資料夾';
+  $('rename-input').value = name;
+  $('rename-error').textContent = '';
+  $('rename-modal').classList.add('show');
+  setTimeout(() => $('rename-input').focus(), 100);
+}
+function closeRenameModal() { $('rename-modal').classList.remove('show'); }
+function confirmRename() {
+  const name = $('rename-input').value.trim();
+  if (!name) { $('rename-error').textContent = '請輸入名稱'; return; }
+  if (renameTarget.type === 'folder') {
+    const allFolders = getFolders();
+    const f = findFolder(allFolders, renameTarget.id);
+    if (f) { f.name = name; saveFolders(allFolders); }
+  }
+  closeRenameModal();
+  renderSaved();
+  showToast('✅ 已更新名稱');
+}
+
+// ─── MOVE RECIPE ─────────────────────────────────────────────────────────────
+
+function openMoveModal(recipeName) {
+  moveTargetRecipeName = recipeName;
+  moveSelectedFolderId = '__root__';
+  $('move-recipe-label').textContent = `將「${recipeName}」移動到：`;
+  renderMoveFolderList($('move-folder-list'), getFolders(), 0);
+  $('move-recipe-modal').classList.add('show');
+}
+function closeMoveModal() { $('move-recipe-modal').classList.remove('show'); }
+
+function renderMoveFolderList(container, folders, depth) {
+  if (depth === 0) {
+    container.innerHTML = '';
+    const rootDiv = document.createElement('div');
+    rootDiv.className = 'folder-select-item' + (moveSelectedFolderId === '__root__' ? ' selected' : '');
+    rootDiv.innerHTML = `🏠 根目錄（不在資料夾）`;
+    rootDiv.onclick = () => { moveSelectedFolderId = '__root__'; document.querySelectorAll('.folder-select-item').forEach(i => i.classList.remove('selected')); rootDiv.classList.add('selected'); };
+    container.appendChild(rootDiv);
+  }
+  folders.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'folder-select-item' + (moveSelectedFolderId === f.id ? ' selected' : '');
+    div.style.paddingLeft = (14 + depth * 16) + 'px';
+    div.innerHTML = `📁 ${f.name}`;
+    div.onclick = () => { moveSelectedFolderId = f.id; document.querySelectorAll('.folder-select-item').forEach(i => i.classList.remove('selected')); div.classList.add('selected'); };
+    container.appendChild(div);
+    if (f.children && f.children.length) renderMoveFolderList(container, f.children, depth + 1);
+  });
+}
+
+function confirmMove() {
+  const allRecipes = JSON.parse(localStorage.getItem(getRecipesKey()) || '[]');
+  const recipe = allRecipes.find(r => r.name === moveTargetRecipeName);
+  if (recipe) {
+    if (moveSelectedFolderId === '__root__') delete recipe.folderId;
+    else recipe.folderId = moveSelectedFolderId;
+    localStorage.setItem(getRecipesKey(), JSON.stringify(allRecipes));
+  }
+  closeMoveModal();
+  renderSaved();
+  showToast('✅ 食譜已移動');
 }
 
 // ─── PWA ─────────────────────────────────────────────────────────────────────
@@ -1073,11 +1509,13 @@ document.addEventListener('change', e => {
   if (e.target.id === 'anchor-ingredient-select') updateAnchorHint();
 });
 
-// Enter key on auth inputs
+// Enter key on auth and folder inputs
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   if ($('register-form').style.display !== 'none') doRegister();
   else if (!$('auth-screen').classList.contains('hidden')) doLogin();
+  else if ($('new-folder-modal').classList.contains('show')) confirmNewFolder();
+  else if ($('rename-modal').classList.contains('show')) confirmRename();
 });
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
