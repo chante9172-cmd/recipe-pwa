@@ -689,7 +689,9 @@ async function renderSaved(){
   renderBreadcrumb();
   let fq=sb.from('folders').select('*').eq('user_id',currentUser.id).order('sort_order');
   if(currentFolderId)fq=fq.eq('parent_id',currentFolderId);else fq=fq.is('parent_id',null);
-  const[{data:folders},{data:recipes}]=await Promise.all([fq,sb.from('recipes').select('*').eq('user_id',currentUser.id).is('folder_id',currentFolderId).order('sort_order')]);
+  let rq=sb.from('recipes').select('*').eq('user_id',currentUser.id).order('sort_order');
+  if(currentFolderId)rq=rq.eq('folder_id',currentFolderId);else rq=rq.is('folder_id',null);
+  const[{data:folders},{data:recipes}]=await Promise.all([fq,rq]);
   list.innerHTML='';
   if((!folders||!folders.length)&&(!recipes||!recipes.length)){list.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><p>${currentFolderId?'此資料夾是空的':'還沒有食譜，去編輯頁面新增吧！'}</p></div>`;return;}
   (folders||[]).forEach(f=>{
