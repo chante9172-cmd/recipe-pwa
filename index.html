@@ -531,7 +531,7 @@ function renderIngredients(){
   currentRecipe.ingredients.forEach((ing,i)=>{
     const row=document.createElement('div');row.className='ingredient-row';
     const opts=UNITS.map(u=>`<option value="${u}"${ing.unit===u?' selected':''}>${u}</option>`).join('');
-    row.innerHTML=`<input class="qty" type="text" value="${ing.qty||''}" placeholder="份量" onchange="currentRecipe.ingredients[${i}].qty=this.value"><select onchange="currentRecipe.ingredients[${i}].unit=this.value">${opts}</select><input type="text" value="${ing.name||''}" placeholder="食材名稱" onchange="currentRecipe.ingredients[${i}].name=this.value"><button class="del-btn" onclick="delIngredient(${i})">✕</button>`;
+    row.innerHTML=`<input type="text" value="${ing.name||''}" placeholder="食材名稱" onchange="currentRecipe.ingredients[${i}].name=this.value"><input class="qty" type="text" value="${ing.qty||''}" placeholder="份量" onchange="currentRecipe.ingredients[${i}].qty=this.value"><select onchange="currentRecipe.ingredients[${i}].unit=this.value">${opts}</select><button class="del-btn" onclick="delIngredient(${i})">✕</button>`;
     list.appendChild(row);
   });
 }
@@ -602,8 +602,8 @@ async function saveRecipe(){
   document.querySelectorAll('.ingredient-row').forEach((row,i)=>{
     if(currentRecipe.ingredients[i]){
       const inputs=row.querySelectorAll('input');const sel=row.querySelector('select');
-      currentRecipe.ingredients[i].qty=inputs[0].value;
-      currentRecipe.ingredients[i].name=inputs[1].value;
+      currentRecipe.ingredients[i].name=inputs[0].value;
+      currentRecipe.ingredients[i].qty=inputs[1].value;
       currentRecipe.ingredients[i].unit=sel.value;
     }
   });
@@ -651,7 +651,10 @@ function updateConvertPage(){
 function doConvert(){
   const ings=currentRecipe.ingredients;if(!ings.length)return;
   let ratio=1;const orig=parseFraction(currentRecipe.servings)||1;
-  if(convertMode===0){const t=parseFraction(document.getElementById('target-servings').value);if(isNaN(t)||t<=0){showToast('請輸入有效人數');return;}ratio=t/orig;}
+  if(convertMode===0){
+    const servStr=currentRecipe.servings?currentRecipe.servings.trim():'';
+    if(!servStr){showToast('此食譜尚未設定人數，請先到編輯頁面填寫份量');return;}
+    const t=parseFraction(document.getElementById('target-servings').value);if(isNaN(t)||t<=0){showToast('請輸入有效人數');return;}ratio=t/orig;}
   else if(convertMode===1){const tw=parseFraction(document.getElementById('target-weight').value);if(isNaN(tw)||tw<=0){showToast('請輸入有效重量');return;}const wu=['g','kg','ml','L'];let tot=0;ings.forEach(ing=>{if(wu.includes(ing.unit)){let q=parseFraction(ing.qty)||0;if(ing.unit==='kg'||ing.unit==='L')q*=1000;tot+=q;}});if(tot<=0){showToast('找不到可計算重量的食材');return;}ratio=tw/tot;}
   else{const ri=parseInt(document.getElementById('ref-ingredient').value);const ra=parseFraction(document.getElementById('ref-amount').value);const ro=parseFraction(ings[ri].qty);if(isNaN(ra)||ra<=0||isNaN(ro)||ro<=0){showToast('請輸入有效份量');return;}ratio=ra/ro;}
   const rl=document.getElementById('result-list');rl.innerHTML='';
