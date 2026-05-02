@@ -613,9 +613,17 @@ async function saveRecipe(){
   currentRecipe.servings=document.getElementById('recipe-servings').value.trim();
   currentRecipe.notes=document.getElementById('recipe-notes').value.trim();
   if(!currentRecipe.name){showToast('請輸入食譜名稱');return;}
-  const payload={user_id:currentUser.id,name:currentRecipe.name,servings:currentRecipe.servings,ingredients:currentRecipe.ingredients,steps:currentRecipe.steps,notes:currentRecipe.notes,cover:currentRecipe.cover||'',folder_id:currentRecipe.folder_id||null,sort_order:0};
-  if(currentRecipe.id){await sb.from('recipes').update(payload).eq('id',currentRecipe.id);showToast('✅ 食譜已更新！');}
-  else{const{data}=await sb.from('recipes').insert(payload).select().single();if(data)currentRecipe.id=data.id;showToast('✅ 食譜已儲存！');}
+  const payload={user_id:currentUser.id,name:currentRecipe.name,servings:currentRecipe.servings||null,ingredients:currentRecipe.ingredients,steps:currentRecipe.steps,notes:currentRecipe.notes,cover:currentRecipe.cover||'',folder_id:currentRecipe.folder_id||null,sort_order:0};
+  if(currentRecipe.id){
+    const{error}=await sb.from('recipes').update(payload).eq('id',currentRecipe.id);
+    if(error){showToast('❌ 更新失敗：'+error.message);console.error(error);return;}
+    showToast('✅ 食譜已更新！');
+  }else{
+    const{data,error}=await sb.from('recipes').insert(payload).select().single();
+    if(error){showToast('❌ 儲存失敗：'+error.message);console.error(error);return;}
+    if(data)currentRecipe.id=data.id;
+    showToast('✅ 食譜已儲存！');
+  }
 }
 
 async function loadRecipe(recipe){
@@ -842,4 +850,3 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 </body>
 </html>
-
