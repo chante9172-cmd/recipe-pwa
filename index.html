@@ -771,8 +771,10 @@ async function createFolder(){
   closeModal('new-folder-modal');renderSaved();showToast('📁 資料夾已建立');
 }
 async function deleteFolder(id){
-  if(!confirm('確定要刪除此資料夾嗎？'))return;
-  await sb.from('folders').delete().eq('id',id);renderSaved();showToast('🗑 已刪除');
+  if(!confirm('確定要刪除此資料夾嗎？裡面的食譜會移回根目錄。'))return;
+  await sb.from('recipes').update({folder_id:null}).eq('folder_id',id);
+  await sb.from('folders').delete().eq('id',id);
+  renderSaved();showToast('🗑 已刪除，食譜已移回根目錄');
 }
 async function showMoveModal(recipeId){
   const listEl=document.getElementById('move-folder-list');listEl.innerHTML='<div class="loading">載入中…</div>';openModal('move-modal');
