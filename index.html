@@ -414,7 +414,16 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-title" id="confirm-title">確定嗎？</div>
+    <p id="confirm-msg" style="text-align:center;color:var(--text-light);font-size:14px;margin-bottom:4px"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('confirm-modal')">取消</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">確定</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ══ SUPABASE ══
@@ -543,7 +552,7 @@ function switchPage(page){
 
 // ══ EDIT ══
 function newRecipe(){
-  currentRecipe={id:null,name:'',servings:'',ingredients:[],steps:'',notes:'',cover:'',drawing:'',folder_id:null};
+  currentRecipe={id:null,name:'',servings:'',ingredients:[{qty:'',unit:'g',name:''}],steps:'',notes:'',cover:'',drawing:'',folder_id:null};
   coverDataUrl='';
   document.getElementById('recipe-name').value='';
   document.getElementById('recipe-servings').value='';
@@ -620,15 +629,18 @@ function clearCover(){
 function initCanvas(){
   canvas=document.getElementById('drawing-canvas');
   if(!canvas)return;
+  // Remove old listeners to prevent duplicates
+  const newCanvas=canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(newCanvas,canvas);
+  canvas=newCanvas;ctx=canvas.getContext('2d');
   canvas.width=canvas.offsetWidth||canvas.parentElement.offsetWidth||360;
-  ctx=canvas.getContext('2d');
   if(currentRecipe.drawing){
-    const img=new Image();img.onload=()=>ctx.drawImage(img,0,0);img.src=currentRecipe.drawing;
-  }else{ctx.clearRect(0,0,canvas.width,canvas.height);}
-  canvas.addEventListener('mousedown',startDraw);
-  canvas.addEventListener('mousemove',doDraw);
-  canvas.addEventListener('mouseup',endDraw);
-  canvas.addEventListener('mouseleave',endDraw);
+    const img=new Image();img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height);img.src=currentRecipe.drawing;
+  }
+  canvas.addEventListener('mousedown',e=>{drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;});
+  canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getPos(e);drawLine(lastX,lastY,p.x,p.y);lastX=p.x;lastY=p.y;});
+  canvas.addEventListener('mouseup',()=>drawing=false);
+  canvas.addEventListener('mouseleave',()=>drawing=false);
   canvas.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const r=canvas.getBoundingClientRect();lastX=t.clientX-r.left;lastY=t.clientY-r.top;drawing=true;},{passive:false});
   canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const t=e.touches[0];const r=canvas.getBoundingClientRect();const x=t.clientX-r.left;const y=t.clientY-r.top;drawLine(lastX,lastY,x,y);lastX=x;lastY=y;},{passive:false});
   canvas.addEventListener('touchend',()=>drawing=false);
@@ -651,10 +663,10 @@ function setTool(tool){
 function clearCanvas(){ctx&&ctx.clearRect(0,0,canvas.width,canvas.height);}
 function getDrawingData(){
   if(!canvas)return'';
-  // Check if canvas is blank
   const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-  const hasContent=data.some((v,i)=>i%4!==3&&v!==0)||data.some((v,i)=>i%4===3&&v!==0);
-  return hasContent?canvas.toDataURL('image/png'):'';
+  const hasContent=Array.from(data).some((v,i)=>i%4===3&&v>0);
+  if(!hasContent)return'';
+  return canvas.toDataURL('image/jpeg',0.6); // compress to keep size small
 }
 
 // ══ SAVE / LOAD ══
@@ -718,10 +730,27 @@ function loadRecipeForEdit(recipe){
   showToast(`📖 已載入「${recipe.name}」`);
 }
 
+function showConfirm(title,msg,onOk){
+  document.getElementById('confirm-title').textContent=title;
+  document.getElementById('confirm-msg').textContent=msg;
+  const btn=document.getElementById('confirm-ok-btn');
+  btn.onclick=()=>{closeModal('confirm-modal');onOk();};
+  openModal('confirm-modal');
+}
+
 async function deleteRecipe(id){
-  if(!confirm('確定要刪除這個食譜嗎？'))return;
-  await sb.from('recipes').delete().eq('id',id);
-  renderSaved();showToast('🗑 已刪除');
+  showConfirm('刪除食譜','確定要刪除這個食譜嗎？',async()=>{
+    await sb.from('recipes').delete().eq('id',id);
+    renderSaved();showToast('🗑 已刪除');
+  });
+}
+
+async function deleteFolder(id){
+  showConfirm('刪除資料夾','裡面的食譜會移回根目錄，確定刪除嗎？',async()=>{
+    await sb.from('recipes').update({folder_id:null}).eq('folder_id',id);
+    await sb.from('folders').delete().eq('id',id);
+    renderSaved();showToast('🗑 已刪除，食譜已移回根目錄');
+  });
 }
 
 // ══ SAVED ══
@@ -769,12 +798,6 @@ async function createFolder(){
   if(!name){showToast('請輸入名稱');return;}
   await sb.from('folders').insert({user_id:currentUser.id,name,parent_id:currentFolderId||null,sort_order:0});
   closeModal('new-folder-modal');renderSaved();showToast('📁 資料夾已建立');
-}
-async function deleteFolder(id){
-  if(!confirm('確定要刪除此資料夾嗎？裡面的食譜會移回根目錄。'))return;
-  await sb.from('recipes').update({folder_id:null}).eq('folder_id',id);
-  await sb.from('folders').delete().eq('id',id);
-  renderSaved();showToast('🗑 已刪除，食譜已移回根目錄');
 }
 async function showMoveModal(recipeId){
   const listEl=document.getElementById('move-folder-list');listEl.innerHTML='<div class="loading">載入中…</div>';openModal('move-modal');
