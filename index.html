@@ -2,1536 +2,836 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#1D9E75">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="食譜轉換器">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>食譜轉換器</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff6b35">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="食譜轉換">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root {
-    --teal: #1D9E75;
-    --teal-light: #E1F5EE;
-    --teal-dark: #0F6E56;
-    --amber: #EF9F27;
-    --amber-light: #FAEEDA;
-    --text: #2C2C2A;
-    --text-muted: #5F5E5A;
-    --text-hint: #888780;
-    --bg: #FAFAF8;
-    --surface: #FFFFFF;
-    --border: rgba(44,44,42,0.12);
-    --border-strong: rgba(44,44,42,0.22);
-    --radius: 14px;
-    --radius-sm: 8px;
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bot: env(safe-area-inset-bottom, 0px);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body {
-    font-family: 'Noto Sans TC', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100dvh;
-    max-width: 480px;
-    margin: 0 auto;
-  }
+:root {
+  --primary:#ff6b35;--primary-dark:#e85a26;--bg:#f8f6f3;--card:#ffffff;
+  --text:#2d3436;--text-light:#636e72;--border:#e0dcd8;
+  --success:#00b894;--danger:#d63031;
+  --shadow:0 2px 12px rgba(0,0,0,0.08);--radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 
-  /* Header */
-  .header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: calc(var(--safe-top) + 14px) 20px 14px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .header-inner { display: flex; align-items: center; justify-content: space-between; }
-  .logo { display: flex; align-items: center; gap: 10px; }
-  .logo-icon {
-    width: 36px; height: 36px;
-    background: var(--teal);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-  }
-  .logo-text { font-family: 'Noto Serif TC', serif; font-size: 17px; font-weight: 600; letter-spacing: 0.02em; }
-  .logo-sub { font-size: 11px; color: var(--text-hint); letter-spacing: 0.05em; margin-top: 1px; }
+/* AUTH */
+#auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background-size:cover;background-position:center;background-color:var(--bg)}
+.auth-logo{font-size:56px;margin-bottom:8px}
+.auth-title{font-size:26px;font-weight:700;color:var(--primary);margin-bottom:4px}
+.auth-subtitle{font-size:13px;color:var(--text-light);margin-bottom:32px}
+.auth-card{background:var(--card);border-radius:var(--radius);padding:24px;width:100%;max-width:380px;box-shadow:var(--shadow)}
+.auth-tabs{display:flex;border-radius:10px;background:#f0ece8;padding:4px;margin-bottom:20px;gap:4px}
+.auth-tab{flex:1;padding:8px;border:none;border-radius:8px;background:transparent;font-size:14px;font-family:inherit;cursor:pointer;font-weight:500;color:var(--text-light);transition:all .2s}
+.auth-tab.active{background:white;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.accounts-list{display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;margin-bottom:12px}
+.account-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;transition:all .2s}
+.account-item:hover{border-color:var(--primary);background:#fff8f5}
+.account-avatar{width:38px;height:38px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+.account-name{font-weight:500;font-size:15px;flex:1}
 
-  /* Tabs */
-  .tabs {
-    display: flex;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    padding: 0 20px;
-  }
-  .tab {
-    flex: 1; padding: 10px 0;
-    font-size: 13px; font-weight: 500;
-    color: var(--text-hint);
-    background: none; border: none; cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: color 0.2s, border-color 0.2s;
-    letter-spacing: 0.03em;
-  }
-  .tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+/* APP */
+#app{display:none;min-height:100vh;flex-direction:column}
+#app.active{display:flex}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:white;box-shadow:0 1px 0 var(--border);position:sticky;top:0;z-index:100}
+.top-bar-title{font-size:17px;font-weight:700;color:var(--primary)}
+.user-btn{display:flex;align-items:center;gap:8px;background:#fff8f5;border:1.5px solid var(--border);border-radius:20px;padding:5px 12px 5px 5px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;color:var(--text)}
+.user-btn .avatar{width:26px;height:26px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.page-content{flex:1;overflow-y:auto;padding-bottom:80px}
 
-  /* Content */
-  .page { display: none; padding: 20px 20px calc(var(--safe-bot) + 80px); }
-  .page.active { display: block; }
+/* NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom)}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 8px;border:none;background:transparent;cursor:pointer;font-family:inherit;gap:3px;position:relative}
+.nav-btn .nav-icon{font-size:22px;transition:transform .2s}
+.nav-btn .nav-label{font-size:10px;color:var(--text-light);font-weight:500}
+.nav-btn.active .nav-icon{transform:scale(1.1)}
+.nav-btn.active .nav-label{color:var(--primary);font-weight:700}
+.nav-btn.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:var(--primary);border-radius:2px 2px 0 0}
 
-  /* Section label */
-  .label { font-size: 11px; font-weight: 500; color: var(--text-hint); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+/* PAGES */
+.page{display:none;padding:16px}
+.page.active{display:block}
 
-  /* Recipe name */
-  .recipe-name-row { margin-bottom: 20px; }
-  .recipe-name-input {
-    width: 100%; padding: 12px 14px;
-    font-family: 'Noto Serif TC', serif; font-size: 18px; font-weight: 600;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--text);
-    outline: none; transition: border-color 0.2s;
-  }
-  .recipe-name-input:focus { border-color: var(--teal); }
-  .recipe-name-input::placeholder { font-family: 'Noto Sans TC', sans-serif; font-size: 14px; font-weight: 300; color: var(--text-hint); }
+/* CARDS */
+.card{background:white;border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card-title{font-size:13px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
 
-  /* Ingredients list */
-  .ingredients-section { margin-bottom: 20px; }
-  .ingredient-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    display: flex; align-items: center; gap: 10px;
-    animation: slideIn 0.2s ease;
-  }
-  @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-  .ingredient-inputs { flex: 1; display: grid; grid-template-columns: 1fr auto 60px; gap: 6px; align-items: center; }
-  .ingredient-inputs input, .ingredient-inputs select {
-    padding: 7px 10px; font-size: 14px; font-family: 'Noto Sans TC', sans-serif;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: 6px; color: var(--text); outline: none;
-    transition: border-color 0.2s;
-  }
-  .ingredient-inputs input:focus, .ingredient-inputs select:focus { border-color: var(--teal); }
-  .ingredient-inputs input[type="number"] { -moz-appearance: textfield; }
-  .ingredient-inputs input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
-  .ingredient-del {
-    width: 28px; height: 28px; border-radius: 50%;
-    background: none; border: 1px solid var(--border);
-    color: var(--text-hint); cursor: pointer; font-size: 16px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; transition: background 0.15s, color 0.15s;
-  }
-  .ingredient-del:hover { background: #FCEBEB; color: #A32D2D; border-color: #F09595; }
+/* INPUTS */
+input,textarea,select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;background:white;color:var(--text);outline:none;transition:border-color .2s}
+input:focus,textarea:focus,select:focus{border-color:var(--primary)}
+input[type="color"]{padding:4px;height:44px;cursor:pointer}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
 
-  /* Add button */
-  .add-btn {
-    width: 100%; padding: 11px;
-    background: none; border: 1px dashed var(--border-strong);
-    border-radius: var(--radius-sm); color: var(--text-muted);
-    font-size: 13px; cursor: pointer; letter-spacing: 0.03em;
-    transition: background 0.15s, border-color 0.2s;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-  }
-  .add-btn:hover { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;border-radius:10px;border:none;font-size:14px;font-family:inherit;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:var(--primary);color:white}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}
+.btn-danger{background:var(--danger);color:white}
+.btn-ghost{background:#f5f5f5;color:var(--text)}
+.btn-sm{padding:7px 12px;font-size:13px}
+.btn-full{width:100%}
+.btn:active{transform:scale(.97)}
 
-  /* Serving info */
-  .serving-row { margin-bottom: 20px; }
-  .serving-input-wrap { display: flex; align-items: center; gap: 10px; }
-  .serving-input-wrap input {
-    width: 80px; padding: 10px 12px; font-size: 16px; text-align: center;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--text); outline: none;
-    transition: border-color 0.2s; -moz-appearance: textfield;
-  }
-  .serving-input-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
-  .serving-input-wrap input:focus { border-color: var(--teal); }
-  .serving-unit { font-size: 14px; color: var(--text-muted); }
+/* INGREDIENTS */
+.ingredient-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.ingredient-row input{flex:3}
+.ingredient-row .qty{flex:2}
+.ingredient-row select{flex:2;padding:11px 6px}
+.del-btn{background:#fee;border:none;border-radius:8px;width:34px;height:44px;cursor:pointer;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--danger)}
 
-  /* Divider */
-  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+/* STEPS */
+.step-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:10px}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--primary);color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:10px}
+.step-row textarea{flex:1;min-height:60px;resize:none}
 
-  /* Convert section */
-  .convert-section { }
-  .mode-toggle {
-    display: grid; grid-template-columns: 1fr 1fr;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 3px; margin-bottom: 16px;
-  }
-  .mode-btn {
-    padding: 9px 8px; font-size: 13px; font-weight: 500;
-    background: none; border: none; border-radius: 6px;
-    color: var(--text-muted); cursor: pointer; transition: all 0.15s;
-    letter-spacing: 0.02em;
-  }
-  .mode-btn.active { background: var(--surface); color: var(--teal); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+/* CONVERT */
+.convert-tabs{display:flex;background:#f0ece8;border-radius:10px;padding:4px;gap:3px;margin-bottom:16px}
+.convert-tab{flex:1;padding:8px 4px;border:none;border-radius:7px;background:transparent;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500;color:var(--text-light);transition:all .2s;text-align:center}
+.convert-tab.active{background:white;color:var(--primary);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.1)}
 
-  .convert-input-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-  .convert-input-wrap { flex: 1; position: relative; }
-  .convert-input-wrap input {
-    width: 100%; padding: 12px 14px; font-size: 18px; font-weight: 500;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--text); outline: none;
-    transition: border-color 0.2s; -moz-appearance: textfield;
-  }
-  .convert-input-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
-  .convert-input-wrap input:focus { border-color: var(--teal); }
-  .convert-input-unit {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    font-size: 12px; color: var(--text-hint); pointer-events: none;
-  }
+/* RESULTS */
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
+.result-row:last-child{border-bottom:none}
+.result-name{flex:1;font-weight:500}
+.result-orig{color:var(--text-light)}
+.result-new{font-weight:700;color:var(--primary);margin-left:12px}
+.badge-ref{font-size:10px;background:#d5f5e3;color:var(--success);border-radius:6px;padding:2px 6px;margin-left:6px;font-weight:700}
 
-  /* Convert button */
-  .convert-btn {
-    width: 100%; padding: 15px;
-    background: var(--teal); border: none; border-radius: var(--radius);
-    color: #fff; font-size: 16px; font-weight: 500; font-family: 'Noto Sans TC', sans-serif;
-    cursor: pointer; letter-spacing: 0.05em;
-    transition: background 0.15s, transform 0.1s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-  }
-  .convert-btn:active { background: var(--teal-dark); transform: scale(0.98); }
+/* SAVED */
+.saved-toolbar{display:flex;gap:8px;margin-bottom:14px;align-items:center}
+.breadcrumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:12px;font-size:13px}
+.breadcrumb-item{color:var(--primary);cursor:pointer;font-weight:600}
+.breadcrumb-sep{color:var(--text-light)}
+.folder-item,.recipe-item{display:flex;align-items:center;gap:12px;background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:var(--shadow);position:relative}
+.folder-icon{font-size:28px}
+.recipe-thumb{width:52px;height:52px;border-radius:8px;object-fit:cover;background:#f0ece8;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden}
+.recipe-thumb img{width:100%;height:100%;object-fit:cover}
+.item-info{flex:1;min-width:0;cursor:pointer}
+.item-name{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-meta{font-size:12px;color:var(--text-light);margin-top:2px}
+.item-actions{display:flex;gap:6px;flex-shrink:0}
+.icon-btn{background:#f5f5f5;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
 
-  /* Results */
-  .results { margin-top: 24px; }
-  .results-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 14px;
-  }
-  .results-title { font-size: 14px; font-weight: 500; color: var(--text); }
-  .results-badge {
-    font-size: 11px; padding: 3px 10px;
-    background: var(--teal-light); color: var(--teal-dark);
-    border-radius: 20px; font-weight: 500;
-  }
-  .result-item {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 14px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); margin-bottom: 6px;
-  }
-  .result-item:last-child { margin-bottom: 0; }
-  .result-name { font-size: 14px; color: var(--text); }
-  .result-amount-row { display: flex; align-items: baseline; gap: 6px; }
-  .result-original { font-size: 12px; color: var(--text-hint); text-decoration: line-through; }
-  .result-new { font-size: 16px; font-weight: 500; color: var(--teal-dark); }
-  .result-unit { font-size: 12px; color: var(--text-muted); }
+/* COVER */
+.cover-area{width:100%;height:160px;border-radius:var(--radius);border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;margin-bottom:16px;cursor:pointer;background:#f8f6f3;transition:border-color .2s}
+.cover-area:hover{border-color:var(--primary)}
+.cover-area img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cover-overlay{position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
+.cover-placeholder{font-size:36px;margin-bottom:4px}
+.cover-hint{font-size:13px;color:var(--text-light)}
 
-  .empty-state {
-    text-align: center; padding: 40px 20px;
-    color: var(--text-hint); font-size: 14px; line-height: 1.7;
-  }
-  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+/* SETTINGS */
+.settings-section{margin-bottom:20px}
+.settings-section-title{font-size:13px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding:0 4px}
+.bg-setting-card{background:white;border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow)}
+.bg-setting-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.bg-page-icon{font-size:22px}
+.bg-page-name{font-weight:600;font-size:15px}
+.bg-type-tabs{display:flex;gap:6px;margin-bottom:12px}
+.bg-type-btn{flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:white;font-size:13px;font-family:inherit;cursor:pointer;font-weight:500;color:var(--text-light);transition:all .2s}
+.bg-type-btn.active{border-color:var(--primary);color:var(--primary);background:#fff8f5}
+.bg-preview{width:100%;height:60px;border-radius:8px;margin-top:10px;background-size:cover;background-position:center;border:1px solid var(--border)}
 
-  /* Recipes list page */
-  .recipe-list-item {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 14px 16px;
-    margin-bottom: 10px; cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .recipe-list-item:hover { border-color: var(--teal); }
-  .recipe-list-name { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
-  .recipe-list-meta { font-size: 12px; color: var(--text-hint); }
-  .recipe-list-arrow { color: var(--text-hint); font-size: 16px; }
-  .recipe-list-del {
-    padding: 4px 8px; font-size: 12px; color: #A32D2D;
-    background: none; border: 1px solid #F09595; border-radius: 4px;
-    cursor: pointer; transition: background 0.15s;
-  }
-  .recipe-list-del:hover { background: #FCEBEB; }
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:500}
+.modal-overlay.show{display:flex}
+.modal{background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:16px;text-align:center}
+.modal-actions{display:flex;gap:10px;margin-top:16px}
+.modal-actions .btn{flex:1}
 
-  /* Toast */
-  .toast {
-    position: fixed; bottom: calc(var(--safe-bot) + 90px); left: 50%; transform: translateX(-50%) translateY(10px);
-    background: var(--text); color: #fff; padding: 10px 20px;
-    border-radius: 20px; font-size: 13px; opacity: 0;
-    transition: opacity 0.2s, transform 0.2s; pointer-events: none; white-space: nowrap;
-    z-index: 999;
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* COLLAPSE */
+.collapse-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0}
+.collapse-arrow{transition:transform .2s;font-size:12px;color:var(--text-light)}
+.collapse-arrow.open{transform:rotate(180deg)}
+.collapse-body{overflow:hidden;transition:max-height .3s ease}
 
-  /* Bottom bar */
-  .bottom-bar {
-    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-    width: 100%; max-width: 480px;
-    background: var(--surface); border-top: 1px solid var(--border);
-    padding: 8px 20px calc(var(--safe-bot) + 8px);
-    display: flex; gap: 10px; z-index: 100;
-  }
-  .save-btn {
-    flex: 1; padding: 12px;
-    background: none; border: 1px solid var(--border-strong);
-    border-radius: var(--radius-sm); color: var(--text);
-    font-size: 14px; cursor: pointer; letter-spacing: 0.03em;
-    transition: background 0.15s;
-  }
-  .save-btn:hover { background: var(--bg); }
-
-  /* Install prompt */
-  .install-banner {
-    margin: 0 0 16px;
-    background: linear-gradient(135deg, var(--teal-light), #fff);
-    border: 1px solid #9FE1CB; border-radius: var(--radius);
-    padding: 14px 16px;
-    display: none; align-items: center; gap: 12px;
-  }
-  .install-banner.show { display: flex; }
-  .install-banner-text { flex: 1; font-size: 13px; color: var(--teal-dark); line-height: 1.5; }
-  .install-banner-text strong { font-weight: 500; }
-  .install-btn-small {
-    padding: 8px 14px; background: var(--teal); border: none;
-    border-radius: 8px; color: #fff; font-size: 12px; font-weight: 500;
-    cursor: pointer; white-space: nowrap; font-family: 'Noto Sans TC', sans-serif;
-  }
-  .install-close { background: none; border: none; color: var(--text-hint); cursor: pointer; font-size: 18px; padding: 0 4px; }
-
-  /* Auth screen */
-  #auth-screen {
-    position: fixed; inset: 0; z-index: 999;
-    background: var(--bg);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 32px 28px calc(var(--safe-bot) + 32px);
-    max-width: 480px; margin: 0 auto;
-  }
-  #auth-screen.hidden { display: none; }
-  .auth-logo {
-    width: 72px; height: 72px; background: var(--teal);
-    border-radius: 20px; display: flex; align-items: center; justify-content: center;
-    font-size: 36px; margin-bottom: 16px;
-    box-shadow: 0 8px 24px rgba(29,158,117,0.25);
-  }
-  .auth-title { font-family: 'Noto Serif TC', serif; font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-  .auth-sub { font-size: 13px; color: var(--text-hint); margin-bottom: 36px; }
-  .auth-card {
-    width: 100%; background: var(--surface);
-    border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 20px; margin-bottom: 12px;
-  }
-  .auth-card-title { font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 14px; letter-spacing: 0.04em; }
-  .auth-field { margin-bottom: 10px; }
-  .auth-field:last-of-type { margin-bottom: 16px; }
-  .auth-input {
-    width: 100%; padding: 11px 14px; font-size: 15px;
-    font-family: 'Noto Sans TC', sans-serif;
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--text); outline: none;
-    transition: border-color 0.2s;
-  }
-  .auth-input:focus { border-color: var(--teal); }
-  .auth-input::placeholder { color: var(--text-hint); font-size: 14px; }
-  .auth-btn {
-    width: 100%; padding: 13px; font-size: 15px; font-weight: 500;
-    font-family: 'Noto Sans TC', sans-serif; letter-spacing: 0.04em;
-    background: var(--teal); color: #fff; border: none;
-    border-radius: var(--radius-sm); cursor: pointer;
-    transition: background 0.15s, transform 0.1s;
-  }
-  .auth-btn:active { background: var(--teal-dark); transform: scale(0.98); }
-  .auth-btn.secondary {
-    background: none; color: var(--text-muted);
-    border: 1px solid var(--border-strong); margin-top: 8px;
-  }
-  .auth-error { font-size: 12px; color: #A32D2D; margin-top: -6px; margin-bottom: 8px; min-height: 16px; }
-
-  /* User switcher (existing accounts list) */
-  .user-list { width: 100%; margin-bottom: 12px; }
-  .user-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 14px; background: var(--surface);
-    border: 1px solid var(--border); border-radius: var(--radius-sm);
-    margin-bottom: 8px; cursor: pointer;
-    transition: border-color 0.15s;
-  }
-  .user-item:hover { border-color: var(--teal); }
-  .user-avatar {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: var(--teal-light); color: var(--teal-dark);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; font-weight: 600; flex-shrink: 0;
-  }
-  .user-name { font-size: 15px; font-weight: 500; flex: 1; }
-  .user-arrow { color: var(--text-hint); }
-
-  /* Header user badge */
-  .user-badge {
-    display: flex; align-items: center; gap: 6px;
-    padding: 5px 10px 5px 6px;
-    background: var(--teal-light); border-radius: 20px; cursor: pointer;
-    transition: background 0.15s;
-  }
-  .user-badge:hover { background: #C5EEE0; }
-  .user-badge-avatar {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: var(--teal); color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 600;
-  }
-  .user-badge-name { font-size: 12px; font-weight: 500; color: var(--teal-dark); }
-
-  /* Logout confirm modal */
-  .modal-overlay {
-    position: fixed; inset: 0; z-index: 9999;
-    background: rgba(0,0,0,0.4);
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px;
-    opacity: 0; pointer-events: none; transition: opacity 0.2s;
-  }
-  .modal-overlay.show { opacity: 1; pointer-events: all; }
-  .modal-box {
-    background: var(--surface); border-radius: var(--radius);
-    padding: 24px 20px; width: 100%; max-width: 320px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-    transform: translateY(8px); transition: transform 0.2s;
-  }
-  .modal-overlay.show .modal-box { transform: translateY(0); }
-  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-  .modal-msg { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
-  .modal-btns { display: flex; gap: 10px; }
-  .modal-btn {
-    flex: 1; padding: 11px; font-size: 14px; font-weight: 500;
-    font-family: 'Noto Sans TC', sans-serif;
-    border-radius: var(--radius-sm); cursor: pointer; border: none;
-    transition: background 0.15s;
-  }
-  .modal-btn.cancel { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border-strong); }
-  .modal-btn.confirm { background: #C0392B; color: #fff; }
-
-  /* Notes & Steps */
-  .textarea-field {
-    width: 100%; padding: 11px 13px; font-size: 14px; line-height: 1.6;
-    font-family: 'Noto Sans TC', sans-serif;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--text); outline: none;
-    resize: vertical; min-height: 80px; transition: border-color 0.2s;
-  }
-  .textarea-field:focus { border-color: var(--teal); }
-  .textarea-field::placeholder { color: var(--text-hint); }
-
-  .step-card {
-    display: flex; gap: 10px; align-items: flex-start;
-    margin-bottom: 8px; animation: slideIn 0.2s ease;
-  }
-  .step-number {
-    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-    background: var(--teal); color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 600; margin-top: 8px;
-  }
-  .step-textarea {
-    flex: 1; padding: 9px 11px; font-size: 14px; line-height: 1.6;
-    font-family: 'Noto Sans TC', sans-serif;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--text); outline: none;
-    resize: none; min-height: 60px; transition: border-color 0.2s;
-  }
-  .step-textarea:focus { border-color: var(--teal); }
-  .step-textarea::placeholder { color: var(--text-hint); }
-  .step-del {
-    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-    background: none; border: 1px solid var(--border);
-    color: var(--text-hint); cursor: pointer; font-size: 15px;
-    display: flex; align-items: center; justify-content: center;
-    margin-top: 8px; transition: background 0.15s, color 0.15s;
-  }
-  .step-del:hover { background: #FCEBEB; color: #A32D2D; border-color: #F09595; }
-
-  /* Collapsible section */
-  .section-toggle {
-    display: flex; align-items: center; justify-content: space-between;
-    cursor: pointer; user-select: none; margin-bottom: 10px;
-  }
-  .section-toggle-arrow {
-    font-size: 12px; color: var(--text-hint); transition: transform 0.2s;
-  }
-  .section-toggle.open .section-toggle-arrow { transform: rotate(180deg); }
-  .section-body { display: none; }
-  .section-body.open { display: block; }
-
-  /* Folder system */
-  .folder-toolbar {
-    display: flex; gap: 8px; margin-bottom: 14px;
-  }
-  .folder-toolbar-btn {
-    flex: 1; padding: 9px 8px; font-size: 13px; font-weight: 500;
-    font-family: 'Noto Sans TC', sans-serif;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--text-muted);
-    cursor: pointer; transition: background 0.15s, border-color 0.15s;
-    display: flex; align-items: center; justify-content: center; gap: 5px;
-  }
-  .folder-toolbar-btn:hover { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
-
-  .breadcrumb {
-    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-    margin-bottom: 12px; font-size: 13px; color: var(--text-hint);
-  }
-  .breadcrumb-item { cursor: pointer; color: var(--teal); }
-  .breadcrumb-item:hover { text-decoration: underline; }
-  .breadcrumb-sep { color: var(--text-hint); }
-  .breadcrumb-current { color: var(--text-muted); }
-
-  .folder-item {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 12px 14px;
-    margin-bottom: 6px; cursor: pointer;
-    transition: border-color 0.15s;
-    display: flex; align-items: center; gap: 10px;
-    user-select: none;
-  }
-  .folder-item:hover { border-color: var(--teal); }
-  .folder-item.drag-over { border-color: var(--teal); background: var(--teal-light); }
-  .folder-item.dragging { opacity: 0.4; }
-  .folder-icon { font-size: 18px; flex-shrink: 0; }
-  .folder-info { flex: 1; min-width: 0; }
-  .folder-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .folder-meta { font-size: 11px; color: var(--text-hint); margin-top: 1px; }
-  .folder-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-  .folder-action-btn {
-    padding: 3px 7px; font-size: 11px; border-radius: 4px;
-    background: none; border: 1px solid var(--border); color: var(--text-hint);
-    cursor: pointer; transition: background 0.15s;
-  }
-  .folder-action-btn:hover { background: var(--bg); }
-  .folder-action-btn.del:hover { background: #FCEBEB; color: #A32D2D; border-color: #F09595; }
-  .drag-handle { cursor: grab; color: var(--text-hint); font-size: 16px; padding: 0 2px; flex-shrink: 0; }
-  .drag-handle:active { cursor: grabbing; }
-
-  /* Move-to-folder modal */
-  .folder-select-list { max-height: 260px; overflow-y: auto; margin-bottom: 16px; }
-  .folder-select-item {
-    padding: 10px 14px; border-radius: var(--radius-sm); cursor: pointer;
-    font-size: 14px; display: flex; align-items: center; gap: 8px;
-    transition: background 0.1s;
-  }
-  .folder-select-item:hover { background: var(--teal-light); }
-  .folder-select-item.selected { background: var(--teal-light); color: var(--teal-dark); font-weight: 500; }
+/* MISC */
+.empty-state{text-align:center;padding:48px 24px;color:var(--text-light)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.loading{text-align:center;padding:20px;color:var(--text-light);font-size:14px}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#2d3436;color:white;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:500;z-index:9999;transition:transform .3s;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
 
-<!-- Logout Modal -->
-<div class="modal-overlay" id="logout-modal">
-  <div class="modal-box">
-    <div class="modal-title">登出帳號</div>
-    <div class="modal-msg" id="logout-modal-msg"></div>
-    <div class="modal-btns">
-      <button class="modal-btn cancel" onclick="closeLogoutModal()">取消</button>
-      <button class="modal-btn confirm" onclick="confirmLogout()">登出</button>
-    </div>
-  </div>
-</div>
-
-<!-- New Folder Modal -->
-<div class="modal-overlay" id="new-folder-modal">
-  <div class="modal-box">
-    <div class="modal-title">📁 新增資料夾</div>
-    <div class="auth-field" style="margin-bottom:16px;margin-top:12px;">
-      <input class="auth-input" id="new-folder-name" type="text" placeholder="資料夾名稱" maxlength="30">
-    </div>
-    <div class="auth-error" id="new-folder-error"></div>
-    <div class="modal-btns">
-      <button class="modal-btn cancel" onclick="closeNewFolderModal()">取消</button>
-      <button class="modal-btn confirm" style="background:var(--teal)" onclick="confirmNewFolder()">建立</button>
-    </div>
-  </div>
-</div>
-
-<!-- Move Recipe Modal -->
-<div class="modal-overlay" id="move-recipe-modal">
-  <div class="modal-box">
-    <div class="modal-title">📂 移動食譜</div>
-    <div style="font-size:13px;color:var(--text-muted);margin:8px 0 12px;" id="move-recipe-label"></div>
-    <div class="folder-select-list" id="move-folder-list"></div>
-    <div class="modal-btns">
-      <button class="modal-btn cancel" onclick="closeMoveModal()">取消</button>
-      <button class="modal-btn confirm" style="background:var(--teal)" onclick="confirmMove()">移動</button>
-    </div>
-  </div>
-</div>
-
-<!-- Rename Modal -->
-<div class="modal-overlay" id="rename-modal">
-  <div class="modal-box">
-    <div class="modal-title" id="rename-modal-title">重新命名</div>
-    <div class="auth-field" style="margin-bottom:16px;margin-top:12px;">
-      <input class="auth-input" id="rename-input" type="text" maxlength="30">
-    </div>
-    <div class="auth-error" id="rename-error"></div>
-    <div class="modal-btns">
-      <button class="modal-btn cancel" onclick="closeRenameModal()">取消</button>
-      <button class="modal-btn confirm" style="background:var(--teal)" onclick="confirmRename()">確認</button>
-    </div>
-  </div>
-</div>
-
-<!-- Auth Screen -->
+<!-- AUTH SCREEN -->
 <div id="auth-screen">
-  <div class="auth-logo">🍲</div>
+  <div class="auth-logo">🍳</div>
   <div class="auth-title">食譜轉換器</div>
-  <div class="auth-sub">請登入或建立帳號</div>
-
-  <!-- Existing users -->
-  <div id="user-list-section" class="user-list" style="display:none"></div>
-
-  <!-- Login form -->
-  <div id="login-form" class="auth-card">
-    <div class="auth-card-title" id="login-form-title">🔐 登入帳號</div>
-    <div class="auth-field">
-      <input class="auth-input" id="login-username" type="text" placeholder="使用者名稱" autocomplete="username">
+  <div class="auth-subtitle">你的私人食譜管理助手</div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">登入</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">建立帳號</button>
     </div>
-    <div class="auth-field">
-      <input class="auth-input" id="login-password" type="password" placeholder="密碼" autocomplete="current-password">
+    <div id="login-panel">
+      <div id="accounts-list" class="accounts-list"></div>
+      <p id="login-or" style="text-align:center;font-size:13px;color:var(--text-light);margin-bottom:12px;display:none">— 或輸入帳號密碼 —</p>
+      <div style="margin-bottom:10px"><label>帳號名稱</label><input type="text" id="login-username" placeholder="輸入帳號名稱"></div>
+      <div style="margin-bottom:16px"><label>密碼</label><input type="password" id="login-password" placeholder="輸入密碼" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-primary btn-full" onclick="doLogin()">登入</button>
     </div>
-    <div class="auth-error" id="login-error"></div>
-    <button class="auth-btn" onclick="doLogin()">登入</button>
+    <div id="register-panel" style="display:none">
+      <div style="margin-bottom:10px"><label>帳號名稱（至少2字）</label><input type="text" id="reg-username" placeholder="例如：小明"></div>
+      <div style="margin-bottom:16px"><label>密碼（至少4位）</label><input type="password" id="reg-password" placeholder="設定密碼" onkeydown="if(event.key==='Enter')doRegister()"></div>
+      <button class="btn btn-primary btn-full" onclick="doRegister()">建立帳號</button>
+    </div>
   </div>
-
-  <!-- Register form (hidden by default) -->
-  <div id="register-form" class="auth-card" style="display:none">
-    <div class="auth-card-title">✨ 建立新帳號</div>
-    <div class="auth-field">
-      <input class="auth-input" id="reg-username" type="text" placeholder="使用者名稱" maxlength="20" autocomplete="username">
-    </div>
-    <div class="auth-field">
-      <input class="auth-input" id="reg-password" type="password" placeholder="密碼（至少 4 位）" autocomplete="new-password">
-    </div>
-    <div class="auth-field">
-      <input class="auth-input" id="reg-password2" type="password" placeholder="再次輸入密碼" autocomplete="new-password">
-    </div>
-    <div class="auth-error" id="reg-error"></div>
-    <button class="auth-btn" onclick="doRegister()">建立帳號</button>
-    <button class="auth-btn secondary" onclick="showLoginForm()">← 返回登入</button>
-  </div>
-
-  <button class="auth-btn secondary" id="show-register-btn" onclick="showRegisterForm()" style="width:100%;margin-top:0">＋ 建立新帳號</button>
 </div>
 
-<header class="header">
-  <div class="header-inner">
-    <div class="logo">
-      <div class="logo-icon">🍲</div>
-      <div>
-        <div class="logo-text">食譜轉換器</div>
-        <div class="logo-sub">Recipe Scaler</div>
-      </div>
-    </div>
-    <div class="user-badge" id="user-badge" onclick="doLogout()" title="登出">
-      <div class="user-badge-avatar" id="user-badge-avatar"></div>
-      <div class="user-badge-name" id="user-badge-name"></div>
-    </div>
-  </div>
-</header>
-
-<nav class="tabs">
-  <button class="tab active" onclick="switchTab('edit')">✏️ 編輯食譜</button>
-  <button class="tab" onclick="switchTab('convert')">⚖️ 份量轉換</button>
-  <button class="tab" onclick="switchTab('saved')">📚 已儲存</button>
-</nav>
-
-<!-- Edit Page -->
-<div id="page-edit" class="page active">
-  <div id="install-banner" class="install-banner">
-    <div class="install-banner-text"><strong>📱 加入主畫面</strong><br>像 App 一樣使用食譜轉換器</div>
-    <button class="install-btn-small" onclick="installPWA()">安裝</button>
-    <button class="install-close" onclick="hideBanner()">×</button>
-  </div>
-
-  <!-- Cover Photo -->
-  <div style="margin-bottom:20px">
-    <div id="cover-preview" style="display:none;position:relative;margin-bottom:10px;">
-      <img id="cover-img" src="" alt="封面" style="width:100%;height:180px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--border);">
-      <button onclick="removeCover()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
-    </div>
-    <div id="cover-placeholder" style="width:100%;height:120px;background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;" onclick="$('cover-url-input').style.display=$('cover-url-input').style.display==='none'?'':'none'">
-      <span style="font-size:28px;">🖼️</span>
-      <span style="font-size:13px;color:var(--text-hint);">點此新增封面照片</span>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <label style="flex:1">
-        <div class="add-btn" style="margin:0">📷 從相簿上傳</div>
-        <input type="file" accept="image/*" id="cover-file-input" style="display:none" onchange="handleCoverFile(event)">
-      </label>
-      <button class="add-btn" style="flex:1;margin:0" onclick="toggleCoverUrl()">🔗 貼圖片網址</button>
-    </div>
-    <div id="cover-url-input" style="display:none;margin-top:8px;">
-      <input type="url" class="auth-input" id="cover-url" placeholder="https://... 圖片網址" style="margin-bottom:6px;">
-      <button class="auth-btn" style="padding:9px" onclick="applyCoverUrl()">套用</button>
-    </div>
-  </div>
-
-  <div class="recipe-name-row">
-    <div class="label">食譜名稱</div>
-    <input class="recipe-name-input" id="recipe-name" type="text" placeholder="例：媽媽的紅燒肉" maxlength="40">
-  </div>
-
-  <div class="serving-row">
-    <div class="label">原始份量</div>
-    <div class="serving-input-wrap">
-      <input type="text" id="original-servings" value="2" style="width:80px;padding:10px 12px;font-size:16px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--teal)'" onblur="this.style.borderColor='var(--border)'">
-      <span class="serving-unit">人份</span>
-    </div>
-  </div>
-
-  <div class="ingredients-section">
-    <div class="label">食材清單</div>
-    <div id="ingredient-list"></div>
-    <button class="add-btn" onclick="addIngredient()">
-      <span style="font-size:18px;line-height:1">+</span> 新增食材
+<!-- MAIN APP -->
+<div id="app">
+  <div class="top-bar">
+    <div class="top-bar-title">🍳 食譜轉換器</div>
+    <button class="user-btn" onclick="showLogout()">
+      <div class="avatar" id="user-avatar">?</div>
+      <span id="user-name-display">使用者</span>
     </button>
   </div>
 
-  <div style="margin-bottom:20px">
-    <div class="section-toggle" onclick="toggleSection('steps-body', this)">
-      <div class="label" style="margin-bottom:0">📋 做法步驟</div>
-      <span class="section-toggle-arrow">▼</span>
-    </div>
-    <div class="section-body" id="steps-body">
-      <div id="steps-list"></div>
-      <button class="add-btn" onclick="addStep()">
-        <span style="font-size:18px;line-height:1">+</span> 新增步驟
-      </button>
-    </div>
-  </div>
+  <div class="page-content" id="page-content">
 
-  <div style="margin-bottom:20px">
-    <div class="section-toggle" onclick="toggleSection('notes-body', this)">
-      <div class="label" style="margin-bottom:0">💡 備註</div>
-      <span class="section-toggle-arrow">▼</span>
+    <!-- EDIT PAGE -->
+    <div class="page active" id="page-edit">
+      <div class="cover-area" id="cover-area" onclick="showCoverModal()">
+        <div class="cover-placeholder">🖼️</div>
+        <div class="cover-hint">點擊設定封面照片</div>
+      </div>
+      <div class="card">
+        <div class="card-title">食譜資訊</div>
+        <div style="margin-bottom:10px"><label>食譜名稱</label><input type="text" id="recipe-name" placeholder="例如：媽媽的紅燒肉"></div>
+        <div><label>原始份量（人數）</label><input type="text" id="recipe-servings" placeholder="例如：4 或 1/2"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">食材清單</div>
+        <div id="ingredient-list"></div>
+        <button class="btn btn-outline btn-full btn-sm" onclick="addIngredient()">＋ 新增食材</button>
+      </div>
+      <div class="card">
+        <div class="collapse-header" onclick="toggleCollapse('steps-body','steps-arrow')">
+          <div class="card-title" style="margin-bottom:0">做法步驟</div>
+          <span class="collapse-arrow" id="steps-arrow">▼</span>
+        </div>
+        <div class="collapse-body" id="steps-body" style="max-height:0">
+          <div style="height:14px"></div>
+          <div id="steps-list"></div>
+          <button class="btn btn-outline btn-full btn-sm" onclick="addStep()">＋ 新增步驟</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="collapse-header" onclick="toggleCollapse('notes-body','notes-arrow')">
+          <div class="card-title" style="margin-bottom:0">備註</div>
+          <span class="collapse-arrow" id="notes-arrow">▼</span>
+        </div>
+        <div class="collapse-body" id="notes-body" style="max-height:0">
+          <div style="height:14px"></div>
+          <textarea id="recipe-notes" placeholder="小技巧、注意事項、食材替換建議…" style="min-height:80px;resize:vertical"></textarea>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn-ghost" onclick="newRecipe()">🗑 清空</button>
+        <button class="btn btn-primary" onclick="saveRecipe()">💾 儲存食譜</button>
+      </div>
     </div>
-    <div class="section-body" id="notes-body">
-      <textarea class="textarea-field" id="recipe-notes" placeholder="例：豬肉記得先汆燙去腥、可依口味調整糖的用量…" rows="4"></textarea>
+
+    <!-- CONVERT PAGE -->
+    <div class="page" id="page-convert">
+      <div id="no-recipe-msg" class="card" style="text-align:center;padding:32px">
+        <p style="font-size:32px;margin-bottom:12px">⚖️</p>
+        <p style="color:var(--text-light);font-size:14px">請先在「編輯」頁面新增食材，或從「已儲存」載入食譜</p>
+      </div>
+      <div id="convert-body" style="display:none">
+        <div class="card">
+          <div style="font-size:18px;font-weight:700;margin-bottom:4px" id="convert-recipe-name"></div>
+          <div style="font-size:13px;color:var(--text-light)" id="convert-recipe-servings"></div>
+        </div>
+        <div class="card">
+          <div class="convert-tabs">
+            <button class="convert-tab active" onclick="setConvertMode(0)">👥 人數倍數</button>
+            <button class="convert-tab" onclick="setConvertMode(1)">⚖️ 目標重量</button>
+            <button class="convert-tab" onclick="setConvertMode(2)">🥕 依食材</button>
+          </div>
+          <div id="mode-0">
+            <label>目標人數</label>
+            <input type="text" id="target-servings" placeholder="例如：6 或 1/2">
+          </div>
+          <div id="mode-1" style="display:none">
+            <label>目標總重量（g）</label>
+            <input type="text" id="target-weight" placeholder="例如：1000">
+          </div>
+          <div id="mode-2" style="display:none">
+            <div style="margin-bottom:10px"><label>選擇基準食材</label><select id="ref-ingredient"></select></div>
+            <div><label>你有多少？</label><input type="text" id="ref-amount" placeholder="例如：500 或 1/2"></div>
+          </div>
+          <button class="btn btn-primary btn-full" style="margin-top:14px" onclick="doConvert()">計算換算結果</button>
+        </div>
+        <div id="convert-result" class="card" style="display:none">
+          <div class="card-title">換算結果</div>
+          <div id="result-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVED PAGE -->
+    <div class="page" id="page-saved">
+      <div class="saved-toolbar">
+        <button class="btn btn-outline btn-sm" onclick="showNewFolderModal()">📁 新增資料夾</button>
+      </div>
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div id="saved-list"><div class="loading">載入中…</div></div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="page" id="page-settings">
+      <div class="settings-section">
+        <div class="settings-section-title">🎨 頁面背景設定</div>
+        <div id="bg-settings-list"></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">👤 帳號設定</div>
+        <div class="bg-setting-card">
+          <button class="btn btn-danger btn-full" onclick="showLogout()">登出帳號</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end page-content -->
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-edit" onclick="switchPage('edit')"><span class="nav-icon">✏️</span><span class="nav-label">編輯</span></button>
+    <button class="nav-btn" id="nav-convert" onclick="switchPage('convert')"><span class="nav-icon">⚖️</span><span class="nav-label">轉換</span></button>
+    <button class="nav-btn" id="nav-saved" onclick="switchPage('saved')"><span class="nav-icon">📚</span><span class="nav-label">已儲存</span></button>
+    <button class="nav-btn" id="nav-settings" onclick="switchPage('settings')"><span class="nav-icon">⚙️</span><span class="nav-label">設定</span></button>
+  </nav>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="logout-modal">
+  <div class="modal">
+    <div class="modal-title">登出帳號</div>
+    <p style="text-align:center;color:var(--text-light);font-size:14px;margin-bottom:4px">確定要登出嗎？</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('logout-modal')">取消</button>
+      <button class="btn btn-danger" onclick="doLogout()">確定登出</button>
     </div>
   </div>
 </div>
 
-<!-- Convert Page -->
-<div id="page-convert" class="page">
-  <div class="label">轉換方式</div>
-  <div class="mode-toggle" style="grid-template-columns:1fr 1fr 1fr">
-    <button class="mode-btn active" id="mode-servings" onclick="setMode('servings')">👥 人數</button>
-    <button class="mode-btn" id="mode-weight" onclick="setMode('weight')">⚖️ 總重</button>
-    <button class="mode-btn" id="mode-ingredient" onclick="setMode('ingredient')">🥕 食材</button>
-  </div>
-
-  <div id="mode-servings-input">
-    <div class="label">目標人數</div>
-    <div class="convert-input-row">
-      <div class="convert-input-wrap">
-        <input type="text" id="target-servings" value="4" style="ime-mode:disabled">
-        <span class="convert-input-unit">人份</span>
-      </div>
+<div class="modal-overlay" id="cover-modal">
+  <div class="modal">
+    <div class="modal-title">設定封面照片</div>
+    <div style="margin-bottom:14px"><label>📷 從相簿選取</label><input type="file" id="cover-file" accept="image/*" onchange="onCoverFile(event)" style="padding:8px"></div>
+    <div style="margin-bottom:14px"><label>🔗 圖片網址</label><input type="url" id="cover-url" placeholder="https://..."></div>
+    <div id="cover-preview" style="width:100%;height:120px;border-radius:10px;border:1.5px solid var(--border);background:#f8f6f3;background-size:cover;background-position:center;margin-bottom:14px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('cover-modal')">取消</button>
+      <button class="btn btn-danger btn-sm" onclick="clearCover()" style="flex:none;padding:12px">🗑</button>
+      <button class="btn btn-primary" onclick="applyCover()">套用</button>
     </div>
   </div>
-
-  <div id="mode-weight-input" style="display:none">
-    <div class="label">目標總重量（克）</div>
-    <div class="convert-input-row">
-      <div class="convert-input-wrap">
-        <input type="text" id="target-weight" placeholder="例：800 或 1/2" style="ime-mode:disabled">
-        <span class="convert-input-unit">g</span>
-      </div>
-    </div>
-  </div>
-
-  <div id="mode-ingredient-input" style="display:none">
-    <div class="label">選擇基準食材</div>
-    <select id="anchor-ingredient-select" style="width:100%;padding:11px 12px;font-size:14px;font-family:'Noto Sans TC',sans-serif;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none;margin-bottom:12px;">
-      <option value="">— 請先在食譜中加入食材 —</option>
-    </select>
-    <div class="label">這個食材要用多少？</div>
-    <div class="convert-input-row">
-      <div class="convert-input-wrap">
-        <input type="text" id="anchor-new-amount" placeholder="輸入份量 (如1/2)" style="ime-mode:disabled">
-        <span class="convert-input-unit" id="anchor-unit-label">g</span>
-      </div>
-    </div>
-    <div id="anchor-hint" style="font-size:12px;color:var(--text-hint);margin-top:-8px;margin-bottom:12px;"></div>
-  </div>
-
-  <button class="convert-btn" onclick="doConvert()">
-    🔄 計算換算結果
-  </button>
-
-  <div id="results" class="results"></div>
 </div>
 
-<!-- Saved Recipes Page -->
-<div id="page-saved" class="page">
-  <div class="folder-toolbar">
-    <button class="folder-toolbar-btn" onclick="showNewFolderModal()">📁 新增資料夾</button>
-    <button class="folder-toolbar-btn" onclick="goUpFolder()" id="btn-up" style="display:none">⬆️ 上一層</button>
+<div class="modal-overlay" id="new-folder-modal">
+  <div class="modal">
+    <div class="modal-title">新增資料夾</div>
+    <input type="text" id="new-folder-name" placeholder="資料夾名稱" onkeydown="if(event.key==='Enter')createFolder()">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('new-folder-modal')">取消</button>
+      <button class="btn btn-primary" onclick="createFolder()">建立</button>
+    </div>
   </div>
-  <div class="breadcrumb" id="breadcrumb"></div>
-  <div id="saved-list"></div>
 </div>
 
-<div class="bottom-bar">
-  <button class="save-btn" onclick="saveRecipe()">💾 儲存食譜</button>
+<div class="modal-overlay" id="move-modal">
+  <div class="modal">
+    <div class="modal-title">移動食譜到…</div>
+    <div id="move-folder-list" style="max-height:260px;overflow-y:auto"></div>
+    <div class="modal-actions"><button class="btn btn-ghost btn-full" onclick="closeModal('move-modal')">取消</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="bg-img-modal">
+  <div class="modal">
+    <div class="modal-title">設定背景圖片</div>
+    <div style="margin-bottom:14px"><label>📷 從相簿選取</label><input type="file" id="bg-file-input" accept="image/*" onchange="onBgFile(event)" style="padding:8px"></div>
+    <div style="margin-bottom:14px"><label>🔗 圖片網址</label><input type="url" id="bg-url-input" placeholder="https://..."></div>
+    <div id="bg-img-preview" style="width:100%;height:80px;border-radius:10px;border:1.5px solid var(--border);background:#f8f6f3;background-size:cover;background-position:center;margin-bottom:14px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('bg-img-modal')">取消</button>
+      <button class="btn btn-primary" onclick="applyBgImg()">套用</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-let currentMode = 'servings';
-let deferredPrompt = null;
-let currentUser = null;
+// ===== SUPABASE =====
+const SUPABASE_URL='https://foipkuuuzytzntcjctdf.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvaXBrdXV1enl0em50Y2pjdGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTYwNzgsImV4cCI6MjA5MzI5MjA3OH0.82Y6XM6izErY5MvbUeYl-8MlzBnBWuz_NVs-pQZUTJU';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-const SUPABASE_URL = 'https://foipkuuuzytzntcjctdf.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvaXBrdXV1enl0em50Y2pjdGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTYwNzgsImV4cCI6MjA5MzI5MjA3OH0.82Y6XM6izErY5MvbUeYl-8MlzBnBWuz_NVs-pQZUTJU';
+// ===== STATE =====
+let currentUser=null;
+let currentRecipe={id:null,name:'',servings:'4',ingredients:[],steps:[],notes:'',cover:'',folder_id:null};
+let currentFolderPath=[];
+let currentFolderId=null;
+let convertMode=0;
+let coverDataUrl='';
+let bgEditTarget=null;
+let bgSettings={};
+let bgImgDataUrl='';
 
-async function sb(path, options = {}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': options.prefer || 'return=representation',
-      ...options.headers
-    },
-    ...options
-  });
-  if (!res.ok && res.status !== 404) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || res.statusText);
-  }
-  const text = await res.text();
-  return text ? JSON.parse(text) : [];
+const UNITS=['g','kg','ml','L','杯','tbsp','tsp','T','t','個','片','條','支','顆','包','罐','兩','斤'];
+
+const BG_PAGES=[
+  {key:'edit',icon:'✏️',name:'編輯頁面'},
+  {key:'convert',icon:'⚖️',name:'轉換頁面'},
+  {key:'saved',icon:'📚',name:'已儲存頁面'},
+  {key:'settings',icon:'⚙️',name:'設定頁面'},
+  {key:'auth',icon:'🔐',name:'登入頁面'},
+];
+
+// ===== UTILS =====
+function parseFraction(s){
+  if(!s)return NaN;s=String(s).trim();
+  const u={'½':.5,'⅓':1/3,'⅔':2/3,'¼':.25,'¾':.75,'⅛':.125,'⅜':.375,'⅝':.625,'⅞':.875};
+  if(u[s])return u[s];
+  let m=s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if(m)return+m[1]+(+m[2])/(+m[3]);
+  m=s.match(/^(\d+)\/(\d+)$/);
+  if(m)return(+m[1])/(+m[2]);
+  return parseFloat(s);
+}
+function fmtNum(n){if(isNaN(n))return'?';if(n===Math.floor(n))return String(n);return parseFloat(n.toFixed(2)).toString();}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function openModal(id){document.getElementById(id).classList.add('show');}
+
+// ===== AUTH =====
+function switchAuthTab(tab){
+  document.querySelectorAll('.auth-tab').forEach((b,i)=>b.classList.toggle('active',(tab==='login'&&i===0)||(tab==='register'&&i===1)));
+  document.getElementById('login-panel').style.display=tab==='login'?'':'none';
+  document.getElementById('register-panel').style.display=tab==='register'?'':'none';
 }
 
-const UNITS = ['g','kg','ml','L','茶匙','湯匙','杯','個','片','顆','條','根','塊','T','t','兩','斤','適量'];
-
-function $(id) { return document.getElementById(id); }
-
-// ─── AUTH ────────────────────────────────────────────────────────────────────
-
-function hashPassword(pw) {
-  let h = 0;
-  for (let i = 0; i < pw.length; i++) { h = Math.imul(31, h) + pw.charCodeAt(i) | 0; }
-  return h.toString(16);
-}
-
-async function initAuth() {
-  const saved = sessionStorage.getItem('rp_session');
-  if (saved) {
-    const u = JSON.parse(saved);
-    await loginSuccess(u.username, u.userId);
-    return;
-  }
-  await renderAuthScreen();
-}
-
-async function renderAuthScreen() {
-  const users = await sb('users?select=username&order=created_at').catch(() => []);
-  const section = $('user-list-section');
-  if (users.length) {
-    section.style.display = '';
-    section.innerHTML = `<div style="font-size:11px;font-weight:500;color:var(--text-hint);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">選擇帳號</div>` +
-      users.map(u => `
-        <div class="user-item" onclick="selectUser('${u.username}')">
-          <div class="user-avatar">${u.username[0].toUpperCase()}</div>
-          <div class="user-name">${u.username}</div>
-          <span class="user-arrow">›</span>
-        </div>`).join('');
-    $('login-form-title').textContent = '🔐 或輸入帳號登入';
-  } else {
-    section.style.display = 'none';
-    showRegisterForm();
-  }
-}
-
-function selectUser(username) {
-  $('login-username').value = username;
-  $('login-password').focus();
-}
-
-function showRegisterForm() {
-  $('login-form').style.display = 'none';
-  $('register-form').style.display = '';
-  $('show-register-btn').style.display = 'none';
-}
-
-function showLoginForm() {
-  $('register-form').style.display = 'none';
-  $('login-form').style.display = '';
-  $('show-register-btn').style.display = '';
-}
-
-async function doLogin() {
-  const username = $('login-username').value.trim();
-  const password = $('login-password').value;
-  $('login-error').textContent = '';
-  if (!username || !password) { $('login-error').textContent = '請填寫帳號和密碼'; return; }
-  $('login-error').textContent = '登入中…';
-  try {
-    const users = await sb(`users?username=eq.${encodeURIComponent(username)}&select=id,username,password_hash`);
-    if (!users.length) { $('login-error').textContent = '找不到此帳號'; return; }
-    const user = users[0];
-    if (user.password_hash !== hashPassword(password)) { $('login-error').textContent = '密碼錯誤'; return; }
-    await loginSuccess(user.username, user.id);
-  } catch(e) { $('login-error').textContent = '網路錯誤，請稍後再試'; }
-}
-
-async function doRegister() {
-  const username = $('reg-username').value.trim();
-  const pw = $('reg-password').value;
-  const pw2 = $('reg-password2').value;
-  $('reg-error').textContent = '';
-  if (!username) { $('reg-error').textContent = '請輸入使用者名稱'; return; }
-  if (username.length < 2) { $('reg-error').textContent = '名稱至少 2 個字'; return; }
-  if (pw.length < 4) { $('reg-error').textContent = '密碼至少 4 位'; return; }
-  if (pw !== pw2) { $('reg-error').textContent = '兩次密碼不一致'; return; }
-  $('reg-error').textContent = '建立中…';
-  try {
-    const existing = await sb(`users?username=eq.${encodeURIComponent(username)}&select=id`);
-    if (existing.length) { $('reg-error').textContent = '此名稱已被使用'; return; }
-    const newUsers = await sb('users', {
-      method: 'POST',
-      body: JSON.stringify({ username, password_hash: hashPassword(pw) })
+async function loadAuthScreen(){
+  const{data:users}=await sb.from('users').select('id,username').order('created_at');
+  const list=document.getElementById('accounts-list');
+  list.innerHTML='';
+  if(users&&users.length>0){
+    document.getElementById('login-or').style.display='block';
+    users.forEach(u=>{
+      const el=document.createElement('div');el.className='account-item';
+      el.innerHTML=`<div class="account-avatar">${u.username[0].toUpperCase()}</div><div class="account-name">${u.username}</div><span style="color:var(--text-light);font-size:12px">點擊選取 →</span>`;
+      el.onclick=()=>{document.getElementById('login-username').value=u.username;document.getElementById('login-password').focus();};
+      list.appendChild(el);
     });
-    const user = newUsers[0];
-    await loginSuccess(user.username, user.id);
-  } catch(e) { $('reg-error').textContent = '建立失敗：' + e.message; }
+  }else{document.getElementById('login-or').style.display='none';}
 }
 
-async function loginSuccess(username, userId) {
-  currentUser = { username, userId };
-  sessionStorage.setItem('rp_session', JSON.stringify({ username, userId }));
-  $('auth-screen').classList.add('hidden');
-  $('user-badge-avatar').textContent = username[0].toUpperCase();
-  $('user-badge-name').textContent = username;
-  currentFolderPath = [];
-  $('ingredient-list').innerHTML = '';
-  $('steps-list').innerHTML = '';
-  $('recipe-notes').value = '';
-  resetCover();
-  $('steps-body').classList.remove('open');
-  $('notes-body').classList.remove('open');
-  document.querySelectorAll('.section-toggle').forEach(t => t.classList.remove('open'));
-  $('recipe-name').value = '';
-  $('original-servings').value = '2';
-  $('results').innerHTML = '';
-  switchTab('edit');
+async function doLogin(){
+  const username=document.getElementById('login-username').value.trim();
+  const password=document.getElementById('login-password').value;
+  if(!username||!password){showToast('請填入帳號和密碼');return;}
+  const{data}=await sb.from('users').select('*').eq('username',username).single();
+  if(!data){showToast('找不到此帳號');return;}
+  const hash=await hashPw(password);
+  if(hash!==data.password_hash){showToast('密碼錯誤');return;}
+  loginSuccess(data);
 }
 
-function doLogout() {
-  $('logout-modal-msg').textContent = `確定要登出「${currentUser.username}」嗎？`;
-  $('logout-modal').classList.add('show');
+async function doRegister(){
+  const username=document.getElementById('reg-username').value.trim();
+  const password=document.getElementById('reg-password').value;
+  if(username.length<2){showToast('帳號至少2個字');return;}
+  if(password.length<4){showToast('密碼至少4位');return;}
+  const hash=await hashPw(password);
+  const{data,error}=await sb.from('users').insert({username,password_hash:hash}).select().single();
+  if(error){showToast('帳號已存在');return;}
+  loginSuccess(data);
 }
 
-function closeLogoutModal() { $('logout-modal').classList.remove('show'); }
-
-async function confirmLogout() {
-  closeLogoutModal();
-  sessionStorage.removeItem('rp_session');
-  currentUser = null;
-  $('login-username').value = '';
-  $('login-password').value = '';
-  $('login-error').textContent = '';
-  $('reg-username').value = '';
-  $('reg-password').value = '';
-  $('reg-password2').value = '';
-  $('reg-error').textContent = '';
-  showLoginForm();
-  $('auth-screen').classList.remove('hidden');
-  await renderAuthScreen();
-  $('ingredient-list').innerHTML = '';
-  $('steps-list').innerHTML = '';
-  $('recipe-notes').value = '';
-  resetCover();
-  $('steps-body').classList.remove('open');
-  $('notes-body').classList.remove('open');
-  document.querySelectorAll('.section-toggle').forEach(t => t.classList.remove('open'));
-  $('recipe-name').value = '';
-  $('results').innerHTML = '';
+async function hashPw(password){
+  const enc=new TextEncoder();
+  const buf=await crypto.subtle.digest('SHA-256',enc.encode(password+'recipe_salt_2024'));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-// ─── TOAST ───────────────────────────────────────────────────────────────────
-
-function showToast(msg) {
-  const t = $('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+function loginSuccess(user){
+  currentUser=user;
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('user-avatar').textContent=user.username[0].toUpperCase();
+  document.getElementById('user-name-display').textContent=user.username;
+  newRecipe();
+  loadBgSettings();
+  renderSaved();
+  updateConvertPage();
 }
 
-// ─── TABS ────────────────────────────────────────────────────────────────────
-
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((el, i) => {
-    el.classList.toggle('active', ['edit','convert','saved'][i] === tab);
-  });
-  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
-  $('page-' + tab).classList.add('active');
-  if (tab === 'saved') renderSaved();
+function showLogout(){openModal('logout-modal');}
+function doLogout(){
+  currentUser=null;currentRecipe={id:null,name:'',servings:'4',ingredients:[],steps:[],notes:'',cover:'',folder_id:null};
+  currentFolderPath=[];currentFolderId=null;bgSettings={};
+  closeModal('logout-modal');
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('auth-screen').style.display='';
+  // reset auth screen bg
+  document.getElementById('auth-screen').style.backgroundImage='';
+  document.getElementById('auth-screen').style.backgroundColor='';
+  document.getElementById('login-username').value='';
+  document.getElementById('login-password').value='';
+  loadAuthScreen();
 }
 
-// ─── MODES ───────────────────────────────────────────────────────────────────
-
-function setMode(mode) {
-  currentMode = mode;
-  ['servings','weight','ingredient'].forEach(m => {
-    $('mode-' + m).classList.toggle('active', m === mode);
-    $('mode-' + m + '-input').style.display = m === mode ? '' : 'none';
-  });
-  if (mode === 'ingredient') populateAnchorSelect();
+// ===== NAVIGATION =====
+let currentPage='edit';
+function switchPage(page){
+  currentPage=page;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('nav-'+page).classList.add('active');
+  if(page==='convert')updateConvertPage();
+  if(page==='saved')renderSaved();
+  if(page==='settings')renderBgSettings();
+  applyPageBg(page);
 }
 
-function populateAnchorSelect() {
-  const ingredients = getIngredients();
-  const sel = $('anchor-ingredient-select');
-  const prev = sel.value;
-  sel.innerHTML = ingredients.length
-    ? ingredients.map((ing, i) => `<option value="${i}">${ing.name}（原：${formatNum(ing.amount)} ${ing.unit}）</option>`).join('')
-    : '<option value="">— 請先在食譜中加入食材 —</option>';
-  if (prev) sel.value = prev;
-  updateAnchorHint();
+// ===== RECIPE EDIT =====
+function newRecipe(){
+  currentRecipe={id:null,name:'',servings:'4',ingredients:[],steps:[],notes:'',cover:'',folder_id:null};
+  coverDataUrl='';
+  renderEditPage();
 }
 
-function updateAnchorHint() {
-  const ingredients = getIngredients();
-  const idx = parseInt($('anchor-ingredient-select').value);
-  if (isNaN(idx) || !ingredients[idx]) { $('anchor-hint').textContent = ''; $('anchor-unit-label').textContent = ''; return; }
-  const ing = ingredients[idx];
-  $('anchor-unit-label').textContent = ing.unit;
-  $('anchor-hint').textContent = `原始份量：${formatNum(ing.amount)} ${ing.unit}`;
+function renderEditPage(){
+  document.getElementById('recipe-name').value=currentRecipe.name;
+  document.getElementById('recipe-servings').value=currentRecipe.servings;
+  document.getElementById('recipe-notes').value=currentRecipe.notes||'';
+  renderIngredients();renderSteps();renderCoverArea();
 }
 
-// ─── COVER IMAGE ─────────────────────────────────────────────────────────────
-
-let currentCoverBase64 = null; // base64 for uploaded files
-let currentCoverUrl = null;    // URL for linked images
-
-function getCoverSrc() { return currentCoverBase64 || currentCoverUrl || null; }
-
-function setCover(src) {
-  if (!src) return;
-  $('cover-img').src = src;
-  $('cover-preview').style.display = '';
-  $('cover-placeholder').style.display = 'none';
-}
-
-function removeCover() {
-  currentCoverBase64 = null;
-  currentCoverUrl = null;
-  $('cover-img').src = '';
-  $('cover-preview').style.display = 'none';
-  $('cover-placeholder').style.display = '';
-}
-
-function toggleCoverUrl() {
-  const el = $('cover-url-input');
-  el.style.display = el.style.display === 'none' ? '' : 'none';
-}
-
-function applyCoverUrl() {
-  const url = $('cover-url').value.trim();
-  if (!url) return;
-  currentCoverUrl = url;
-  currentCoverBase64 = null;
-  setCover(url);
-  $('cover-url-input').style.display = 'none';
-}
-
-function handleCoverFile(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    currentCoverBase64 = ev.target.result;
-    currentCoverUrl = null;
-    setCover(ev.target.result);
-  };
-  reader.readAsDataURL(file);
-}
-
-function resetCover() {
-  currentCoverBase64 = null;
-  currentCoverUrl = null;
-  $('cover-img').src = '';
-  $('cover-preview').style.display = 'none';
-  $('cover-placeholder').style.display = '';
-  $('cover-url').value = '';
-  $('cover-url-input').style.display = 'none';
-}
-
-// ─── STEPS ───────────────────────────────────────────────────────────────────
-
-function addStep(text = '') {
-  const list = $('steps-list');
-  const id = Date.now();
-  const num = list.children.length + 1;
-  const div = document.createElement('div');
-  div.className = 'step-card';
-  div.dataset.sid = id;
-  div.innerHTML = `
-    <div class="step-number">${num}</div>
-    <textarea class="step-textarea" placeholder="步驟說明…" rows="2">${text}</textarea>
-    <button class="step-del" onclick="removeStep(${id})">×</button>`;
-  list.appendChild(div);
-}
-
-function removeStep(id) {
-  const el = document.querySelector(`[data-sid="${id}"]`);
-  if (el) { el.remove(); renumberSteps(); }
-}
-
-function renumberSteps() {
-  document.querySelectorAll('.step-card').forEach((card, i) => {
-    card.querySelector('.step-number').textContent = i + 1;
+function renderIngredients(){
+  const list=document.getElementById('ingredient-list');list.innerHTML='';
+  currentRecipe.ingredients.forEach((ing,i)=>{
+    const row=document.createElement('div');row.className='ingredient-row';
+    const opts=UNITS.map(u=>`<option value="${u}"${ing.unit===u?' selected':''}>${u}</option>`).join('');
+    row.innerHTML=`<input class="qty" type="text" value="${ing.qty||''}" placeholder="份量" onchange="currentRecipe.ingredients[${i}].qty=this.value"><select onchange="currentRecipe.ingredients[${i}].unit=this.value">${opts}</select><input type="text" value="${ing.name||''}" placeholder="食材名稱" onchange="currentRecipe.ingredients[${i}].name=this.value"><button class="del-btn" onclick="delIngredient(${i})">✕</button>`;
+    list.appendChild(row);
   });
 }
 
-function getSteps() {
-  return Array.from(document.querySelectorAll('.step-card'))
-    .map(c => c.querySelector('.step-textarea').value.trim())
-    .filter(Boolean);
-}
+function addIngredient(){currentRecipe.ingredients.push({qty:'',unit:'g',name:''});renderIngredients();const inputs=document.querySelectorAll('.ingredient-row .qty');if(inputs.length)inputs[inputs.length-1].focus();}
+function delIngredient(i){currentRecipe.ingredients.splice(i,1);renderIngredients();}
 
-function toggleSection(bodyId, toggleEl) {
-  const body = $(bodyId);
-  const isOpen = body.classList.toggle('open');
-  toggleEl.classList.toggle('open', isOpen);
-}
-
-// ─── INGREDIENTS ─────────────────────────────────────────────────────────────
-
-function addIngredient(name = '', amount = '', unit = 'g') {
-  const list = $('ingredient-list');
-  const id = Date.now();
-  const div = document.createElement('div');
-  div.className = 'ingredient-card';
-  div.dataset.id = id;
-  const opts = UNITS.map(u => `<option value="${u}" ${u===unit?'selected':''}>${u}</option>`).join('');
-  div.innerHTML = `
-    <div class="ingredient-inputs">
-      <input type="text" placeholder="食材名稱" value="${name}" class="ing-name">
-      <input type="text" placeholder="份量 (如1/2)" value="${amount}" class="ing-amount" style="ime-mode:disabled">
-      <select class="ing-unit">${opts}</select>
-    </div>
-    <button class="ingredient-del" onclick="removeIngredient(${id})">×</button>`;
-  list.appendChild(div);
-}
-
-function removeIngredient(id) {
-  const el = document.querySelector(`[data-id="${id}"]`);
-  if (el) el.remove();
-}
-
-// Parse fraction strings like "1/2", "2 1/3", "0.5", "½" etc.
-function parseFraction(str) {
-  if (!str && str !== 0) return 0;
-  str = String(str).trim()
-    .replace('½','1/2').replace('⅓','1/3').replace('⅔','2/3')
-    .replace('¼','1/4').replace('¾','3/4').replace('⅛','1/8');
-  // mixed number: "2 1/3"
-  const mixed = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
-  // fraction: "1/3"
-  const frac = str.match(/^(\d+)\/(\d+)$/);
-  if (frac) return parseInt(frac[1]) / parseInt(frac[2]);
-  // plain number
-  const n = parseFloat(str);
-  return isNaN(n) ? 0 : n;
-}
-
-function getIngredients() {
-  return Array.from(document.querySelectorAll('.ingredient-card')).map(card => ({
-    name: card.querySelector('.ing-name').value.trim(),
-    amount: parseFraction(card.querySelector('.ing-amount').value),
-    amountRaw: card.querySelector('.ing-amount').value.trim(),
-    unit: card.querySelector('.ing-unit').value
-  })).filter(i => i.name);
-}
-
-function formatNum(n) {
-  if (n === 0) return '0';
-  if (n < 1) return parseFloat(n.toFixed(2)).toString();
-  if (n < 10) return parseFloat(n.toFixed(1)).toString();
-  return Math.round(n).toString();
-}
-
-// ─── CONVERT ─────────────────────────────────────────────────────────────────
-
-function doConvert() {
-  const ingredients = getIngredients();
-  if (!ingredients.length) { showToast('請先在「編輯食譜」頁面加入食材！'); return; }
-  const origServings = parseFraction($('original-servings').value) || 2;
-  let ratio;
-
-  if (currentMode === 'servings') {
-    const target = parseFraction($('target-servings').value);
-    if (!target || target <= 0) { showToast('請輸入有效的目標人數'); return; }
-    ratio = target / origServings;
-  } else if (currentMode === 'weight') {
-    const targetW = parseFraction($('target-weight').value);
-    if (!targetW || targetW <= 0) { showToast('請輸入目標總重量'); return; }
-    const totalG = ingredients.filter(i => ['g','kg','ml','L'].includes(i.unit))
-      .reduce((sum, i) => sum + (i.unit === 'kg' || i.unit === 'L' ? i.amount * 1000 : i.amount), 0);
-    if (!totalG) { showToast('請確保至少有一項食材含有可計算重量（g/kg）'); return; }
-    ratio = targetW / totalG;
-  } else {
-    const idx = parseInt($('anchor-ingredient-select').value);
-    if (isNaN(idx) || !ingredients[idx]) { showToast('請選擇基準食材'); return; }
-    const newAmt = parseFraction($('anchor-new-amount').value);
-    if (!newAmt || newAmt <= 0) { showToast('請輸入新份量'); return; }
-    if (!ingredients[idx].amount) { showToast('基準食材的原始份量為 0，無法計算'); return; }
-    ratio = newAmt / ingredients[idx].amount;
-  }
-
-  const recipeName = $('recipe-name').value || '食譜';
-  let badgeText, anchorIdx = -1;
-  if (currentMode === 'servings') badgeText = `×${parseFloat(ratio.toFixed(2))} 倍`;
-  else if (currentMode === 'weight') badgeText = `總重 ${$('target-weight').value}g`;
-  else {
-    anchorIdx = parseInt($('anchor-ingredient-select').value);
-    badgeText = `依 ${ingredients[anchorIdx]?.name} ×${parseFloat(ratio.toFixed(2))}`;
-  }
-
-  let html = `<div class="results-header">
-    <span class="results-title">${recipeName}</span>
-    <span class="results-badge">${badgeText}</span>
-  </div>`;
-  ingredients.forEach((ing, i) => {
-    const newAmt = ing.amount * ratio;
-    const isAnchor = i === anchorIdx;
-    html += `<div class="result-item" style="${isAnchor?'border-color:#9FE1CB;background:var(--teal-light);':''}">
-      <span class="result-name">${ing.name}${isAnchor?' <span style="font-size:11px;color:var(--teal-dark);background:#9FE1CB;padding:2px 7px;border-radius:10px;font-weight:500;">基準</span>':''}</span>
-      <div class="result-amount-row">
-        <span class="result-original">${formatNum(ing.amount)}</span>
-        <span class="result-new" style="${isAnchor?'color:var(--teal);':''}">${formatNum(newAmt)}</span>
-        <span class="result-unit">${ing.unit}</span>
-      </div>
-    </div>`;
+function renderSteps(){
+  const list=document.getElementById('steps-list');list.innerHTML='';
+  currentRecipe.steps.forEach((step,i)=>{
+    const row=document.createElement('div');row.className='step-row';
+    row.innerHTML=`<div class="step-num">${i+1}</div><textarea onchange="currentRecipe.steps[${i}]=this.value">${step}</textarea><button class="del-btn" onclick="delStep(${i})">✕</button>`;
+    list.appendChild(row);
   });
-  $('results').innerHTML = html;
 }
 
-// ─── RECIPES (cloud) ──────────────────────────────────────────────────────────
+function addStep(){
+  const body=document.getElementById('steps-body');
+  if(!body.style.maxHeight||body.style.maxHeight==='0px')toggleCollapse('steps-body','steps-arrow');
+  currentRecipe.steps.push('');renderSteps();
+}
+function delStep(i){currentRecipe.steps.splice(i,1);renderSteps();}
 
-async function saveRecipe() {
-  const name = $('recipe-name').value.trim();
-  if (!name) { showToast('請先輸入食譜名稱'); return; }
-  const ingredients = getIngredients();
-  if (!ingredients.length) { showToast('請先加入食材'); return; }
-  const servings = parseFraction($('original-servings').value) || 2;
-  const notes = $('recipe-notes').value.trim();
-  const steps = getSteps();
-  const cover = getCoverSrc();
-  showToast('儲存中…');
-  try {
-    const existing = await sb(`recipes?user_id=eq.${currentUser.userId}&name=eq.${encodeURIComponent(name)}&select=id`);
-    const data = { user_id: currentUser.userId, name, servings, ingredients, steps, notes, cover };
-    if (existing.length) {
-      await sb(`recipes?id=eq.${existing[0].id}`, { method: 'PATCH', body: JSON.stringify(data), prefer: 'return=minimal' });
-    } else {
-      await sb('recipes', { method: 'POST', body: JSON.stringify(data) });
+function toggleCollapse(bodyId,arrowId){
+  const body=document.getElementById(bodyId);const arrow=document.getElementById(arrowId);
+  if(!body.style.maxHeight||body.style.maxHeight==='0px'){body.style.maxHeight=body.scrollHeight+500+'px';arrow.classList.add('open');}
+  else{body.style.maxHeight='0px';arrow.classList.remove('open');}
+}
+
+// ===== COVER =====
+function renderCoverArea(){
+  const area=document.getElementById('cover-area');
+  const src=coverDataUrl||currentRecipe.cover;
+  if(src)area.innerHTML=`<img src="${src}"><div class="cover-overlay"><span style="color:white;font-size:13px">點擊更換封面</span></div>`;
+  else area.innerHTML=`<div class="cover-placeholder">🖼️</div><div class="cover-hint">點擊設定封面照片</div>`;
+}
+
+function showCoverModal(){
+  document.getElementById('cover-url').value=currentRecipe.cover&&!coverDataUrl?currentRecipe.cover:'';
+  const src=coverDataUrl||currentRecipe.cover;
+  document.getElementById('cover-preview').style.backgroundImage=src?`url(${src})`:'';
+  openModal('cover-modal');
+}
+
+function onCoverFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();r.onload=ev=>{coverDataUrl=ev.target.result;document.getElementById('cover-preview').style.backgroundImage=`url(${coverDataUrl})`;};r.readAsDataURL(file);
+}
+
+function applyCover(){
+  const url=document.getElementById('cover-url').value.trim();
+  if(url){currentRecipe.cover=url;coverDataUrl='';}
+  else if(coverDataUrl){currentRecipe.cover=coverDataUrl;coverDataUrl='';}
+  renderCoverArea();closeModal('cover-modal');
+}
+
+function clearCover(){
+  currentRecipe.cover='';coverDataUrl='';
+  document.getElementById('cover-preview').style.backgroundImage='';
+  document.getElementById('cover-file').value='';
+  document.getElementById('cover-url').value='';
+  renderCoverArea();closeModal('cover-modal');
+}
+
+// ===== SAVE/LOAD =====
+async function saveRecipe(){
+  // sync DOM values
+  document.querySelectorAll('.ingredient-row').forEach((row,i)=>{
+    if(currentRecipe.ingredients[i]){
+      const inputs=row.querySelectorAll('input');const sel=row.querySelector('select');
+      currentRecipe.ingredients[i].qty=inputs[0].value;
+      currentRecipe.ingredients[i].name=inputs[1].value;
+      currentRecipe.ingredients[i].unit=sel.value;
     }
-    showToast('✅ 食譜已儲存！');
-  } catch(e) { showToast('儲存失敗：' + e.message); }
+  });
+  document.querySelectorAll('.step-row textarea').forEach((ta,i)=>{if(currentRecipe.steps[i]!==undefined)currentRecipe.steps[i]=ta.value;});
+  currentRecipe.name=document.getElementById('recipe-name').value.trim();
+  currentRecipe.servings=document.getElementById('recipe-servings').value.trim()||'4';
+  currentRecipe.notes=document.getElementById('recipe-notes').value.trim();
+  if(!currentRecipe.name){showToast('請輸入食譜名稱');return;}
+  const payload={user_id:currentUser.id,name:currentRecipe.name,servings:currentRecipe.servings,ingredients:currentRecipe.ingredients,steps:currentRecipe.steps,notes:currentRecipe.notes,cover:currentRecipe.cover||'',folder_id:currentRecipe.folder_id||null,sort_order:0};
+  if(currentRecipe.id){await sb.from('recipes').update(payload).eq('id',currentRecipe.id);showToast('✅ 食譜已更新！');}
+  else{const{data}=await sb.from('recipes').insert(payload).select().single();if(data)currentRecipe.id=data.id;showToast('✅ 食譜已儲存！');}
 }
 
-function loadRecipe(recipe) {
-  $('recipe-name').value = recipe.name;
-  $('original-servings').value = recipe.servings;
-  $('ingredient-list').innerHTML = '';
-  recipe.ingredients.forEach(i => addIngredient(i.name, i.amount, i.unit));
-  $('recipe-notes').value = recipe.notes || '';
-  $('steps-list').innerHTML = '';
-  (recipe.steps || []).forEach(s => addStep(s));
-  // Cover
-  resetCover();
-  if (recipe.cover) {
-    if (recipe.cover.startsWith('data:')) currentCoverBase64 = recipe.cover;
-    else currentCoverUrl = recipe.cover;
-    setCover(recipe.cover);
-  }
-  if (recipe.steps && recipe.steps.length) {
-    $('steps-body').classList.add('open');
-    document.querySelector('[onclick*="steps-body"]')?.classList.add('open');
-  }
-  if (recipe.notes) {
-    $('notes-body').classList.add('open');
-    document.querySelector('[onclick*="notes-body"]')?.classList.add('open');
-  }
-  switchTab('edit');
-  showToast(`已載入「${recipe.name}」`);
+async function loadRecipe(recipe){
+  currentRecipe={id:recipe.id,name:recipe.name,servings:recipe.servings||'4',ingredients:recipe.ingredients||[],steps:recipe.steps||[],notes:recipe.notes||'',cover:recipe.cover||'',folder_id:recipe.folder_id||null};
+  coverDataUrl='';renderEditPage();
+  if(currentRecipe.steps.length>0)toggleCollapse('steps-body','steps-arrow');
+  if(currentRecipe.notes)toggleCollapse('notes-body','notes-arrow');
+  switchPage('edit');showToast(`📖 已載入「${recipe.name}」`);
 }
 
-async function deleteRecipe(name) {
-  try {
-    await sb(`recipes?user_id=eq.${currentUser.userId}&name=eq.${encodeURIComponent(name)}`, { method: 'DELETE', prefer: 'return=minimal' });
-    renderSaved();
-    showToast('已刪除');
-  } catch(e) { showToast('刪除失敗'); }
+async function deleteRecipe(id){
+  if(!confirm('確定要刪除這個食譜嗎？'))return;
+  await sb.from('recipes').delete().eq('id',id);
+  if(currentRecipe.id===id)newRecipe();
+  renderSaved();showToast('🗑 食譜已刪除');
 }
 
-// ─── FOLDER SYSTEM (cloud) ────────────────────────────────────────────────────
-
-let currentFolderPath = [];
-let moveTargetRecipeName = null;
-let moveSelectedFolderId = '__root__';
-let renameTarget = null;
-let dragSrcEl = null;
-let _allFolders = [];
-let _allRecipes = [];
-
-async function renderSaved() {
-  renderFolder(currentFolderPath);
+// ===== CONVERT =====
+function setConvertMode(mode){
+  convertMode=mode;
+  document.querySelectorAll('.convert-tab').forEach((b,i)=>b.classList.toggle('active',i===mode));
+  [0,1,2].forEach(i=>document.getElementById('mode-'+i).style.display=i===mode?'':'none');
+  if(mode===2){const sel=document.getElementById('ref-ingredient');sel.innerHTML=currentRecipe.ingredients.map((ing,i)=>`<option value="${i}">${ing.name||'食材'+(i+1)} (${ing.qty}${ing.unit})</option>`).join('');}
+  document.getElementById('convert-result').style.display='none';
 }
 
-async function renderFolder(path) {
-  currentFolderPath = path;
-  const list = $('saved-list');
-  list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);font-size:13px;">載入中…</div>';
+function updateConvertPage(){
+  const has=currentRecipe.ingredients.length>0;
+  document.getElementById('no-recipe-msg').style.display=has?'none':'';
+  document.getElementById('convert-body').style.display=has?'':'none';
+  if(has){document.getElementById('convert-recipe-name').textContent=currentRecipe.name||'未命名食譜';document.getElementById('convert-recipe-servings').textContent=`原始份量：${currentRecipe.servings} 人份`;setConvertMode(convertMode);}
+}
 
-  try {
-    _allFolders = await sb(`folders?user_id=eq.${currentUser.userId}&order=sort_order`);
-    _allRecipes = await sb(`recipes?user_id=eq.${currentUser.userId}&order=sort_order`);
-  } catch(e) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div>載入失敗，請檢查網路</div>';
-    return;
-  }
+function doConvert(){
+  const ings=currentRecipe.ingredients;if(!ings.length)return;
+  let ratio=1;const orig=parseFraction(currentRecipe.servings)||1;
+  if(convertMode===0){const t=parseFraction(document.getElementById('target-servings').value);if(isNaN(t)||t<=0){showToast('請輸入有效人數');return;}ratio=t/orig;}
+  else if(convertMode===1){const tw=parseFraction(document.getElementById('target-weight').value);if(isNaN(tw)||tw<=0){showToast('請輸入有效重量');return;}const wu=['g','kg','ml','L'];let tot=0;ings.forEach(ing=>{if(wu.includes(ing.unit)){let q=parseFraction(ing.qty)||0;if(ing.unit==='kg'||ing.unit==='L')q*=1000;tot+=q;}});if(tot<=0){showToast('找不到可計算重量的食材');return;}ratio=tw/tot;}
+  else{const ri=parseInt(document.getElementById('ref-ingredient').value);const ra=parseFraction(document.getElementById('ref-amount').value);const ro=parseFraction(ings[ri].qty);if(isNaN(ra)||ra<=0||isNaN(ro)||ro<=0){showToast('請輸入有效份量');return;}ratio=ra/ro;}
+  const rl=document.getElementById('result-list');rl.innerHTML='';
+  ings.forEach((ing,i)=>{
+    const oq=parseFraction(ing.qty);const nq=isNaN(oq)?'?':fmtNum(oq*ratio);
+    const isRef=convertMode===2&&i===parseInt(document.getElementById('ref-ingredient').value);
+    const row=document.createElement('div');row.className='result-row';
+    row.innerHTML=`<span class="result-name">${ing.name||'食材'+(i+1)}${isRef?'<span class="badge-ref">基準</span>':''}</span><span class="result-orig">${ing.qty}${ing.unit}</span><span class="result-new">→ ${nq}${ing.unit}</span>`;
+    rl.appendChild(row);
+  });
+  document.getElementById('convert-result').style.display='';
+}
 
-  const curFolderId = path.length ? path[path.length-1] : null;
-  const folders = _allFolders.filter(f => (curFolderId ? f.parent_id === curFolderId : !f.parent_id));
-  const recipes = _allRecipes.filter(r => (curFolderId ? r.folder_id === curFolderId : !r.folder_id));
+// ===== FOLDERS & SAVED =====
+async function renderSaved(){
+  const list=document.getElementById('saved-list');list.innerHTML='<div class="loading">載入中…</div>';
+  renderBreadcrumb();
+  let fq=sb.from('folders').select('*').eq('user_id',currentUser.id).order('sort_order');
+  if(currentFolderId)fq=fq.eq('parent_id',currentFolderId);else fq=fq.is('parent_id',null);
+  const[{data:folders},{data:recipes}]=await Promise.all([fq,sb.from('recipes').select('*').eq('user_id',currentUser.id).is('folder_id',currentFolderId).order('sort_order')]);
+  list.innerHTML='';
+  if((!folders||!folders.length)&&(!recipes||!recipes.length)){list.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><p>${currentFolderId?'此資料夾是空的':'還沒有食譜，去編輯頁面新增吧！'}</p></div>`;return;}
+  (folders||[]).forEach(f=>{
+    const el=document.createElement('div');el.className='folder-item';
+    el.innerHTML=`<span class="folder-icon">📁</span><div class="item-info" onclick="enterFolder('${f.id}','${f.name}')"><div class="item-name">${f.name}</div><div class="item-meta">資料夾</div></div><div class="item-actions"><button class="icon-btn" onclick="event.stopPropagation();deleteFolder('${f.id}')">🗑</button></div>`;
+    list.appendChild(el);
+  });
+  (recipes||[]).forEach(recipe=>{
+    const el=document.createElement('div');el.className='recipe-item';
+    const thumb=recipe.cover?`<div class="recipe-thumb"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-thumb">🍽</div>`;
+    const safeRecipe=JSON.stringify(recipe).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    el.innerHTML=`${thumb}<div class="item-info" onclick='loadRecipe(${JSON.stringify(recipe).replace(/'/g,"\\'")})'><div class="item-name">${recipe.name}</div><div class="item-meta">${recipe.servings} 人份 · ${(recipe.ingredients||[]).length} 樣食材</div></div><div class="item-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();deleteRecipe('${recipe.id}')">🗑</button></div>`;
+    el.querySelector('.item-info').onclick=()=>loadRecipe(recipe);
+    list.appendChild(el);
+  });
+}
 
-  // Breadcrumb
-  const bc = $('breadcrumb');
-  if (!path.length) {
-    bc.innerHTML = '<span class="breadcrumb-current">🏠 全部食譜</span>';
-    $('btn-up').style.display = 'none';
-  } else {
-    let crumbs = '<span class="breadcrumb-item" onclick="renderFolder([])">🏠 首頁</span>';
-    path.forEach((id, i) => {
-      const f = _allFolders.find(x => x.id === id);
-      if (!f) return;
-      const subPath = path.slice(0, i+1);
-      if (i < path.length - 1) {
-        crumbs += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item" onclick='renderFolder(${JSON.stringify(subPath)})'>${f.name}</span>`;
-      } else {
-        crumbs += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-current">${f.name}</span>`;
-      }
-    });
-    bc.innerHTML = crumbs;
-    $('btn-up').style.display = '';
-  }
+function renderBreadcrumb(){
+  const bc=document.getElementById('breadcrumb');bc.innerHTML='';
+  const home=document.createElement('span');home.className='breadcrumb-item';home.textContent='🏠 所有食譜';
+  home.onclick=()=>{currentFolderPath=[];currentFolderId=null;renderSaved();};bc.appendChild(home);
+  currentFolderPath.forEach((seg,i)=>{
+    const sep=document.createElement('span');sep.className='breadcrumb-sep';sep.textContent=' › ';bc.appendChild(sep);
+    const item=document.createElement('span');item.className='breadcrumb-item';item.textContent=seg.name;
+    item.onclick=()=>{currentFolderPath=currentFolderPath.slice(0,i+1);currentFolderId=seg.id;renderSaved();};bc.appendChild(item);
+  });
+}
 
-  if (!folders.length && !recipes.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div>這裡還沒有食譜<br>在「編輯食譜」頁面輸入後按「儲存食譜」</div>`;
-    return;
-  }
+function enterFolder(id,name){currentFolderPath.push({id,name});currentFolderId=id;renderSaved();}
 
-  list.innerHTML = '';
-  folders.forEach(folder => {
-    const count = _allFolders.filter(f => f.parent_id === folder.id).length + _allRecipes.filter(r => r.folder_id === folder.id).length;
-    const div = document.createElement('div');
-    div.className = 'folder-item';
-    div.draggable = true;
-    div.dataset.type = 'folder';
-    div.dataset.id = folder.id;
-    div.innerHTML = `
-      <span class="drag-handle">⠿</span>
-      <span class="folder-icon">📁</span>
-      <div class="folder-info">
-        <div class="folder-name">${folder.name}</div>
-        <div class="folder-meta">${count} 個項目</div>
+function showNewFolderModal(){document.getElementById('new-folder-name').value='';openModal('new-folder-modal');}
+
+async function createFolder(){
+  const name=document.getElementById('new-folder-name').value.trim();
+  if(!name){showToast('請輸入名稱');return;}
+  await sb.from('folders').insert({user_id:currentUser.id,name,parent_id:currentFolderId||null,sort_order:0});
+  closeModal('new-folder-modal');renderSaved();showToast('📁 資料夾已建立');
+}
+
+async function deleteFolder(id){
+  if(!confirm('確定要刪除此資料夾嗎？（裡面的食譜不會刪除）'))return;
+  await sb.from('folders').delete().eq('id',id);renderSaved();showToast('🗑 資料夾已刪除');
+}
+
+async function showMoveModal(recipeId){
+  const listEl=document.getElementById('move-folder-list');listEl.innerHTML='<div class="loading">載入中…</div>';openModal('move-modal');
+  const{data:folders}=await sb.from('folders').select('*').eq('user_id',currentUser.id).order('name');
+  listEl.innerHTML='';
+  const root=document.createElement('div');root.className='folder-item';root.style.cursor='pointer';
+  root.innerHTML=`<span class="folder-icon">🏠</span><div class="item-info"><div class="item-name">所有食譜（根目錄）</div></div>`;
+  root.onclick=async()=>{await sb.from('recipes').update({folder_id:null}).eq('id',recipeId);closeModal('move-modal');renderSaved();showToast('已移動');};
+  listEl.appendChild(root);
+  (folders||[]).forEach(f=>{
+    const el=document.createElement('div');el.className='folder-item';el.style.cursor='pointer';
+    el.innerHTML=`<span class="folder-icon">📁</span><div class="item-info"><div class="item-name">${f.name}</div></div>`;
+    el.onclick=async()=>{await sb.from('recipes').update({folder_id:f.id}).eq('id',recipeId);closeModal('move-modal');renderSaved();showToast('已移動至 '+f.name);};
+    listEl.appendChild(el);
+  });
+}
+
+// ===== BACKGROUND SETTINGS =====
+function loadBgSettings(){
+  const raw=localStorage.getItem('bgSettings_'+(currentUser?currentUser.id:'guest'));
+  bgSettings=raw?JSON.parse(raw):{};
+  BG_PAGES.forEach(p=>applyPageBg(p.key));
+}
+
+function saveBgSettings(){localStorage.setItem('bgSettings_'+(currentUser?currentUser.id:'guest'),JSON.stringify(bgSettings));}
+
+function applyPageBg(pageKey){
+  const setting=bgSettings[pageKey];
+  let el;
+  if(pageKey==='auth')el=document.getElementById('auth-screen');
+  else el=document.getElementById('page-'+pageKey);
+  if(!el)return;
+  if(!setting||setting.type==='none'){el.style.backgroundColor='';el.style.backgroundImage='';}
+  else if(setting.type==='color'){el.style.backgroundColor=setting.value;el.style.backgroundImage='';}
+  else if(setting.type==='image'){el.style.backgroundImage=`url(${setting.value})`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.backgroundColor='';}
+}
+
+function renderBgSettings(){
+  const container=document.getElementById('bg-settings-list');container.innerHTML='';
+  BG_PAGES.forEach(page=>{
+    const setting=bgSettings[page.key]||{type:'none',value:''};
+    const previewStyle=setting.type==='color'?`background-color:${setting.value}`:setting.type==='image'?`background-image:url(${setting.value});background-size:cover;background-position:center`:'background:linear-gradient(135deg,#f8f6f3,#e0dcd8)';
+    const card=document.createElement('div');card.className='bg-setting-card';
+    card.innerHTML=`
+      <div class="bg-setting-header"><span class="bg-page-icon">${page.icon}</span><span class="bg-page-name">${page.name}</span></div>
+      <div class="bg-type-tabs">
+        <button class="bg-type-btn${setting.type==='none'?' active':''}" onclick="setBgType('${page.key}','none')">無背景</button>
+        <button class="bg-type-btn${setting.type==='color'?' active':''}" onclick="setBgType('${page.key}','color')">純色</button>
+        <button class="bg-type-btn${setting.type==='image'?' active':''}" onclick="setBgType('${page.key}','image')">圖片</button>
       </div>
-      <div class="folder-actions">
-        <button class="folder-action-btn" onclick="event.stopPropagation();openRenameFolder('${folder.id}','${folder.name.replace(/'/g,"\\'")}')">改名</button>
-        <button class="folder-action-btn del" onclick="event.stopPropagation();deleteFolder('${folder.id}')">刪除</button>
-      </div>`;
-    div.addEventListener('click', () => renderFolder([...currentFolderPath, folder.id]));
-    setupDrag(div);
-    list.appendChild(div);
-  });
-
-  recipes.forEach(r => {
-    const div = document.createElement('div');
-    div.className = 'folder-item';
-    div.draggable = true;
-    div.dataset.type = 'recipe';
-    div.dataset.id = r.id;
-    div.innerHTML = `
-      <span class="drag-handle">⠿</span>
-      ${r.cover ? `<img src="${r.cover}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">` : '<span class="folder-icon">🍽️</span>'}
-      <div class="folder-info">
-        <div class="folder-name">${r.name}</div>
-        <div class="folder-meta">${r.servings} 人份 · ${r.ingredients.length} 種食材</div>
+      <div id="bg-color-row-${page.key}" style="display:${setting.type==='color'?'block':'none'}">
+        <label style="font-size:12px;margin-bottom:4px">選擇顏色</label>
+        <input type="color" value="${setting.type==='color'?setting.value:'#f8f6f3'}" oninput="setBgColor('${page.key}',this.value)" style="width:100%;height:44px">
       </div>
-      <div class="folder-actions">
-        <button class="folder-action-btn" onclick="event.stopPropagation();openMoveModal('${r.id}','${r.name.replace(/'/g,"\\'")}')">移動</button>
-        <button class="folder-action-btn del" onclick="event.stopPropagation();deleteRecipe('${r.name.replace(/'/g,"\\'")}')">刪除</button>
-      </div>`;
-    div.addEventListener('click', () => loadRecipe(r));
-    setupDrag(div);
-    list.appendChild(div);
+      <div id="bg-img-row-${page.key}" style="display:${setting.type==='image'?'block':'none'}">
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="showBgImgModal('${page.key}')">📷 選取圖片</button>
+          ${setting.type==='image'&&setting.value?`<button class="btn btn-ghost btn-sm" onclick="clearBgImg('${page.key}')">🗑 清除</button>`:''}
+        </div>
+      </div>
+      <div class="bg-preview" id="bg-preview-${page.key}" style="${previewStyle}"></div>`;
+    container.appendChild(card);
   });
 }
 
-function goUpFolder() { renderFolder(currentFolderPath.slice(0, -1)); }
-
-// Drag & drop
-function setupDrag(el) {
-  el.addEventListener('dragstart', e => { dragSrcEl = el; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
-  el.addEventListener('dragend', () => { el.classList.remove('dragging'); document.querySelectorAll('.folder-item').forEach(i => i.classList.remove('drag-over')); });
-  el.addEventListener('dragover', e => { e.preventDefault(); if (el !== dragSrcEl) el.classList.add('drag-over'); });
-  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-  el.addEventListener('drop', async e => {
-    e.preventDefault(); el.classList.remove('drag-over');
-    if (!dragSrcEl || dragSrcEl === el) return;
-    const list = $('saved-list');
-    const items = [...list.children];
-    const srcIdx = items.indexOf(dragSrcEl);
-    const tgtIdx = items.indexOf(el);
-    if (srcIdx < tgtIdx) list.insertBefore(dragSrcEl, el.nextSibling);
-    else list.insertBefore(dragSrcEl, el);
-    await persistOrder();
-  });
+function setBgType(pageKey,type){
+  if(!bgSettings[pageKey])bgSettings[pageKey]={type:'none',value:''};
+  bgSettings[pageKey].type=type;
+  if(type==='none')bgSettings[pageKey].value='';
+  saveBgSettings();applyPageBg(pageKey);renderBgSettings();
 }
 
-async function persistOrder() {
-  const items = [...$('saved-list').children];
-  for (let i = 0; i < items.length; i++) {
-    const el = items[i];
-    const id = el.dataset.id;
-    const type = el.dataset.type;
-    if (type === 'folder') await sb(`folders?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ sort_order: i }), prefer: 'return=minimal' }).catch(()=>{});
-    else await sb(`recipes?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ sort_order: i }), prefer: 'return=minimal' }).catch(()=>{});
-  }
+function setBgColor(pageKey,color){
+  if(!bgSettings[pageKey])bgSettings[pageKey]={};
+  bgSettings[pageKey].type='color';bgSettings[pageKey].value=color;
+  saveBgSettings();applyPageBg(pageKey);
+  const prev=document.getElementById('bg-preview-'+pageKey);
+  if(prev){prev.style.backgroundColor=color;prev.style.backgroundImage='';}
 }
 
-// Folder modals
-function showNewFolderModal() {
-  $('new-folder-name').value = '';
-  $('new-folder-error').textContent = '';
-  $('new-folder-modal').classList.add('show');
-  setTimeout(() => $('new-folder-name').focus(), 100);
-}
-function closeNewFolderModal() { $('new-folder-modal').classList.remove('show'); }
-
-async function confirmNewFolder() {
-  const name = $('new-folder-name').value.trim();
-  if (!name) { $('new-folder-error').textContent = '請輸入資料夾名稱'; return; }
-  const curFolderId = currentFolderPath.length ? currentFolderPath[currentFolderPath.length-1] : null;
-  try {
-    await sb('folders', { method: 'POST', body: JSON.stringify({ user_id: currentUser.userId, name, parent_id: curFolderId }) });
-    closeNewFolderModal();
-    renderSaved();
-    showToast('📁 資料夾已建立');
-  } catch(e) { $('new-folder-error').textContent = '建立失敗'; }
+function showBgImgModal(pageKey){
+  bgEditTarget=pageKey;bgImgDataUrl='';
+  document.getElementById('bg-file-input').value='';
+  document.getElementById('bg-url-input').value='';
+  const setting=bgSettings[pageKey];
+  const preview=document.getElementById('bg-img-preview');
+  if(setting&&setting.type==='image'&&setting.value)preview.style.backgroundImage=`url(${setting.value})`;
+  else preview.style.backgroundImage='';
+  openModal('bg-img-modal');
 }
 
-async function deleteFolder(id) {
-  try {
-    await sb(`recipes?folder_id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ folder_id: null }), prefer: 'return=minimal' });
-    await sb(`folders?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
-    renderSaved();
-    showToast('資料夾已刪除');
-  } catch(e) { showToast('刪除失敗'); }
+function onBgFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();r.onload=ev=>{bgImgDataUrl=ev.target.result;document.getElementById('bg-img-preview').style.backgroundImage=`url(${bgImgDataUrl})`;};r.readAsDataURL(file);
 }
 
-function openRenameFolder(id, name) {
-  renameTarget = { type: 'folder', id };
-  $('rename-modal-title').textContent = '📁 重新命名資料夾';
-  $('rename-input').value = name;
-  $('rename-error').textContent = '';
-  $('rename-modal').classList.add('show');
-  setTimeout(() => $('rename-input').focus(), 100);
-}
-function closeRenameModal() { $('rename-modal').classList.remove('show'); }
-
-async function confirmRename() {
-  const name = $('rename-input').value.trim();
-  if (!name) { $('rename-error').textContent = '請輸入名稱'; return; }
-  try {
-    await sb(`folders?id=eq.${renameTarget.id}`, { method: 'PATCH', body: JSON.stringify({ name }), prefer: 'return=minimal' });
-    closeRenameModal();
-    renderSaved();
-    showToast('✅ 已更新名稱');
-  } catch(e) { $('rename-error').textContent = '更新失敗'; }
+function applyBgImg(){
+  const url=document.getElementById('bg-url-input').value.trim();
+  const val=url||bgImgDataUrl;
+  if(!val){showToast('請選擇圖片或輸入網址');return;}
+  if(!bgSettings[bgEditTarget])bgSettings[bgEditTarget]={};
+  bgSettings[bgEditTarget].type='image';bgSettings[bgEditTarget].value=val;
+  bgImgDataUrl='';
+  saveBgSettings();applyPageBg(bgEditTarget);closeModal('bg-img-modal');renderBgSettings();
 }
 
-// Move recipe
-let moveTargetRecipeId = null;
-function openMoveModal(recipeId, recipeName) {
-  moveTargetRecipeId = recipeId;
-  moveTargetRecipeName = recipeName;
-  moveSelectedFolderId = '__root__';
-  $('move-recipe-label').textContent = `將「${recipeName}」移動到：`;
-  renderMoveFolderList($('move-folder-list'), _allFolders.filter(f => !f.parent_id), 0);
-  $('move-recipe-modal').classList.add('show');
-}
-function closeMoveModal() { $('move-recipe-modal').classList.remove('show'); }
-
-function renderMoveFolderList(container, folders, depth) {
-  if (depth === 0) {
-    container.innerHTML = '';
-    const rootDiv = document.createElement('div');
-    rootDiv.className = 'folder-select-item' + (moveSelectedFolderId === '__root__' ? ' selected' : '');
-    rootDiv.innerHTML = '🏠 根目錄（不在資料夾）';
-    rootDiv.onclick = () => { moveSelectedFolderId = '__root__'; document.querySelectorAll('.folder-select-item').forEach(i => i.classList.remove('selected')); rootDiv.classList.add('selected'); };
-    container.appendChild(rootDiv);
-  }
-  folders.forEach(f => {
-    const div = document.createElement('div');
-    div.className = 'folder-select-item' + (moveSelectedFolderId === f.id ? ' selected' : '');
-    div.style.paddingLeft = (14 + depth * 16) + 'px';
-    div.innerHTML = `📁 ${f.name}`;
-    div.onclick = () => { moveSelectedFolderId = f.id; document.querySelectorAll('.folder-select-item').forEach(i => i.classList.remove('selected')); div.classList.add('selected'); };
-    container.appendChild(div);
-    const children = _allFolders.filter(x => x.parent_id === f.id);
-    if (children.length) renderMoveFolderList(container, children, depth + 1);
-  });
+function clearBgImg(pageKey){
+  if(bgSettings[pageKey]){bgSettings[pageKey].type='none';bgSettings[pageKey].value='';}
+  saveBgSettings();applyPageBg(pageKey);renderBgSettings();
 }
 
-async function confirmMove() {
-  const folderId = moveSelectedFolderId === '__root__' ? null : moveSelectedFolderId;
-  try {
-    await sb(`recipes?id=eq.${moveTargetRecipeId}`, { method: 'PATCH', body: JSON.stringify({ folder_id: folderId }), prefer: 'return=minimal' });
-    closeMoveModal();
-    renderSaved();
-    showToast('✅ 食譜已移動');
-  } catch(e) { showToast('移動失敗'); }
-}
-
-// ─── PWA ─────────────────────────────────────────────────────────────────────
-
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault(); deferredPrompt = e;
-  $('install-banner').classList.add('show');
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded',()=>{
+  loadAuthScreen();
+  addIngredient();
+  document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});});
 });
-function installPWA() {
-  if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; hideBanner(); }); }
-}
-function hideBanner() { $('install-banner').classList.remove('show'); }
-
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(() => {}); }
-
-document.addEventListener('change', e => {
-  if (e.target.id === 'anchor-ingredient-select') updateAnchorHint();
-});
-
-// Enter key on auth and folder inputs
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  if ($('register-form').style.display !== 'none') doRegister();
-  else if (!$('auth-screen').classList.contains('hidden')) doLogin();
-  else if ($('new-folder-modal').classList.contains('show')) confirmNewFolder();
-  else if ($('rename-modal').classList.contains('show')) confirmRename();
-});
-
-// ─── INIT ─────────────────────────────────────────────────────────────────────
-initAuth();
 </script>
 </body>
 </html>
