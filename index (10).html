@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1D9E75">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="食譜轉換器">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>食譜轉換器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal: #1D9E75;
+    --teal-light: #E1F5EE;
+    --teal-dark: #0F6E56;
+    --amber: #EF9F27;
+    --amber-light: #FAEEDA;
+    --text: #2C2C2A;
+    --text-muted: #5F5E5A;
+    --text-hint: #888780;
+    --bg: #FAFAF8;
+    --surface: #FFFFFF;
+    --border: rgba(44,44,42,0.12);
+    --border-strong: rgba(44,44,42,0.22);
+    --radius: 14px;
+    --radius-sm: 8px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: calc(var(--safe-top) + 14px) 20px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--teal);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .logo-text { font-family: 'Noto Serif TC', serif; font-size: 17px; font-weight: 600; letter-spacing: 0.02em; }
+  .logo-sub { font-size: 11px; color: var(--text-hint); letter-spacing: 0.05em; margin-top: 1px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+  }
+  .tab {
+    flex: 1; padding: 10px 0;
+    font-size: 13px; font-weight: 500;
+    color: var(--text-hint);
+    background: none; border: none; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+    letter-spacing: 0.03em;
+  }
+  .tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+  /* Content */
+  .page { display: none; padding: 20px 20px calc(var(--safe-bot) + 80px); }
+  .page.active { display: block; }
+
+  /* Section label */
+  .label { font-size: 11px; font-weight: 500; color: var(--text-hint); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+
+  /* Recipe name */
+  .recipe-name-row { margin-bottom: 20px; }
+  .recipe-name-input {
+    width: 100%; padding: 12px 14px;
+    font-family: 'Noto Serif TC', serif; font-size: 18px; font-weight: 600;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    outline: none; transition: border-color 0.2s;
+  }
+  .recipe-name-input:focus { border-color: var(--teal); }
+  .recipe-name-input::placeholder { font-family: 'Noto Sans TC', sans-serif; font-size: 14px; font-weight: 300; color: var(--text-hint); }
+
+  /* Ingredients list */
+  .ingredients-section { margin-bottom: 20px; }
+  .ingredient-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px;
+    animation: slideIn 0.2s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .ingredient-inputs { flex: 1; display: grid; grid-template-columns: 1fr auto 60px; gap: 6px; align-items: center; }
+  .ingredient-inputs input, .ingredient-inputs select {
+    padding: 7px 10px; font-size: 14px; font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); outline: none;
+    transition: border-color 0.2s;
+  }
+  .ingredient-inputs input:focus, .ingredient-inputs select:focus { border-color: var(--teal); }
+  .ingredient-inputs input[type="number"] { -moz-appearance: textfield; }
+  .ingredient-inputs input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .ingredient-del {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: none; border: 1px solid var(--border);
+    color: var(--text-hint); cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background 0.15s, color 0.15s;
+  }
+  .ingredient-del:hover { background: #FCEBEB; color: #A32D2D; border-color: #F09595; }
+
+  /* Add button */
+  .add-btn {
+    width: 100%; padding: 11px;
+    background: none; border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-sm); color: var(--text-muted);
+    font-size: 13px; cursor: pointer; letter-spacing: 0.03em;
+    transition: background 0.15s, border-color 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .add-btn:hover { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
+
+  /* Serving info */
+  .serving-row { margin-bottom: 20px; }
+  .serving-input-wrap { display: flex; align-items: center; gap: 10px; }
+  .serving-input-wrap input {
+    width: 80px; padding: 10px 12px; font-size: 16px; text-align: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); outline: none;
+    transition: border-color 0.2s; -moz-appearance: textfield;
+  }
+  .serving-input-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .serving-input-wrap input:focus { border-color: var(--teal); }
+  .serving-unit { font-size: 14px; color: var(--text-muted); }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  /* Convert section */
+  .convert-section { }
+  .mode-toggle {
+    display: grid; grid-template-columns: 1fr 1fr;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 3px; margin-bottom: 16px;
+  }
+  .mode-btn {
+    padding: 9px 8px; font-size: 13px; font-weight: 500;
+    background: none; border: none; border-radius: 6px;
+    color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .mode-btn.active { background: var(--surface); color: var(--teal); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+  .convert-input-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .convert-input-wrap { flex: 1; position: relative; }
+  .convert-input-wrap input {
+    width: 100%; padding: 12px 14px; font-size: 18px; font-weight: 500;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); outline: none;
+    transition: border-color 0.2s; -moz-appearance: textfield;
+  }
+  .convert-input-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .convert-input-wrap input:focus { border-color: var(--teal); }
+  .convert-input-unit {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; color: var(--text-hint); pointer-events: none;
+  }
+
+  /* Convert button */
+  .convert-btn {
+    width: 100%; padding: 15px;
+    background: var(--teal); border: none; border-radius: var(--radius);
+    color: #fff; font-size: 16px; font-weight: 500; font-family: 'Noto Sans TC', sans-serif;
+    cursor: pointer; letter-spacing: 0.05em;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .convert-btn:active { background: var(--teal-dark); transform: scale(0.98); }
+
+  /* Results */
+  .results { margin-top: 24px; }
+  .results-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .results-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .results-badge {
+    font-size: 11px; padding: 3px 10px;
+    background: var(--teal-light); color: var(--teal-dark);
+    border-radius: 20px; font-weight: 500;
+  }
+  .result-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); margin-bottom: 6px;
+  }
+  .result-item:last-child { margin-bottom: 0; }
+  .result-name { font-size: 14px; color: var(--text); }
+  .result-amount-row { display: flex; align-items: baseline; gap: 6px; }
+  .result-original { font-size: 12px; color: var(--text-hint); text-decoration: line-through; }
+  .result-new { font-size: 16px; font-weight: 500; color: var(--teal-dark); }
+  .result-unit { font-size: 12px; color: var(--text-muted); }
+
+  .empty-state {
+    text-align: center; padding: 40px 20px;
+    color: var(--text-hint); font-size: 14px; line-height: 1.7;
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+
+  /* Recipes list page */
+  .recipe-list-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    margin-bottom: 10px; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .recipe-list-item:hover { border-color: var(--teal); }
+  .recipe-list-name { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
+  .recipe-list-meta { font-size: 12px; color: var(--text-hint); }
+  .recipe-list-arrow { color: var(--text-hint); font-size: 16px; }
+  .recipe-list-del {
+    padding: 4px 8px; font-size: 12px; color: #A32D2D;
+    background: none; border: 1px solid #F09595; border-radius: 4px;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .recipe-list-del:hover { background: #FCEBEB; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: calc(var(--safe-bot) + 90px); left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--text); color: #fff; padding: 10px 20px;
+    border-radius: 20px; font-size: 13px; opacity: 0;
+    transition: opacity 0.2s, transform 0.2s; pointer-events: none; white-space: nowrap;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Bottom bar */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 8px 20px calc(var(--safe-bot) + 8px);
+    display: flex; gap: 10px; z-index: 100;
+  }
+  .save-btn {
+    flex: 1; padding: 12px;
+    background: none; border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-size: 14px; cursor: pointer; letter-spacing: 0.03em;
+    transition: background 0.15s;
+  }
+  .save-btn:hover { background: var(--bg); }
+
+  /* Install prompt */
+  .install-banner {
+    margin: 0 0 16px;
+    background: linear-gradient(135deg, var(--teal-light), #fff);
+    border: 1px solid #9FE1CB; border-radius: var(--radius);
+    padding: 14px 16px;
+    display: none; align-items: center; gap: 12px;
+  }
+  .install-banner.show { display: flex; }
+  .install-banner-text { flex: 1; font-size: 13px; color: var(--teal-dark); line-height: 1.5; }
+  .install-banner-text strong { font-weight: 500; }
+  .install-btn-small {
+    padding: 8px 14px; background: var(--teal); border: none;
+    border-radius: 8px; color: #fff; font-size: 12px; font-weight: 500;
+    cursor: pointer; white-space: nowrap; font-family: 'Noto Sans TC', sans-serif;
+  }
+  .install-close { background: none; border: none; color: var(--text-hint); cursor: pointer; font-size: 18px; padding: 0 4px; }
+
+  /* Auth screen */
+  #auth-screen {
+    position: fixed; inset: 0; z-index: 999;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px 28px calc(var(--safe-bot) + 32px);
+    max-width: 480px; margin: 0 auto;
+  }
+  #auth-screen.hidden { display: none; }
+  .auth-logo {
+    width: 72px; height: 72px; background: var(--teal);
+    border-radius: 20px; display: flex; align-items: center; justify-content: center;
+    font-size: 36px; margin-bottom: 16px;
+    box-shadow: 0 8px 24px rgba(29,158,117,0.25);
+  }
+  .auth-title { font-family: 'Noto Serif TC', serif; font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .auth-sub { font-size: 13px; color: var(--text-hint); margin-bottom: 36px; }
+  .auth-card {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; margin-bottom: 12px;
+  }
+  .auth-card-title { font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 14px; letter-spacing: 0.04em; }
+  .auth-field { margin-bottom: 10px; }
+  .auth-field:last-of-type { margin-bottom: 16px; }
+  .auth-input {
+    width: 100%; padding: 11px 14px; font-size: 15px;
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); outline: none;
+    transition: border-color 0.2s;
+  }
+  .auth-input:focus { border-color: var(--teal); }
+  .auth-input::placeholder { color: var(--text-hint); font-size: 14px; }
+  .auth-btn {
+    width: 100%; padding: 13px; font-size: 15px; font-weight: 500;
+    font-family: 'Noto Sans TC', sans-serif; letter-spacing: 0.04em;
+    background: var(--teal); color: #fff; border: none;
+    border-radius: var(--radius-sm); cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .auth-btn:active { background: var(--teal-dark); transform: scale(0.98); }
+  .auth-btn.secondary {
+    background: none; color: var(--text-muted);
+    border: 1px solid var(--border-strong); margin-top: 8px;
+  }
+  .auth-error { font-size: 12px; color: #A32D2D; margin-top: -6px; margin-bottom: 8px; min-height: 16px; }
+
+  /* User switcher (existing accounts list) */
+  .user-list { width: 100%; margin-bottom: 12px; }
+  .user-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    margin-bottom: 8px; cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .user-item:hover { border-color: var(--teal); }
+  .user-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--teal-light); color: var(--teal-dark);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 600; flex-shrink: 0;
+  }
+  .user-name { font-size: 15px; font-weight: 500; flex: 1; }
+  .user-arrow { color: var(--text-hint); }
+
+  /* Header user badge */
+  .user-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px 5px 6px;
+    background: var(--teal-light); border-radius: 20px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .user-badge:hover { background: #C5EEE0; }
+  .user-badge-avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--teal); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+  }
+  .user-badge-name { font-size: 12px; font-weight: 500; color: var(--teal-dark); }
+
+  /* Logout confirm modal */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: all; }
+  .modal-box {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 24px 20px; width: 100%; max-width: 320px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    transform: translateY(8px); transition: transform 0.2s;
+  }
+  .modal-overlay.show .modal-box { transform: translateY(0); }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .modal-msg { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btn {
+    flex: 1; padding: 11px; font-size: 14px; font-weight: 500;
+    font-family: 'Noto Sans TC', sans-serif;
+    border-radius: var(--radius-sm); cursor: pointer; border: none;
+    transition: background 0.15s;
+  }
+  .modal-btn.cancel { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border-strong); }
+  .modal-btn.confirm { background: #C0392B; color: #fff; }
+
+  /* Notes & Steps */
+  .textarea-field {
+    width: 100%; padding: 11px 13px; font-size: 14px; line-height: 1.6;
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); outline: none;
+    resize: vertical; min-height: 80px; transition: border-color 0.2s;
+  }
+  .textarea-field:focus { border-color: var(--teal); }
+  .textarea-field::placeholder { color: var(--text-hint); }
+
+  .step-card {
+    display: flex; gap: 10px; align-items: flex-start;
+    margin-bottom: 8px; animation: slideIn 0.2s ease;
+  }
+  .step-number {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: var(--teal); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; margin-top: 8px;
+  }
+  .step-textarea {
+    flex: 1; padding: 9px 11px; font-size: 14px; line-height: 1.6;
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); outline: none;
+    resize: none; min-height: 60px; transition: border-color 0.2s;
+  }
+  .step-textarea:focus { border-color: var(--teal); }
+  .step-textarea::placeholder { color: var(--text-hint); }
+  .step-del {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: none; border: 1px solid var(--border);
+    color: var(--text-hint); cursor: pointer; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 8px; transition: background 0.15s, color 0.15s;
+  }
+  .step-del:hover { background: #FCEBEB; color: #A32D2D; border-color: #F09595; }
+
+  /* Collapsible section */
+  .section-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none; margin-bottom: 10px;
+  }
+  .section-toggle-arrow {
+    font-size: 12px; color: var(--text-hint); transition: transform 0.2s;
+  }
+  .section-toggle.open .section-toggle-arrow { transform: rotate(180deg); }
+  .section-body { display: none; }
+  .section-body.open { display: block; }
+
+  /* Folder system */
+  .folder-toolbar {
+    display: flex; gap: 8px; margin-bottom: 14px;
+  }
+  .folder-toolbar-btn {
+    flex: 1; padding: 9px 8px; font-size: 13px; font-weight: 500;
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-muted);
+    cursor: pointer; transition: background 0.15s, border-color 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .folder-toolbar-btn:hover { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
+
+  .breadcrumb {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    margin-bottom: 12px; font-size: 13px; color: var(--text-hint);
+  }
+  .breadcrumb-item { cursor: pointer; color: var(--teal); }
+  .breadcrumb-item:hover { text-decoration: underline; }
+  .breadcrumb-sep { color: var(--text-hint); }
+  .breadcrumb-current { color: var(--text-muted); }
+
+  .folder-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    margin-bottom: 6px; cursor: pointer;
+    transition: border-color 0.15s;
+    display: flex; align-items: center; gap: 10px;
+    user-select: none;
+  }
+  .folder-item:hover { border-color: var(--teal); }
+  .folder-item.drag-over { border-color: var(--teal); background: var(--teal-light); }
+  .folder-item.dragging { opacity: 0.4; }
+  .folder-icon { font-size: 18px; flex-shrink: 0; }
+  .folder-info { flex: 1; min-width: 0; }
+  .folder-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .folder-meta { font-size: 11px; color: var(--text-hint); margin-top: 1px; }
+  .folder-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .folder-action-btn {
+    padding: 3px 7px; font-size: 11px; border-radius: 4px;
+    background: none; border: 1px solid var(--border); color: var(--text-hint);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .folder-action-btn:hover { background: var(--bg); }
+  .folder-action-btn.del:hover { background: #FCEBEB; color: #A32D2D; border-color: #F09595; }
+  .drag-handle { cursor: grab; color: var(--text-hint); font-size: 16px; padding: 0 2px; flex-shrink: 0; }
+  .drag-handle:active { cursor: grabbing; }
+
+  /* Move-to-folder modal */
+  .folder-select-list { max-height: 260px; overflow-y: auto; margin-bottom: 16px; }
+  .folder-select-item {
+    padding: 10px 14px; border-radius: var(--radius-sm); cursor: pointer;
+    font-size: 14px; display: flex; align-items: center; gap: 8px;
+    transition: background 0.1s;
+  }
+  .folder-select-item:hover { background: var(--teal-light); }
+  .folder-select-item.selected { background: var(--teal-light); color: var(--teal-dark); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<!-- Logout Modal -->
+<div class="modal-overlay" id="logout-modal">
+  <div class="modal-box">
+    <div class="modal-title">登出帳號</div>
+    <div class="modal-msg" id="logout-modal-msg"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeLogoutModal()">取消</button>
+      <button class="modal-btn confirm" onclick="confirmLogout()">登出</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Folder Modal -->
+<div class="modal-overlay" id="new-folder-modal">
+  <div class="modal-box">
+    <div class="modal-title">📁 新增資料夾</div>
+    <div class="auth-field" style="margin-bottom:16px;margin-top:12px;">
+      <input class="auth-input" id="new-folder-name" type="text" placeholder="資料夾名稱" maxlength="30">
+    </div>
+    <div class="auth-error" id="new-folder-error"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeNewFolderModal()">取消</button>
+      <button class="modal-btn confirm" style="background:var(--teal)" onclick="confirmNewFolder()">建立</button>
+    </div>
+  </div>
+</div>
+
+<!-- Move Recipe Modal -->
+<div class="modal-overlay" id="move-recipe-modal">
+  <div class="modal-box">
+    <div class="modal-title">📂 移動食譜</div>
+    <div style="font-size:13px;color:var(--text-muted);margin:8px 0 12px;" id="move-recipe-label"></div>
+    <div class="folder-select-list" id="move-folder-list"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeMoveModal()">取消</button>
+      <button class="modal-btn confirm" style="background:var(--teal)" onclick="confirmMove()">移動</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="rename-modal-title">重新命名</div>
+    <div class="auth-field" style="margin-bottom:16px;margin-top:12px;">
+      <input class="auth-input" id="rename-input" type="text" maxlength="30">
+    </div>
+    <div class="auth-error" id="rename-error"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeRenameModal()">取消</button>
+      <button class="modal-btn confirm" style="background:var(--teal)" onclick="confirmRename()">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-logo">🍲</div>
+  <div class="auth-title">食譜轉換器</div>
+  <div class="auth-sub">請登入或建立帳號</div>
+
+  <!-- Existing users -->
+  <div id="user-list-section" class="user-list" style="display:none"></div>
+
+  <!-- Login form -->
+  <div id="login-form" class="auth-card">
+    <div class="auth-card-title" id="login-form-title">🔐 登入帳號</div>
+    <div class="auth-field">
+      <input class="auth-input" id="login-username" type="text" placeholder="使用者名稱" autocomplete="username">
+    </div>
+    <div class="auth-field">
+      <input class="auth-input" id="login-password" type="password" placeholder="密碼" autocomplete="current-password">
+    </div>
+    <div class="auth-error" id="login-error"></div>
+    <button class="auth-btn" onclick="doLogin()">登入</button>
+  </div>
+
+  <!-- Register form (hidden by default) -->
+  <div id="register-form" class="auth-card" style="display:none">
+    <div class="auth-card-title">✨ 建立新帳號</div>
+    <div class="auth-field">
+      <input class="auth-input" id="reg-username" type="text" placeholder="使用者名稱" maxlength="20" autocomplete="username">
+    </div>
+    <div class="auth-field">
+      <input class="auth-input" id="reg-password" type="password" placeholder="密碼（至少 4 位）" autocomplete="new-password">
+    </div>
+    <div class="auth-field">
+      <input class="auth-input" id="reg-password2" type="password" placeholder="再次輸入密碼" autocomplete="new-password">
+    </div>
+    <div class="auth-error" id="reg-error"></div>
+    <button class="auth-btn" onclick="doRegister()">建立帳號</button>
+    <button class="auth-btn secondary" onclick="showLoginForm()">← 返回登入</button>
+  </div>
+
+  <button class="auth-btn secondary" id="show-register-btn" onclick="showRegisterForm()" style="width:100%;margin-top:0">＋ 建立新帳號</button>
+</div>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🍲</div>
+      <div>
+        <div class="logo-text">食譜轉換器</div>
+        <div class="logo-sub">Recipe Scaler</div>
+      </div>
+    </div>
+    <div class="user-badge" id="user-badge" onclick="doLogout()" title="登出">
+      <div class="user-badge-avatar" id="user-badge-avatar"></div>
+      <div class="user-badge-name" id="user-badge-name"></div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" onclick="switchTab('edit')">✏️ 編輯食譜</button>
+  <button class="tab" onclick="switchTab('convert')">⚖️ 份量轉換</button>
+  <button class="tab" onclick="switchTab('saved')">📚 已儲存</button>
+</nav>
+
+<!-- Edit Page -->
+<div id="page-edit" class="page active">
+  <div id="install-banner" class="install-banner">
+    <div class="install-banner-text"><strong>📱 加入主畫面</strong><br>像 App 一樣使用食譜轉換器</div>
+    <button class="install-btn-small" onclick="installPWA()">安裝</button>
+    <button class="install-close" onclick="hideBanner()">×</button>
+  </div>
+
+  <div class="recipe-name-row">
+    <div class="label">食譜名稱</div>
+    <input class="recipe-name-input" id="recipe-name" type="text" placeholder="例：媽媽的紅燒肉" maxlength="40">
+  </div>
+
+  <div class="serving-row">
+    <div class="label">原始份量</div>
+    <div class="serving-input-wrap">
+      <input type="text" id="original-servings" value="2" style="width:80px;padding:10px 12px;font-size:16px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--teal)'" onblur="this.style.borderColor='var(--border)'">
+      <span class="serving-unit">人份</span>
+    </div>
+  </div>
+
+  <div class="ingredients-section">
+    <div class="label">食材清單</div>
+    <div id="ingredient-list"></div>
+    <button class="add-btn" onclick="addIngredient()">
+      <span style="font-size:18px;line-height:1">+</span> 新增食材
+    </button>
+  </div>
+
+  <div style="margin-bottom:20px">
+    <div class="section-toggle" onclick="toggleSection('steps-body', this)">
+      <div class="label" style="margin-bottom:0">📋 做法步驟</div>
+      <span class="section-toggle-arrow">▼</span>
+    </div>
+    <div class="section-body" id="steps-body">
+      <div id="steps-list"></div>
+      <button class="add-btn" onclick="addStep()">
+        <span style="font-size:18px;line-height:1">+</span> 新增步驟
+      </button>
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px">
+    <div class="section-toggle" onclick="toggleSection('notes-body', this)">
+      <div class="label" style="margin-bottom:0">💡 備註</div>
+      <span class="section-toggle-arrow">▼</span>
+    </div>
+    <div class="section-body" id="notes-body">
+      <textarea class="textarea-field" id="recipe-notes" placeholder="例：豬肉記得先汆燙去腥、可依口味調整糖的用量…" rows="4"></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- Convert Page -->
+<div id="page-convert" class="page">
+  <div class="label">轉換方式</div>
+  <div class="mode-toggle" style="grid-template-columns:1fr 1fr 1fr">
+    <button class="mode-btn active" id="mode-servings" onclick="setMode('servings')">👥 人數</button>
+    <button class="mode-btn" id="mode-weight" onclick="setMode('weight')">⚖️ 總重</button>
+    <button class="mode-btn" id="mode-ingredient" onclick="setMode('ingredient')">🥕 食材</button>
+  </div>
+
+  <div id="mode-servings-input">
+    <div class="label">目標人數</div>
+    <div class="convert-input-row">
+      <div class="convert-input-wrap">
+        <input type="text" id="target-servings" value="4" style="ime-mode:disabled">
+        <span class="convert-input-unit">人份</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="mode-weight-input" style="display:none">
+    <div class="label">目標總重量（克）</div>
+    <div class="convert-input-row">
+      <div class="convert-input-wrap">
+        <input type="text" id="target-weight" placeholder="例：800 或 1/2" style="ime-mode:disabled">
+        <span class="convert-input-unit">g</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="mode-ingredient-input" style="display:none">
+    <div class="label">選擇基準食材</div>
+    <select id="anchor-ingredient-select" style="width:100%;padding:11px 12px;font-size:14px;font-family:'Noto Sans TC',sans-serif;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);outline:none;margin-bottom:12px;">
+      <option value="">— 請先在食譜中加入食材 —</option>
+    </select>
+    <div class="label">這個食材要用多少？</div>
+    <div class="convert-input-row">
+      <div class="convert-input-wrap">
+        <input type="text" id="anchor-new-amount" placeholder="輸入份量 (如1/2)" style="ime-mode:disabled">
+        <span class="convert-input-unit" id="anchor-unit-label">g</span>
+      </div>
+    </div>
+    <div id="anchor-hint" style="font-size:12px;color:var(--text-hint);margin-top:-8px;margin-bottom:12px;"></div>
+  </div>
+
+  <button class="convert-btn" onclick="doConvert()">
+    🔄 計算換算結果
+  </button>
+
+  <div id="results" class="results"></div>
+</div>
+
+<!-- Saved Recipes Page -->
+<div id="page-saved" class="page">
+  <div class="folder-toolbar">
+    <button class="folder-toolbar-btn" onclick="showNewFolderModal()">📁 新增資料夾</button>
+    <button class="folder-toolbar-btn" onclick="goUpFolder()" id="btn-up" style="display:none">⬆️ 上一層</button>
+  </div>
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <div id="saved-list"></div>
+</div>
+
+<div class="bottom-bar">
+  <button class="save-btn" onclick="saveRecipe()">💾 儲存食譜</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let currentMode = 'servings';
+let deferredPrompt = null;
+let currentUser = null;
+
+const SUPABASE_URL = 'https://foipkuuuzytzntcjctdf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvaXBrdXV1enl0em50Y2pjdGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTYwNzgsImV4cCI6MjA5MzI5MjA3OH0.82Y6XM6izErY5MvbUeYl-8MlzBnBWuz_NVs-pQZUTJU';
+
+async function sb(path, options = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || 'return=representation',
+      ...options.headers
+    },
+    ...options
+  });
+  if (!res.ok && res.status !== 404) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || res.statusText);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+const UNITS = ['g','kg','ml','L','茶匙','湯匙','杯','個','片','顆','條','根','塊','T','t','兩','斤','適量'];
+
+function $(id) { return document.getElementById(id); }
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+
+function hashPassword(pw) {
+  let h = 0;
+  for (let i = 0; i < pw.length; i++) { h = Math.imul(31, h) + pw.charCodeAt(i) | 0; }
+  return h.toString(16);
+}
+
+async function initAuth() {
+  const saved = sessionStorage.getItem('rp_session');
+  if (saved) {
+    const u = JSON.parse(saved);
+    await loginSuccess(u.username, u.userId);
+    return;
+  }
+  await renderAuthScreen();
+}
+
+async function renderAuthScreen() {
+  const users = await sb('users?select=username&order=created_at').catch(() => []);
+  const section = $('user-list-section');
+  if (users.length) {
+    section.style.display = '';
+    section.innerHTML = `<div style="font-size:11px;font-weight:500;color:var(--text-hint);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">選擇帳號</div>` +
+      users.map(u => `
+        <div class="user-item" onclick="selectUser('${u.username}')">
+          <div class="user-avatar">${u.username[0].toUpperCase()}</div>
+          <div class="user-name">${u.username}</div>
+          <span class="user-arrow">›</span>
+        </div>`).join('');
+    $('login-form-title').textContent = '🔐 或輸入帳號登入';
+  } else {
+    section.style.display = 'none';
+    showRegisterForm();
+  }
+}
+
+function selectUser(username) {
+  $('login-username').value = username;
+  $('login-password').focus();
+}
+
+function showRegisterForm() {
+  $('login-form').style.display = 'none';
+  $('register-form').style.display = '';
+  $('show-register-btn').style.display = 'none';
+}
+
+function showLoginForm() {
+  $('register-form').style.display = 'none';
+  $('login-form').style.display = '';
+  $('show-register-btn').style.display = '';
+}
+
+async function doLogin() {
+  const username = $('login-username').value.trim();
+  const password = $('login-password').value;
+  $('login-error').textContent = '';
+  if (!username || !password) { $('login-error').textContent = '請填寫帳號和密碼'; return; }
+  $('login-error').textContent = '登入中…';
+  try {
+    const users = await sb(`users?username=eq.${encodeURIComponent(username)}&select=id,username,password_hash`);
+    if (!users.length) { $('login-error').textContent = '找不到此帳號'; return; }
+    const user = users[0];
+    if (user.password_hash !== hashPassword(password)) { $('login-error').textContent = '密碼錯誤'; return; }
+    await loginSuccess(user.username, user.id);
+  } catch(e) { $('login-error').textContent = '網路錯誤，請稍後再試'; }
+}
+
+async function doRegister() {
+  const username = $('reg-username').value.trim();
+  const pw = $('reg-password').value;
+  const pw2 = $('reg-password2').value;
+  $('reg-error').textContent = '';
+  if (!username) { $('reg-error').textContent = '請輸入使用者名稱'; return; }
+  if (username.length < 2) { $('reg-error').textContent = '名稱至少 2 個字'; return; }
+  if (pw.length < 4) { $('reg-error').textContent = '密碼至少 4 位'; return; }
+  if (pw !== pw2) { $('reg-error').textContent = '兩次密碼不一致'; return; }
+  $('reg-error').textContent = '建立中…';
+  try {
+    const existing = await sb(`users?username=eq.${encodeURIComponent(username)}&select=id`);
+    if (existing.length) { $('reg-error').textContent = '此名稱已被使用'; return; }
+    const newUsers = await sb('users', {
+      method: 'POST',
+      body: JSON.stringify({ username, password_hash: hashPassword(pw) })
+    });
+    const user = newUsers[0];
+    await loginSuccess(user.username, user.id);
+  } catch(e) { $('reg-error').textContent = '建立失敗：' + e.message; }
+}
+
+async function loginSuccess(username, userId) {
+  currentUser = { username, userId };
+  sessionStorage.setItem('rp_session', JSON.stringify({ username, userId }));
+  $('auth-screen').classList.add('hidden');
+  $('user-badge-avatar').textContent = username[0].toUpperCase();
+  $('user-badge-name').textContent = username;
+  currentFolderPath = [];
+  $('ingredient-list').innerHTML = '';
+  $('steps-list').innerHTML = '';
+  $('recipe-notes').value = '';
+  $('steps-body').classList.remove('open');
+  $('notes-body').classList.remove('open');
+  document.querySelectorAll('.section-toggle').forEach(t => t.classList.remove('open'));
+  $('recipe-name').value = '';
+  $('original-servings').value = '2';
+  $('results').innerHTML = '';
+  switchTab('edit');
+}
+
+function doLogout() {
+  $('logout-modal-msg').textContent = `確定要登出「${currentUser.username}」嗎？`;
+  $('logout-modal').classList.add('show');
+}
+
+function closeLogoutModal() { $('logout-modal').classList.remove('show'); }
+
+async function confirmLogout() {
+  closeLogoutModal();
+  sessionStorage.removeItem('rp_session');
+  currentUser = null;
+  $('login-username').value = '';
+  $('login-password').value = '';
+  $('login-error').textContent = '';
+  $('reg-username').value = '';
+  $('reg-password').value = '';
+  $('reg-password2').value = '';
+  $('reg-error').textContent = '';
+  showLoginForm();
+  $('auth-screen').classList.remove('hidden');
+  await renderAuthScreen();
+  $('ingredient-list').innerHTML = '';
+  $('steps-list').innerHTML = '';
+  $('recipe-notes').value = '';
+  $('steps-body').classList.remove('open');
+  $('notes-body').classList.remove('open');
+  document.querySelectorAll('.section-toggle').forEach(t => t.classList.remove('open'));
+  $('recipe-name').value = '';
+  $('results').innerHTML = '';
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['edit','convert','saved'][i] === tab);
+  });
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  $('page-' + tab).classList.add('active');
+  if (tab === 'saved') renderSaved();
+}
+
+// ─── MODES ───────────────────────────────────────────────────────────────────
+
+function setMode(mode) {
+  currentMode = mode;
+  ['servings','weight','ingredient'].forEach(m => {
+    $('mode-' + m).classList.toggle('active', m === mode);
+    $('mode-' + m + '-input').style.display = m === mode ? '' : 'none';
+  });
+  if (mode === 'ingredient') populateAnchorSelect();
+}
+
+function populateAnchorSelect() {
+  const ingredients = getIngredients();
+  const sel = $('anchor-ingredient-select');
+  const prev = sel.value;
+  sel.innerHTML = ingredients.length
+    ? ingredients.map((ing, i) => `<option value="${i}">${ing.name}（原：${formatNum(ing.amount)} ${ing.unit}）</option>`).join('')
+    : '<option value="">— 請先在食譜中加入食材 —</option>';
+  if (prev) sel.value = prev;
+  updateAnchorHint();
+}
+
+function updateAnchorHint() {
+  const ingredients = getIngredients();
+  const idx = parseInt($('anchor-ingredient-select').value);
+  if (isNaN(idx) || !ingredients[idx]) { $('anchor-hint').textContent = ''; $('anchor-unit-label').textContent = ''; return; }
+  const ing = ingredients[idx];
+  $('anchor-unit-label').textContent = ing.unit;
+  $('anchor-hint').textContent = `原始份量：${formatNum(ing.amount)} ${ing.unit}`;
+}
+
+// ─── STEPS ───────────────────────────────────────────────────────────────────
+
+function addStep(text = '') {
+  const list = $('steps-list');
+  const id = Date.now();
+  const num = list.children.length + 1;
+  const div = document.createElement('div');
+  div.className = 'step-card';
+  div.dataset.sid = id;
+  div.innerHTML = `
+    <div class="step-number">${num}</div>
+    <textarea class="step-textarea" placeholder="步驟說明…" rows="2">${text}</textarea>
+    <button class="step-del" onclick="removeStep(${id})">×</button>`;
+  list.appendChild(div);
+}
+
+function removeStep(id) {
+  const el = document.querySelector(`[data-sid="${id}"]`);
+  if (el) { el.remove(); renumberSteps(); }
+}
+
+function renumberSteps() {
+  document.querySelectorAll('.step-card').forEach((card, i) => {
+    card.querySelector('.step-number').textContent = i + 1;
+  });
+}
+
+function getSteps() {
+  return Array.from(document.querySelectorAll('.step-card'))
+    .map(c => c.querySelector('.step-textarea').value.trim())
+    .filter(Boolean);
+}
+
+function toggleSection(bodyId, toggleEl) {
+  const body = $(bodyId);
+  const isOpen = body.classList.toggle('open');
+  toggleEl.classList.toggle('open', isOpen);
+}
+
+// ─── INGREDIENTS ─────────────────────────────────────────────────────────────
+
+function addIngredient(name = '', amount = '', unit = 'g') {
+  const list = $('ingredient-list');
+  const id = Date.now();
+  const div = document.createElement('div');
+  div.className = 'ingredient-card';
+  div.dataset.id = id;
+  const opts = UNITS.map(u => `<option value="${u}" ${u===unit?'selected':''}>${u}</option>`).join('');
+  div.innerHTML = `
+    <div class="ingredient-inputs">
+      <input type="text" placeholder="食材名稱" value="${name}" class="ing-name">
+      <input type="text" placeholder="份量 (如1/2)" value="${amount}" class="ing-amount" style="ime-mode:disabled">
+      <select class="ing-unit">${opts}</select>
+    </div>
+    <button class="ingredient-del" onclick="removeIngredient(${id})">×</button>`;
+  list.appendChild(div);
+}
+
+function removeIngredient(id) {
+  const el = document.querySelector(`[data-id="${id}"]`);
+  if (el) el.remove();
+}
+
+// Parse fraction strings like "1/2", "2 1/3", "0.5", "½" etc.
+function parseFraction(str) {
+  if (!str && str !== 0) return 0;
+  str = String(str).trim()
+    .replace('½','1/2').replace('⅓','1/3').replace('⅔','2/3')
+    .replace('¼','1/4').replace('¾','3/4').replace('⅛','1/8');
+  // mixed number: "2 1/3"
+  const mixed = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+  // fraction: "1/3"
+  const frac = str.match(/^(\d+)\/(\d+)$/);
+  if (frac) return parseInt(frac[1]) / parseInt(frac[2]);
+  // plain number
+  const n = parseFloat(str);
+  return isNaN(n) ? 0 : n;
+}
+
+function getIngredients() {
+  return Array.from(document.querySelectorAll('.ingredient-card')).map(card => ({
+    name: card.querySelector('.ing-name').value.trim(),
+    amount: parseFraction(card.querySelector('.ing-amount').value),
+    amountRaw: card.querySelector('.ing-amount').value.trim(),
+    unit: card.querySelector('.ing-unit').value
+  })).filter(i => i.name);
+}
+
+function formatNum(n) {
+  if (n === 0) return '0';
+  if (n < 1) return parseFloat(n.toFixed(2)).toString();
+  if (n < 10) return parseFloat(n.toFixed(1)).toString();
+  return Math.round(n).toString();
+}
+
+// ─── CONVERT ─────────────────────────────────────────────────────────────────
+
+function doConvert() {
+  const ingredients = getIngredients();
+  if (!ingredients.length) { showToast('請先在「編輯食譜」頁面加入食材！'); return; }
+  const origServings = parseFraction($('original-servings').value) || 2;
+  let ratio;
+
+  if (currentMode === 'servings') {
+    const target = parseFraction($('target-servings').value);
+    if (!target || target <= 0) { showToast('請輸入有效的目標人數'); return; }
+    ratio = target / origServings;
+  } else if (currentMode === 'weight') {
+    const targetW = parseFraction($('target-weight').value);
+    if (!targetW || targetW <= 0) { showToast('請輸入目標總重量'); return; }
+    const totalG = ingredients.filter(i => ['g','kg','ml','L'].includes(i.unit))
+      .reduce((sum, i) => sum + (i.unit === 'kg' || i.unit === 'L' ? i.amount * 1000 : i.amount), 0);
+    if (!totalG) { showToast('請確保至少有一項食材含有可計算重量（g/kg）'); return; }
+    ratio = targetW / totalG;
+  } else {
+    const idx = parseInt($('anchor-ingredient-select').value);
+    if (isNaN(idx) || !ingredients[idx]) { showToast('請選擇基準食材'); return; }
+    const newAmt = parseFraction($('anchor-new-amount').value);
+    if (!newAmt || newAmt <= 0) { showToast('請輸入新份量'); return; }
+    if (!ingredients[idx].amount) { showToast('基準食材的原始份量為 0，無法計算'); return; }
+    ratio = newAmt / ingredients[idx].amount;
+  }
+
+  const recipeName = $('recipe-name').value || '食譜';
+  let badgeText, anchorIdx = -1;
+  if (currentMode === 'servings') badgeText = `×${parseFloat(ratio.toFixed(2))} 倍`;
+  else if (currentMode === 'weight') badgeText = `總重 ${$('target-weight').value}g`;
+  else {
+    anchorIdx = parseInt($('anchor-ingredient-select').value);
+    badgeText = `依 ${ingredients[anchorIdx]?.name} ×${parseFloat(ratio.toFixed(2))}`;
+  }
+
+  let html = `<div class="results-header">
+    <span class="results-title">${recipeName}</span>
+    <span class="results-badge">${badgeText}</span>
+  </div>`;
+  ingredients.forEach((ing, i) => {
+    const newAmt = ing.amount * ratio;
+    const isAnchor = i === anchorIdx;
+    html += `<div class="result-item" style="${isAnchor?'border-color:#9FE1CB;background:var(--teal-light);':''}">
+      <span class="result-name">${ing.name}${isAnchor?' <span style="font-size:11px;color:var(--teal-dark);background:#9FE1CB;padding:2px 7px;border-radius:10px;font-weight:500;">基準</span>':''}</span>
+      <div class="result-amount-row">
+        <span class="result-original">${formatNum(ing.amount)}</span>
+        <span class="result-new" style="${isAnchor?'color:var(--teal);':''}">${formatNum(newAmt)}</span>
+        <span class="result-unit">${ing.unit}</span>
+      </div>
+    </div>`;
+  });
+  $('results').innerHTML = html;
+}
+
+// ─── RECIPES (cloud) ──────────────────────────────────────────────────────────
+
+async function saveRecipe() {
+  const name = $('recipe-name').value.trim();
+  if (!name) { showToast('請先輸入食譜名稱'); return; }
+  const ingredients = getIngredients();
+  if (!ingredients.length) { showToast('請先加入食材'); return; }
+  const servings = parseFraction($('original-servings').value) || 2;
+  const notes = $('recipe-notes').value.trim();
+  const steps = getSteps();
+  showToast('儲存中…');
+  try {
+    const existing = await sb(`recipes?user_id=eq.${currentUser.userId}&name=eq.${encodeURIComponent(name)}&select=id`);
+    const data = { user_id: currentUser.userId, name, servings, ingredients, steps, notes };
+    if (existing.length) {
+      await sb(`recipes?id=eq.${existing[0].id}`, { method: 'PATCH', body: JSON.stringify(data), prefer: 'return=minimal' });
+    } else {
+      await sb('recipes', { method: 'POST', body: JSON.stringify(data) });
+    }
+    showToast('✅ 食譜已儲存！');
+  } catch(e) { showToast('儲存失敗：' + e.message); }
+}
+
+function loadRecipe(recipe) {
+  $('recipe-name').value = recipe.name;
+  $('original-servings').value = recipe.servings;
+  $('ingredient-list').innerHTML = '';
+  recipe.ingredients.forEach(i => addIngredient(i.name, i.amount, i.unit));
+  $('recipe-notes').value = recipe.notes || '';
+  $('steps-list').innerHTML = '';
+  (recipe.steps || []).forEach(s => addStep(s));
+  if (recipe.steps && recipe.steps.length) {
+    $('steps-body').classList.add('open');
+    document.querySelector('[onclick*="steps-body"]')?.classList.add('open');
+  }
+  if (recipe.notes) {
+    $('notes-body').classList.add('open');
+    document.querySelector('[onclick*="notes-body"]')?.classList.add('open');
+  }
+  switchTab('edit');
+  showToast(`已載入「${recipe.name}」`);
+}
+
+async function deleteRecipe(name) {
+  try {
+    await sb(`recipes?user_id=eq.${currentUser.userId}&name=eq.${encodeURIComponent(name)}`, { method: 'DELETE', prefer: 'return=minimal' });
+    renderSaved();
+    showToast('已刪除');
+  } catch(e) { showToast('刪除失敗'); }
+}
+
+// ─── FOLDER SYSTEM (cloud) ────────────────────────────────────────────────────
+
+let currentFolderPath = [];
+let moveTargetRecipeName = null;
+let moveSelectedFolderId = '__root__';
+let renameTarget = null;
+let dragSrcEl = null;
+let _allFolders = [];
+let _allRecipes = [];
+
+async function renderSaved() {
+  renderFolder(currentFolderPath);
+}
+
+async function renderFolder(path) {
+  currentFolderPath = path;
+  const list = $('saved-list');
+  list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);font-size:13px;">載入中…</div>';
+
+  try {
+    _allFolders = await sb(`folders?user_id=eq.${currentUser.userId}&order=sort_order`);
+    _allRecipes = await sb(`recipes?user_id=eq.${currentUser.userId}&order=sort_order`);
+  } catch(e) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div>載入失敗，請檢查網路</div>';
+    return;
+  }
+
+  const curFolderId = path.length ? path[path.length-1] : null;
+  const folders = _allFolders.filter(f => (curFolderId ? f.parent_id === curFolderId : !f.parent_id));
+  const recipes = _allRecipes.filter(r => (curFolderId ? r.folder_id === curFolderId : !r.folder_id));
+
+  // Breadcrumb
+  const bc = $('breadcrumb');
+  if (!path.length) {
+    bc.innerHTML = '<span class="breadcrumb-current">🏠 全部食譜</span>';
+    $('btn-up').style.display = 'none';
+  } else {
+    let crumbs = '<span class="breadcrumb-item" onclick="renderFolder([])">🏠 首頁</span>';
+    path.forEach((id, i) => {
+      const f = _allFolders.find(x => x.id === id);
+      if (!f) return;
+      const subPath = path.slice(0, i+1);
+      if (i < path.length - 1) {
+        crumbs += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-item" onclick='renderFolder(${JSON.stringify(subPath)})'>${f.name}</span>`;
+      } else {
+        crumbs += `<span class="breadcrumb-sep">›</span><span class="breadcrumb-current">${f.name}</span>`;
+      }
+    });
+    bc.innerHTML = crumbs;
+    $('btn-up').style.display = '';
+  }
+
+  if (!folders.length && !recipes.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div>這裡還沒有食譜<br>在「編輯食譜」頁面輸入後按「儲存食譜」</div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  folders.forEach(folder => {
+    const count = _allFolders.filter(f => f.parent_id === folder.id).length + _allRecipes.filter(r => r.folder_id === folder.id).length;
+    const div = document.createElement('div');
+    div.className = 'folder-item';
+    div.draggable = true;
+    div.dataset.type = 'folder';
+    div.dataset.id = folder.id;
+    div.innerHTML = `
+      <span class="drag-handle">⠿</span>
+      <span class="folder-icon">📁</span>
+      <div class="folder-info">
+        <div class="folder-name">${folder.name}</div>
+        <div class="folder-meta">${count} 個項目</div>
+      </div>
+      <div class="folder-actions">
+        <button class="folder-action-btn" onclick="event.stopPropagation();openRenameFolder('${folder.id}','${folder.name.replace(/'/g,"\\'")}')">改名</button>
+        <button class="folder-action-btn del" onclick="event.stopPropagation();deleteFolder('${folder.id}')">刪除</button>
+      </div>`;
+    div.addEventListener('click', () => renderFolder([...currentFolderPath, folder.id]));
+    setupDrag(div);
+    list.appendChild(div);
+  });
+
+  recipes.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'folder-item';
+    div.draggable = true;
+    div.dataset.type = 'recipe';
+    div.dataset.id = r.id;
+    div.innerHTML = `
+      <span class="drag-handle">⠿</span>
+      <span class="folder-icon">🍽️</span>
+      <div class="folder-info">
+        <div class="folder-name">${r.name}</div>
+        <div class="folder-meta">${r.servings} 人份 · ${r.ingredients.length} 種食材</div>
+      </div>
+      <div class="folder-actions">
+        <button class="folder-action-btn" onclick="event.stopPropagation();openMoveModal('${r.id}','${r.name.replace(/'/g,"\\'")}')">移動</button>
+        <button class="folder-action-btn del" onclick="event.stopPropagation();deleteRecipe('${r.name.replace(/'/g,"\\'")}')">刪除</button>
+      </div>`;
+    div.addEventListener('click', () => loadRecipe(r));
+    setupDrag(div);
+    list.appendChild(div);
+  });
+}
+
+function goUpFolder() { renderFolder(currentFolderPath.slice(0, -1)); }
+
+// Drag & drop
+function setupDrag(el) {
+  el.addEventListener('dragstart', e => { dragSrcEl = el; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+  el.addEventListener('dragend', () => { el.classList.remove('dragging'); document.querySelectorAll('.folder-item').forEach(i => i.classList.remove('drag-over')); });
+  el.addEventListener('dragover', e => { e.preventDefault(); if (el !== dragSrcEl) el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', async e => {
+    e.preventDefault(); el.classList.remove('drag-over');
+    if (!dragSrcEl || dragSrcEl === el) return;
+    const list = $('saved-list');
+    const items = [...list.children];
+    const srcIdx = items.indexOf(dragSrcEl);
+    const tgtIdx = items.indexOf(el);
+    if (srcIdx < tgtIdx) list.insertBefore(dragSrcEl, el.nextSibling);
+    else list.insertBefore(dragSrcEl, el);
+    await persistOrder();
+  });
+}
+
+async function persistOrder() {
+  const items = [...$('saved-list').children];
+  for (let i = 0; i < items.length; i++) {
+    const el = items[i];
+    const id = el.dataset.id;
+    const type = el.dataset.type;
+    if (type === 'folder') await sb(`folders?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ sort_order: i }), prefer: 'return=minimal' }).catch(()=>{});
+    else await sb(`recipes?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ sort_order: i }), prefer: 'return=minimal' }).catch(()=>{});
+  }
+}
+
+// Folder modals
+function showNewFolderModal() {
+  $('new-folder-name').value = '';
+  $('new-folder-error').textContent = '';
+  $('new-folder-modal').classList.add('show');
+  setTimeout(() => $('new-folder-name').focus(), 100);
+}
+function closeNewFolderModal() { $('new-folder-modal').classList.remove('show'); }
+
+async function confirmNewFolder() {
+  const name = $('new-folder-name').value.trim();
+  if (!name) { $('new-folder-error').textContent = '請輸入資料夾名稱'; return; }
+  const curFolderId = currentFolderPath.length ? currentFolderPath[currentFolderPath.length-1] : null;
+  try {
+    await sb('folders', { method: 'POST', body: JSON.stringify({ user_id: currentUser.userId, name, parent_id: curFolderId }) });
+    closeNewFolderModal();
+    renderSaved();
+    showToast('📁 資料夾已建立');
+  } catch(e) { $('new-folder-error').textContent = '建立失敗'; }
+}
+
+async function deleteFolder(id) {
+  try {
+    await sb(`recipes?folder_id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ folder_id: null }), prefer: 'return=minimal' });
+    await sb(`folders?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+    renderSaved();
+    showToast('資料夾已刪除');
+  } catch(e) { showToast('刪除失敗'); }
+}
+
+function openRenameFolder(id, name) {
+  renameTarget = { type: 'folder', id };
+  $('rename-modal-title').textContent = '📁 重新命名資料夾';
+  $('rename-input').value = name;
+  $('rename-error').textContent = '';
+  $('rename-modal').classList.add('show');
+  setTimeout(() => $('rename-input').focus(), 100);
+}
+function closeRenameModal() { $('rename-modal').classList.remove('show'); }
+
+async function confirmRename() {
+  const name = $('rename-input').value.trim();
+  if (!name) { $('rename-error').textContent = '請輸入名稱'; return; }
+  try {
+    await sb(`folders?id=eq.${renameTarget.id}`, { method: 'PATCH', body: JSON.stringify({ name }), prefer: 'return=minimal' });
+    closeRenameModal();
+    renderSaved();
+    showToast('✅ 已更新名稱');
+  } catch(e) { $('rename-error').textContent = '更新失敗'; }
+}
+
+// Move recipe
+let moveTargetRecipeId = null;
+function openMoveModal(recipeId, recipeName) {
+  moveTargetRecipeId = recipeId;
+  moveTargetRecipeName = recipeName;
+  moveSelectedFolderId = '__root__';
+  $('move-recipe-label').textContent = `將「${recipeName}」移動到：`;
+  renderMoveFolderList($('move-folder-list'), _allFolders.filter(f => !f.parent_id), 0);
+  $('move-recipe-modal').classList.add('show');
+}
+function closeMoveModal() { $('move-recipe-modal').classList.remove('show'); }
+
+function renderMoveFolderList(container, folders, depth) {
+  if (depth === 0) {
+    container.innerHTML = '';
+    const rootDiv = document.createElement('div');
+    rootDiv.className = 'folder-select-item' + (moveSelectedFolderId === '__root__' ? ' selected' : '');
+    rootDiv.innerHTML = '🏠 根目錄（不在資料夾）';
+    rootDiv.onclick = () => { moveSelectedFolderId = '__root__'; document.querySelectorAll('.folder-select-item').forEach(i => i.classList.remove('selected')); rootDiv.classList.add('selected'); };
+    container.appendChild(rootDiv);
+  }
+  folders.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'folder-select-item' + (moveSelectedFolderId === f.id ? ' selected' : '');
+    div.style.paddingLeft = (14 + depth * 16) + 'px';
+    div.innerHTML = `📁 ${f.name}`;
+    div.onclick = () => { moveSelectedFolderId = f.id; document.querySelectorAll('.folder-select-item').forEach(i => i.classList.remove('selected')); div.classList.add('selected'); };
+    container.appendChild(div);
+    const children = _allFolders.filter(x => x.parent_id === f.id);
+    if (children.length) renderMoveFolderList(container, children, depth + 1);
+  });
+}
+
+async function confirmMove() {
+  const folderId = moveSelectedFolderId === '__root__' ? null : moveSelectedFolderId;
+  try {
+    await sb(`recipes?id=eq.${moveTargetRecipeId}`, { method: 'PATCH', body: JSON.stringify({ folder_id: folderId }), prefer: 'return=minimal' });
+    closeMoveModal();
+    renderSaved();
+    showToast('✅ 食譜已移動');
+  } catch(e) { showToast('移動失敗'); }
+}
+
+// ─── PWA ─────────────────────────────────────────────────────────────────────
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  $('install-banner').classList.add('show');
+});
+function installPWA() {
+  if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; hideBanner(); }); }
+}
+function hideBanner() { $('install-banner').classList.remove('show'); }
+
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(() => {}); }
+
+document.addEventListener('change', e => {
+  if (e.target.id === 'anchor-ingredient-select') updateAnchorHint();
+});
+
+// Enter key on auth and folder inputs
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if ($('register-form').style.display !== 'none') doRegister();
+  else if (!$('auth-screen').classList.contains('hidden')) doLogin();
+  else if ($('new-folder-modal').classList.contains('show')) confirmNewFolder();
+  else if ($('rename-modal').classList.contains('show')) confirmRename();
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+initAuth();
+</script>
+</body>
+</html>
