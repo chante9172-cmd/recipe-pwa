@@ -645,6 +645,29 @@
     <button class="install-close" onclick="hideBanner()">×</button>
   </div>
 
+  <!-- Cover Photo -->
+  <div style="margin-bottom:20px">
+    <div id="cover-preview" style="display:none;position:relative;margin-bottom:10px;">
+      <img id="cover-img" src="" alt="封面" style="width:100%;height:180px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--border);">
+      <button onclick="removeCover()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+    <div id="cover-placeholder" style="width:100%;height:120px;background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;" onclick="$('cover-url-input').style.display=$('cover-url-input').style.display==='none'?'':'none'">
+      <span style="font-size:28px;">🖼️</span>
+      <span style="font-size:13px;color:var(--text-hint);">點此新增封面照片</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <label style="flex:1">
+        <div class="add-btn" style="margin:0">📷 從相簿上傳</div>
+        <input type="file" accept="image/*" id="cover-file-input" style="display:none" onchange="handleCoverFile(event)">
+      </label>
+      <button class="add-btn" style="flex:1;margin:0" onclick="toggleCoverUrl()">🔗 貼圖片網址</button>
+    </div>
+    <div id="cover-url-input" style="display:none;margin-top:8px;">
+      <input type="url" class="auth-input" id="cover-url" placeholder="https://... 圖片網址" style="margin-bottom:6px;">
+      <button class="auth-btn" style="padding:9px" onclick="applyCoverUrl()">套用</button>
+    </div>
+  </div>
+
   <div class="recipe-name-row">
     <div class="label">食譜名稱</div>
     <input class="recipe-name-input" id="recipe-name" type="text" placeholder="例：媽媽的紅燒肉" maxlength="40">
@@ -889,6 +912,7 @@ async function loginSuccess(username, userId) {
   $('ingredient-list').innerHTML = '';
   $('steps-list').innerHTML = '';
   $('recipe-notes').value = '';
+  resetCover();
   $('steps-body').classList.remove('open');
   $('notes-body').classList.remove('open');
   document.querySelectorAll('.section-toggle').forEach(t => t.classList.remove('open'));
@@ -922,6 +946,7 @@ async function confirmLogout() {
   $('ingredient-list').innerHTML = '';
   $('steps-list').innerHTML = '';
   $('recipe-notes').value = '';
+  resetCover();
   $('steps-body').classList.remove('open');
   $('notes-body').classList.remove('open');
   document.querySelectorAll('.section-toggle').forEach(t => t.classList.remove('open'));
@@ -978,6 +1003,64 @@ function updateAnchorHint() {
   const ing = ingredients[idx];
   $('anchor-unit-label').textContent = ing.unit;
   $('anchor-hint').textContent = `原始份量：${formatNum(ing.amount)} ${ing.unit}`;
+}
+
+// ─── COVER IMAGE ─────────────────────────────────────────────────────────────
+
+let currentCoverBase64 = null; // base64 for uploaded files
+let currentCoverUrl = null;    // URL for linked images
+
+function getCoverSrc() { return currentCoverBase64 || currentCoverUrl || null; }
+
+function setCover(src) {
+  if (!src) return;
+  $('cover-img').src = src;
+  $('cover-preview').style.display = '';
+  $('cover-placeholder').style.display = 'none';
+}
+
+function removeCover() {
+  currentCoverBase64 = null;
+  currentCoverUrl = null;
+  $('cover-img').src = '';
+  $('cover-preview').style.display = 'none';
+  $('cover-placeholder').style.display = '';
+}
+
+function toggleCoverUrl() {
+  const el = $('cover-url-input');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function applyCoverUrl() {
+  const url = $('cover-url').value.trim();
+  if (!url) return;
+  currentCoverUrl = url;
+  currentCoverBase64 = null;
+  setCover(url);
+  $('cover-url-input').style.display = 'none';
+}
+
+function handleCoverFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    currentCoverBase64 = ev.target.result;
+    currentCoverUrl = null;
+    setCover(ev.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetCover() {
+  currentCoverBase64 = null;
+  currentCoverUrl = null;
+  $('cover-img').src = '';
+  $('cover-preview').style.display = 'none';
+  $('cover-placeholder').style.display = '';
+  $('cover-url').value = '';
+  $('cover-url-input').style.display = 'none';
 }
 
 // ─── STEPS ───────────────────────────────────────────────────────────────────
@@ -1142,10 +1225,11 @@ async function saveRecipe() {
   const servings = parseFraction($('original-servings').value) || 2;
   const notes = $('recipe-notes').value.trim();
   const steps = getSteps();
+  const cover = getCoverSrc();
   showToast('儲存中…');
   try {
     const existing = await sb(`recipes?user_id=eq.${currentUser.userId}&name=eq.${encodeURIComponent(name)}&select=id`);
-    const data = { user_id: currentUser.userId, name, servings, ingredients, steps, notes };
+    const data = { user_id: currentUser.userId, name, servings, ingredients, steps, notes, cover };
     if (existing.length) {
       await sb(`recipes?id=eq.${existing[0].id}`, { method: 'PATCH', body: JSON.stringify(data), prefer: 'return=minimal' });
     } else {
@@ -1163,6 +1247,13 @@ function loadRecipe(recipe) {
   $('recipe-notes').value = recipe.notes || '';
   $('steps-list').innerHTML = '';
   (recipe.steps || []).forEach(s => addStep(s));
+  // Cover
+  resetCover();
+  if (recipe.cover) {
+    if (recipe.cover.startsWith('data:')) currentCoverBase64 = recipe.cover;
+    else currentCoverUrl = recipe.cover;
+    setCover(recipe.cover);
+  }
   if (recipe.steps && recipe.steps.length) {
     $('steps-body').classList.add('open');
     document.querySelector('[onclick*="steps-body"]')?.classList.add('open');
@@ -1272,7 +1363,7 @@ async function renderFolder(path) {
     div.dataset.id = r.id;
     div.innerHTML = `
       <span class="drag-handle">⠿</span>
-      <span class="folder-icon">🍽️</span>
+      ${r.cover ? `<img src="${r.cover}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0;">` : '<span class="folder-icon">🍽️</span>'}
       <div class="folder-info">
         <div class="folder-name">${r.name}</div>
         <div class="folder-meta">${r.servings} 人份 · ${r.ingredients.length} 種食材</div>
