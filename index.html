@@ -5,171 +5,171 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>食譜轉換器</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ff6b35">
+<meta name="theme-color" content="#1b4332">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="食譜轉換">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root {
-  --primary:#ff6b35;--primary-dark:#e85a26;--bg:#f8f6f3;--card:#ffffff;
-  --text:#2d3436;--text-light:#636e72;--border:#e0dcd8;
-  --success:#00b894;--danger:#d63031;
-  --shadow:0 2px 12px rgba(0,0,0,0.08);--radius:14px;
+:root{
+  --green-dark:#1b4332;--green:#2d6a4f;--green-mid:#40916c;--green-light:#52b788;
+  --green-pale:#d8f3dc;--green-ultra:#f0faf3;
+  --black:#0d1f18;--text:#1a2e25;--text-light:#4a7c5f;
+  --border:#b7e4c7;--card:#ffffff;
+  --danger:#c0392b;--shadow:0 2px 16px rgba(27,67,50,0.10);--radius:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--green-ultra);color:var(--text);min-height:100vh;overflow-x:hidden}
 
-/* AUTH */
-#auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background-size:cover;background-position:center;background-color:var(--bg)}
-.auth-logo{font-size:56px;margin-bottom:8px}
-.auth-title{font-size:26px;font-weight:700;color:var(--primary);margin-bottom:4px}
-.auth-subtitle{font-size:13px;color:var(--text-light);margin-bottom:32px}
-.auth-card{background:var(--card);border-radius:var(--radius);padding:24px;width:100%;max-width:380px;box-shadow:var(--shadow)}
-.auth-tabs{display:flex;border-radius:10px;background:#f0ece8;padding:4px;margin-bottom:20px;gap:4px}
-.auth-tab{flex:1;padding:8px;border:none;border-radius:8px;background:transparent;font-size:14px;font-family:inherit;cursor:pointer;font-weight:500;color:var(--text-light);transition:all .2s}
-.auth-tab.active{background:white;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+/* ── AUTH ── */
+#auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,var(--green-dark) 0%,var(--green) 60%,var(--green-mid) 100%)}
+.auth-logo{font-size:60px;margin-bottom:10px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.3))}
+.auth-title{font-size:28px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:1px}
+.auth-subtitle{font-size:13px;color:rgba(255,255,255,.7);margin-bottom:32px}
+.auth-card{background:rgba(255,255,255,.97);border-radius:20px;padding:26px;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,.25)}
+.auth-tabs{display:flex;border-radius:10px;background:var(--green-pale);padding:4px;margin-bottom:20px;gap:4px}
+.auth-tab{flex:1;padding:8px;border:none;border-radius:8px;background:transparent;font-size:14px;font-family:inherit;cursor:pointer;font-weight:600;color:var(--text-light);transition:all .2s}
+.auth-tab.active{background:var(--green-dark);color:#fff;box-shadow:0 2px 8px rgba(27,67,50,.3)}
 .accounts-list{display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;margin-bottom:12px}
-.account-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;transition:all .2s}
-.account-item:hover{border-color:var(--primary);background:#fff8f5}
-.account-avatar{width:38px;height:38px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
-.account-name{font-weight:500;font-size:15px;flex:1}
+.account-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;transition:all .2s}
+.account-item:hover{border-color:var(--green-mid);background:var(--green-ultra)}
+.account-avatar{width:38px;height:38px;border-radius:50%;background:var(--green-dark);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex-shrink:0}
+.account-name{font-weight:600;font-size:15px;flex:1;color:var(--text)}
 
-/* APP */
-#app{display:none;min-height:100vh;flex-direction:column}
-#app.active{display:flex}
-.top-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:white;box-shadow:0 1px 0 var(--border);position:sticky;top:0;z-index:100}
-.top-bar-title{font-size:17px;font-weight:700;color:var(--primary)}
-.user-btn{display:flex;align-items:center;gap:8px;background:#fff8f5;border:1.5px solid var(--border);border-radius:20px;padding:5px 12px 5px 5px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;color:var(--text)}
-.user-btn .avatar{width:26px;height:26px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
-.page-content{flex:1;overflow-y:auto;padding-bottom:80px}
-
-/* NAV */
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom)}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 8px;border:none;background:transparent;cursor:pointer;font-family:inherit;gap:3px;position:relative}
-.nav-btn .nav-icon{font-size:22px;transition:transform .2s}
-.nav-btn .nav-label{font-size:10px;color:var(--text-light);font-weight:500}
-.nav-btn.active .nav-icon{transform:scale(1.1)}
-.nav-btn.active .nav-label{color:var(--primary);font-weight:700}
-.nav-btn.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:var(--primary);border-radius:2px 2px 0 0}
-
-/* PAGES */
-.page{display:none;padding:16px}
-.page.active{display:block}
-
-/* CARDS */
-.card{background:white;border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
-.card-title{font-size:13px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px}
-
-/* INPUTS */
-input,textarea,select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;background:white;color:var(--text);outline:none;transition:border-color .2s}
-input:focus,textarea:focus,select:focus{border-color:var(--primary)}
+/* ── INPUTS ── */
+input,textarea,select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;background:#fff;color:var(--text);outline:none;transition:border-color .2s}
+input:focus,textarea:focus,select:focus{border-color:var(--green-mid)}
 input[type="color"]{padding:4px;height:44px;cursor:pointer}
-label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+input[type="file"]{padding:8px}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--text)}
 
-/* BUTTONS */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;border-radius:10px;border:none;font-size:14px;font-family:inherit;font-weight:600;cursor:pointer;transition:all .2s}
-.btn-primary{background:var(--primary);color:white}
-.btn-primary:hover{background:var(--primary-dark)}
-.btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}
-.btn-danger{background:var(--danger);color:white}
-.btn-ghost{background:#f5f5f5;color:var(--text)}
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 18px;border-radius:10px;border:none;font-size:14px;font-family:inherit;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:var(--green-dark);color:#fff}
+.btn-primary:hover{background:var(--green)}
+.btn-outline{background:transparent;color:var(--green-dark);border:1.5px solid var(--green-dark)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-ghost{background:var(--green-pale);color:var(--green-dark)}
 .btn-sm{padding:7px 12px;font-size:13px}
 .btn-full{width:100%}
 .btn:active{transform:scale(.97)}
 
-/* INGREDIENTS */
-.ingredient-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+/* ── APP SHELL ── */
+#app{display:none;min-height:100vh;flex-direction:column}
+#app.active{display:flex}
+
+.top-header{background:var(--green-dark);color:#fff;padding:14px 16px 0;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.header-title{font-size:18px;font-weight:700;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+.user-btn{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.15);border:none;border-radius:20px;padding:5px 12px 5px 5px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#fff}
+.user-btn .avatar{width:26px;height:26px;border-radius:50%;background:var(--green-light);color:var(--green-dark);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+
+/* TOP TABS */
+.top-tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;padding-bottom:0}
+.top-tabs::-webkit-scrollbar{display:none}
+.top-tab{flex-shrink:0;padding:10px 16px;border:none;background:transparent;color:rgba(255,255,255,.6);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap}
+.top-tab.active{color:#fff;border-bottom-color:var(--green-light)}
+
+.page-content{flex:1;overflow-y:auto;padding-bottom:24px}
+.page{display:none;padding:16px}
+.page.active{display:block}
+
+/* ── CARDS ── */
+.card{background:#fff;border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--green-pale)}
+.card-title{font-size:12px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px}
+
+/* ── INGREDIENTS ── */
+.ingredient-row{display:flex;gap:7px;align-items:center;margin-bottom:8px}
 .ingredient-row input{flex:3}
 .ingredient-row .qty{flex:2}
 .ingredient-row select{flex:2;padding:11px 6px}
-.del-btn{background:#fee;border:none;border-radius:8px;width:34px;height:44px;cursor:pointer;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--danger)}
+.del-btn{background:#fef0ef;border:none;border-radius:8px;width:34px;height:44px;cursor:pointer;font-size:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--danger)}
 
-/* STEPS */
-.step-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:10px}
-.step-num{width:26px;height:26px;border-radius:50%;background:var(--primary);color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:10px}
-.step-row textarea{flex:1;min-height:60px;resize:none}
+/* ── CONVERT TABS ── */
+.convert-tabs{display:flex;background:var(--green-pale);border-radius:10px;padding:4px;gap:3px;margin-bottom:16px}
+.convert-tab{flex:1;padding:8px 4px;border:none;border-radius:7px;background:transparent;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;color:var(--text-light);transition:all .2s;text-align:center}
+.convert-tab.active{background:var(--green-dark);color:#fff;box-shadow:0 1px 6px rgba(27,67,50,.25)}
 
-/* CONVERT */
-.convert-tabs{display:flex;background:#f0ece8;border-radius:10px;padding:4px;gap:3px;margin-bottom:16px}
-.convert-tab{flex:1;padding:8px 4px;border:none;border-radius:7px;background:transparent;font-size:12px;font-family:inherit;cursor:pointer;font-weight:500;color:var(--text-light);transition:all .2s;text-align:center}
-.convert-tab.active{background:white;color:var(--primary);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.1)}
-
-/* RESULTS */
+/* ── RESULTS ── */
 .result-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
 .result-row:last-child{border-bottom:none}
 .result-name{flex:1;font-weight:500}
-.result-orig{color:var(--text-light)}
-.result-new{font-weight:700;color:var(--primary);margin-left:12px}
-.badge-ref{font-size:10px;background:#d5f5e3;color:var(--success);border-radius:6px;padding:2px 6px;margin-left:6px;font-weight:700}
+.result-orig{color:var(--text-light);font-size:13px}
+.result-new{font-weight:700;color:var(--green-dark);margin-left:10px}
+.badge-ref{font-size:10px;background:var(--green-pale);color:var(--green-dark);border-radius:6px;padding:2px 6px;margin-left:6px;font-weight:700}
 
-/* SAVED */
-.saved-toolbar{display:flex;gap:8px;margin-bottom:14px;align-items:center}
+/* ── SAVED LIST ── */
+.saved-toolbar{display:flex;gap:8px;margin-bottom:12px;align-items:center}
 .breadcrumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:12px;font-size:13px}
-.breadcrumb-item{color:var(--primary);cursor:pointer;font-weight:600}
+.breadcrumb-item{color:var(--green-dark);cursor:pointer;font-weight:700}
 .breadcrumb-sep{color:var(--text-light)}
-.folder-item,.recipe-item{display:flex;align-items:center;gap:12px;background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:var(--shadow);position:relative}
+.folder-item,.recipe-item{display:flex;align-items:center;gap:12px;background:#fff;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:var(--shadow);border:1px solid var(--green-pale)}
 .folder-icon{font-size:28px}
-.recipe-thumb{width:52px;height:52px;border-radius:8px;object-fit:cover;background:#f0ece8;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden}
+.recipe-thumb{width:52px;height:52px;border-radius:8px;background:var(--green-pale);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden}
 .recipe-thumb img{width:100%;height:100%;object-fit:cover}
 .item-info{flex:1;min-width:0;cursor:pointer}
-.item-name{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
 .item-meta{font-size:12px;color:var(--text-light);margin-top:2px}
 .item-actions{display:flex;gap:6px;flex-shrink:0}
-.icon-btn{background:#f5f5f5;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.icon-btn{background:var(--green-pale);border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--green-dark)}
 
-/* COVER */
-.cover-area{width:100%;height:160px;border-radius:var(--radius);border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;margin-bottom:16px;cursor:pointer;background:#f8f6f3;transition:border-color .2s}
-.cover-area:hover{border-color:var(--primary)}
+/* ── COVER ── */
+.cover-area{width:100%;height:150px;border-radius:var(--radius);border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;margin-bottom:16px;cursor:pointer;background:var(--green-ultra);transition:border-color .2s}
+.cover-area:hover{border-color:var(--green-mid)}
 .cover-area img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .cover-overlay{position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
-.cover-placeholder{font-size:36px;margin-bottom:4px}
-.cover-hint{font-size:13px;color:var(--text-light)}
 
-/* SETTINGS */
-.settings-section{margin-bottom:20px}
-.settings-section-title{font-size:13px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding:0 4px}
-.bg-setting-card{background:white;border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow)}
-.bg-setting-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.bg-page-icon{font-size:22px}
-.bg-page-name{font-weight:600;font-size:15px}
-.bg-type-tabs{display:flex;gap:6px;margin-bottom:12px}
-.bg-type-btn{flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:white;font-size:13px;font-family:inherit;cursor:pointer;font-weight:500;color:var(--text-light);transition:all .2s}
-.bg-type-btn.active{border-color:var(--primary);color:var(--primary);background:#fff8f5}
-.bg-preview{width:100%;height:60px;border-radius:8px;margin-top:10px;background-size:cover;background-position:center;border:1px solid var(--border)}
+/* ── DRAWING CANVAS ── */
+.draw-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 0;margin-bottom:8px}
+.draw-tool-btn{width:36px;height:36px;border-radius:8px;border:2px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s}
+.draw-tool-btn.active{border-color:var(--green-dark);background:var(--green-pale)}
+.draw-size{width:80px;height:36px;padding:4px 8px;border-radius:8px;border:1.5px solid var(--border);font-family:inherit;font-size:13px}
+.draw-color{width:36px;height:36px;padding:2px;border-radius:8px;border:2px solid var(--border);cursor:pointer}
+#drawing-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border);cursor:crosshair;touch-action:none;background:#fff;display:block}
 
-/* MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:500}
-.modal-overlay.show{display:flex}
-.modal{background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;animation:slideUp .3s ease}
-@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
-.modal-title{font-size:17px;font-weight:700;margin-bottom:16px;text-align:center}
-.modal-actions{display:flex;gap:10px;margin-top:16px}
-.modal-actions .btn{flex:1}
-
-/* COLLAPSE */
+/* ── COLLAPSE ── */
 .collapse-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0}
 .collapse-arrow{transition:transform .2s;font-size:12px;color:var(--text-light)}
 .collapse-arrow.open{transform:rotate(180deg)}
 .collapse-body{overflow:hidden;transition:max-height .3s ease}
 
-/* MISC */
+/* ── SETTINGS ── */
+.settings-section{margin-bottom:20px}
+.settings-label{font-size:12px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding:0 2px}
+.bg-setting-card{background:#fff;border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow);border:1px solid var(--green-pale)}
+.bg-setting-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.bg-type-tabs{display:flex;gap:6px;margin-bottom:12px}
+.bg-type-btn{flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:13px;font-family:inherit;cursor:pointer;font-weight:500;color:var(--text-light);transition:all .2s}
+.bg-type-btn.active{border-color:var(--green-dark);color:var(--green-dark);background:var(--green-pale)}
+.bg-preview{width:100%;height:50px;border-radius:8px;margin-top:8px;background-size:cover;background-position:center;border:1px solid var(--border)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:500}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:16px;text-align:center;color:var(--text)}
+.modal-actions{display:flex;gap:10px;margin-top:16px}
+.modal-actions .btn{flex:1}
+
+/* ── MISC ── */
 .empty-state{text-align:center;padding:48px 24px;color:var(--text-light)}
-.empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+.empty-icon{font-size:48px;margin-bottom:12px}
 .row{display:flex;gap:10px}
 .row>*{flex:1}
 .loading{text-align:center;padding:20px;color:var(--text-light);font-size:14px}
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#2d3436;color:white;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:500;z-index:9999;transition:transform .3s;white-space:nowrap}
+.hint{font-size:12px;color:var(--text-light);margin-top:6px}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--green-dark);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;transition:transform .3s;white-space:nowrap;box-shadow:0 4px 16px rgba(27,67,50,.3)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
 
-<!-- AUTH SCREEN -->
+<!-- ══ AUTH ══ -->
 <div id="auth-screen">
-  <div class="auth-logo">🍳</div>
+  <div class="auth-logo">🌿</div>
   <div class="auth-title">食譜轉換器</div>
   <div class="auth-subtitle">你的私人食譜管理助手</div>
   <div class="auth-card">
@@ -192,71 +192,124 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
   </div>
 </div>
 
-<!-- MAIN APP -->
+<!-- ══ APP ══ -->
 <div id="app">
-  <div class="top-bar">
-    <div class="top-bar-title">🍳 食譜轉換器</div>
-    <button class="user-btn" onclick="showLogout()">
-      <div class="avatar" id="user-avatar">?</div>
-      <span id="user-name-display">使用者</span>
-    </button>
+  <div class="top-header">
+    <div class="header-row">
+      <div class="header-title">🌿 食譜轉換器</div>
+      <button class="user-btn" onclick="showLogout()">
+        <div class="avatar" id="user-avatar">?</div>
+        <span id="user-name-display">使用者</span>
+      </button>
+    </div>
+    <div class="top-tabs">
+      <button class="top-tab active" id="tab-edit" onclick="switchPage('edit')">✏️ 新增食譜</button>
+      <button class="top-tab" id="tab-saved" onclick="switchPage('saved')">📚 已儲存</button>
+      <button class="top-tab" id="tab-convert" onclick="switchPage('convert')">⚖️ 比例換算</button>
+      <button class="top-tab" id="tab-settings" onclick="switchPage('settings')">⚙️ 設定</button>
+    </div>
   </div>
 
-  <div class="page-content" id="page-content">
+  <div class="page-content">
 
     <!-- EDIT PAGE -->
     <div class="page active" id="page-edit">
       <div class="cover-area" id="cover-area" onclick="showCoverModal()">
-        <div class="cover-placeholder">🖼️</div>
-        <div class="cover-hint">點擊設定封面照片</div>
+        <span style="font-size:32px">🖼️</span>
+        <span style="font-size:13px;color:var(--text-light);margin-top:4px">點擊設定封面照片</span>
       </div>
+
       <div class="card">
         <div class="card-title">食譜資訊</div>
         <div style="margin-bottom:10px"><label>食譜名稱</label><input type="text" id="recipe-name" placeholder="例如：媽媽的紅燒肉"></div>
-        <div><label>原始份量（人數）</label><input type="text" id="recipe-servings" placeholder="例如：4 或 1/2"></div>
+        <div><label>份量（人數）</label><input type="text" id="recipe-servings" placeholder="例如：4 或留空"></div>
       </div>
+
       <div class="card">
         <div class="card-title">食材清單</div>
         <div id="ingredient-list"></div>
         <button class="btn btn-outline btn-full btn-sm" onclick="addIngredient()">＋ 新增食材</button>
       </div>
+
       <div class="card">
         <div class="collapse-header" onclick="toggleCollapse('steps-body','steps-arrow')">
-          <div class="card-title" style="margin-bottom:0">做法步驟</div>
+          <div class="card-title" style="margin-bottom:0">做法</div>
           <span class="collapse-arrow" id="steps-arrow">▼</span>
         </div>
         <div class="collapse-body" id="steps-body" style="max-height:0">
-          <div style="height:14px"></div>
-          <textarea id="steps-text" placeholder="輸入做法…" style="min-height:160px;resize:vertical"></textarea>
+          <div style="height:12px"></div>
+          <textarea id="steps-text" placeholder="輸入做法…" style="min-height:140px;resize:vertical"></textarea>
         </div>
       </div>
+
       <div class="card">
         <div class="collapse-header" onclick="toggleCollapse('notes-body','notes-arrow')">
           <div class="card-title" style="margin-bottom:0">備註</div>
           <span class="collapse-arrow" id="notes-arrow">▼</span>
         </div>
         <div class="collapse-body" id="notes-body" style="max-height:0">
-          <div style="height:14px"></div>
-          <textarea id="recipe-notes" placeholder="小技巧、注意事項、食材替換建議…" style="min-height:80px;resize:vertical"></textarea>
+          <div style="height:12px"></div>
+          <textarea id="recipe-notes" placeholder="小技巧、注意事項…" style="min-height:80px;resize:vertical"></textarea>
         </div>
       </div>
-      <div class="row">
-        <button class="btn btn-ghost" onclick="newRecipe()">🗑 清空</button>
-        <button class="btn btn-primary" onclick="saveRecipe()">💾 儲存食譜</button>
+
+      <!-- DRAWING CARD -->
+      <div class="card">
+        <div class="collapse-header" onclick="toggleCollapse('draw-body','draw-arrow')">
+          <div class="card-title" style="margin-bottom:0">手繪筆記</div>
+          <span class="collapse-arrow" id="draw-arrow">▼</span>
+        </div>
+        <div class="collapse-body" id="draw-body" style="max-height:0">
+          <div style="height:12px"></div>
+          <div class="draw-toolbar">
+            <button class="draw-tool-btn active" id="tool-pen" onclick="setTool('pen')" title="畫筆">✏️</button>
+            <button class="draw-tool-btn" id="tool-eraser" onclick="setTool('eraser')" title="橡皮擦">🧹</button>
+            <input class="draw-color" type="color" id="draw-color" value="#1b4332" onchange="drawColor=this.value" title="顏色">
+            <select class="draw-size" id="draw-size" onchange="drawSize=parseInt(this.value)">
+              <option value="3">細 3px</option>
+              <option value="6" selected>中 6px</option>
+              <option value="12">粗 12px</option>
+              <option value="24">超粗 24px</option>
+            </select>
+            <button class="draw-tool-btn" onclick="clearCanvas()" title="清除">🗑</button>
+          </div>
+          <canvas id="drawing-canvas" height="300"></canvas>
+          <p class="hint" style="margin-top:6px">手繪筆記會跟食譜一起儲存</p>
+        </div>
       </div>
+
+      <button class="btn btn-primary btn-full" style="font-size:16px;padding:14px" onclick="saveRecipe()">💾 儲存食譜</button>
+    </div>
+
+    <!-- SAVED PAGE -->
+    <div class="page" id="page-saved">
+      <div class="saved-toolbar">
+        <button class="btn btn-outline btn-sm" onclick="showNewFolderModal()">📁 新增資料夾</button>
+      </div>
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div id="saved-list"><div class="loading">載入中…</div></div>
     </div>
 
     <!-- CONVERT PAGE -->
     <div class="page" id="page-convert">
-      <div id="no-recipe-msg" class="card" style="text-align:center;padding:32px">
-        <p style="font-size:32px;margin-bottom:12px">⚖️</p>
-        <p style="color:var(--text-light);font-size:14px">請先在「編輯」頁面新增食材，或從「已儲存」載入食譜</p>
-      </div>
-      <div id="convert-body" style="display:none">
-        <div class="card">
-          <div style="font-size:18px;font-weight:700;margin-bottom:4px" id="convert-recipe-name"></div>
-          <div style="font-size:13px;color:var(--text-light)" id="convert-recipe-servings"></div>
+      <!-- Step 1: pick recipe -->
+      <div id="convert-pick">
+        <div class="card" style="text-align:center;padding:14px 18px 10px">
+          <div class="card-title" style="margin-bottom:6px">選擇要換算的食譜</div>
         </div>
+        <div id="convert-recipe-list"><div class="loading">載入中…</div></div>
+      </div>
+
+      <!-- Step 2: convert -->
+      <div id="convert-calc" style="display:none">
+        <div class="card" style="display:flex;align-items:center;gap:12px;padding:14px 18px">
+          <div style="flex:1">
+            <div style="font-size:17px;font-weight:700" id="sel-recipe-name"></div>
+            <div style="font-size:12px;color:var(--text-light)" id="sel-recipe-servings"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="backToPick()">← 換食譜</button>
+        </div>
+
         <div class="card">
           <div class="convert-tabs">
             <button class="convert-tab active" onclick="setConvertMode(0)">👥 人數倍數</button>
@@ -270,14 +323,16 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
           <div id="mode-1" style="display:none">
             <label>目標總重量（g）</label>
             <input type="text" id="target-weight" placeholder="例如：1000">
-            <p style="font-size:12px;color:var(--text-light);margin-top:6px">⚠️ 只計算 g / kg / ml / L 單位的食材。若食材都是「個」「片」等，請改用「依食材」模式。</p>
+            <p class="hint">⚠️ 只計算 g/kg/ml/L 單位，其他請用「依食材」模式</p>
           </div>
           <div id="mode-2" style="display:none">
-            <div style="margin-bottom:10px"><label>選擇基準食材</label><select id="ref-ingredient"></select></div>
-            <div><label>你有多少？</label><input type="text" id="ref-amount" placeholder="例如：500 或 1/2"></div>
+            <div style="margin-bottom:10px"><label>基準食材</label><select id="ref-ingredient"></select></div>
+            <label>你有多少？</label>
+            <input type="text" id="ref-amount" placeholder="例如：500 或 1/2">
           </div>
           <button class="btn btn-primary btn-full" style="margin-top:14px" onclick="doConvert()">計算換算結果</button>
         </div>
+
         <div id="convert-result" class="card" style="display:none">
           <div class="card-title">換算結果</div>
           <div id="result-list"></div>
@@ -285,47 +340,30 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
       </div>
     </div>
 
-    <!-- SAVED PAGE -->
-    <div class="page" id="page-saved">
-      <div class="saved-toolbar">
-        <button class="btn btn-outline btn-sm" onclick="showNewFolderModal()">📁 新增資料夾</button>
-      </div>
-      <div class="breadcrumb" id="breadcrumb"></div>
-      <div id="saved-list"><div class="loading">載入中…</div></div>
-    </div>
-
     <!-- SETTINGS PAGE -->
     <div class="page" id="page-settings">
       <div class="settings-section">
-        <div class="settings-section-title">🎨 頁面背景設定</div>
+        <div class="settings-label">🎨 頁面背景設定</div>
         <div id="bg-settings-list"></div>
       </div>
       <div class="settings-section">
-        <div class="settings-section-title">👤 帳號設定</div>
+        <div class="settings-label">👤 帳號設定</div>
         <div class="bg-setting-card">
           <button class="btn btn-danger btn-full" onclick="showLogout()">登出帳號</button>
         </div>
       </div>
     </div>
 
-  </div><!-- end page-content -->
-
-  <nav class="bottom-nav">
-    <button class="nav-btn active" id="nav-edit" onclick="switchPage('edit')"><span class="nav-icon">✏️</span><span class="nav-label">編輯</span></button>
-    <button class="nav-btn" id="nav-convert" onclick="switchPage('convert')"><span class="nav-icon">⚖️</span><span class="nav-label">轉換</span></button>
-    <button class="nav-btn" id="nav-saved" onclick="switchPage('saved')"><span class="nav-icon">📚</span><span class="nav-label">已儲存</span></button>
-    <button class="nav-btn" id="nav-settings" onclick="switchPage('settings')"><span class="nav-icon">⚙️</span><span class="nav-label">設定</span></button>
-  </nav>
+  </div>
 </div>
 
-<!-- MODALS -->
+<!-- ══ MODALS ══ -->
 <div class="modal-overlay" id="logout-modal">
   <div class="modal">
-    <div class="modal-title">登出帳號</div>
-    <p style="text-align:center;color:var(--text-light);font-size:14px;margin-bottom:4px">確定要登出嗎？</p>
+    <div class="modal-title">確定要登出嗎？</div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('logout-modal')">取消</button>
-      <button class="btn btn-danger" onclick="doLogout()">確定登出</button>
+      <button class="btn btn-danger" onclick="doLogout()">登出</button>
     </div>
   </div>
 </div>
@@ -333,12 +371,12 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
 <div class="modal-overlay" id="cover-modal">
   <div class="modal">
     <div class="modal-title">設定封面照片</div>
-    <div style="margin-bottom:14px"><label>📷 從相簿選取</label><input type="file" id="cover-file" accept="image/*" onchange="onCoverFile(event)" style="padding:8px"></div>
-    <div style="margin-bottom:14px"><label>🔗 圖片網址</label><input type="url" id="cover-url" placeholder="https://..."></div>
-    <div id="cover-preview" style="width:100%;height:120px;border-radius:10px;border:1.5px solid var(--border);background:#f8f6f3;background-size:cover;background-position:center;margin-bottom:14px"></div>
+    <div style="margin-bottom:12px"><label>📷 從相簿選取</label><input type="file" id="cover-file" accept="image/*" onchange="onCoverFile(event)"></div>
+    <div style="margin-bottom:12px"><label>🔗 圖片網址</label><input type="url" id="cover-url" placeholder="https://..."></div>
+    <div id="cover-preview" style="width:100%;height:110px;border-radius:10px;border:1.5px solid var(--border);background:var(--green-ultra);background-size:cover;background-position:center;margin-bottom:14px"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('cover-modal')">取消</button>
-      <button class="btn btn-danger btn-sm" onclick="clearCover()" style="flex:none;padding:12px">🗑</button>
+      <button class="btn btn-danger btn-sm" onclick="clearCover()" style="flex:none;padding:11px 14px">🗑</button>
       <button class="btn btn-primary" onclick="applyCover()">套用</button>
     </div>
   </div>
@@ -366,9 +404,9 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
 <div class="modal-overlay" id="bg-img-modal">
   <div class="modal">
     <div class="modal-title">設定背景圖片</div>
-    <div style="margin-bottom:14px"><label>📷 從相簿選取</label><input type="file" id="bg-file-input" accept="image/*" onchange="onBgFile(event)" style="padding:8px"></div>
-    <div style="margin-bottom:14px"><label>🔗 圖片網址</label><input type="url" id="bg-url-input" placeholder="https://..."></div>
-    <div id="bg-img-preview" style="width:100%;height:80px;border-radius:10px;border:1.5px solid var(--border);background:#f8f6f3;background-size:cover;background-position:center;margin-bottom:14px"></div>
+    <div style="margin-bottom:12px"><label>📷 從相簿選取</label><input type="file" id="bg-file-input" accept="image/*" onchange="onBgFile(event)"></div>
+    <div style="margin-bottom:12px"><label>🔗 圖片網址</label><input type="url" id="bg-url-input" placeholder="https://..."></div>
+    <div id="bg-img-preview" style="width:100%;height:70px;border-radius:10px;border:1.5px solid var(--border);background:var(--green-ultra);background-size:cover;background-position:center;margin-bottom:14px"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('bg-img-modal')">取消</button>
       <button class="btn btn-primary" onclick="applyBgImg()">套用</button>
@@ -379,118 +417,109 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== SUPABASE =====
-const SUPABASE_URL='https://foipkuuuzytzntcjctdf.supabase.co';
-const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvaXBrdXV1enl0em50Y2pjdGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTYwNzgsImV4cCI6MjA5MzI5MjA3OH0.82Y6XM6izErY5MvbUeYl-8MlzBnBWuz_NVs-pQZUTJU';
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+// ══ SUPABASE ══
+const sb=supabase.createClient(
+  'https://foipkuuuzytzntcjctdf.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvaXBrdXV1enl0em50Y2pjdGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTYwNzgsImV4cCI6MjA5MzI5MjA3OH0.82Y6XM6izErY5MvbUeYl-8MlzBnBWuz_NVs-pQZUTJU'
+);
 
-// ===== STATE =====
+// ══ STATE ══
 let currentUser=null;
-let currentRecipe={id:null,name:'',servings:'4',ingredients:[],steps:[],notes:'',cover:'',folder_id:null};
+let currentRecipe={id:null,name:'',servings:'',ingredients:[],steps:'',notes:'',cover:'',drawing:'',folder_id:null};
 let currentFolderPath=[];
 let currentFolderId=null;
 let convertMode=0;
+let convertRecipe=null;
 let coverDataUrl='';
 let bgEditTarget=null;
 let bgSettings={};
 let bgImgDataUrl='';
 
-const UNITS=['g','kg','ml','L','杯','tbsp','tsp','T','t','個','片','條','支','顆','包','罐','兩','斤'];
+// ══ CANVAS ══
+let canvas,ctx,drawing=false,drawTool='pen',drawColor='#1b4332',drawSize=6;
+let lastX=0,lastY=0;
 
+const UNITS=['g','kg','ml','L','杯','tbsp','tsp','T','t','個','片','條','支','顆','包','罐','兩','斤'];
 const BG_PAGES=[
-  {key:'edit',icon:'✏️',name:'編輯頁面'},
-  {key:'convert',icon:'⚖️',name:'轉換頁面'},
+  {key:'edit',icon:'✏️',name:'新增食譜頁面'},
   {key:'saved',icon:'📚',name:'已儲存頁面'},
+  {key:'convert',icon:'⚖️',name:'比例換算頁面'},
   {key:'settings',icon:'⚙️',name:'設定頁面'},
   {key:'auth',icon:'🔐',name:'登入頁面'},
 ];
 
-// ===== UTILS =====
+// ══ UTILS ══
 function parseFraction(s){
   if(!s)return NaN;s=String(s).trim();
   const u={'½':.5,'⅓':1/3,'⅔':2/3,'¼':.25,'¾':.75,'⅛':.125,'⅜':.375,'⅝':.625,'⅞':.875};
   if(u[s])return u[s];
-  let m=s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
-  if(m)return+m[1]+(+m[2])/(+m[3]);
-  m=s.match(/^(\d+)\/(\d+)$/);
-  if(m)return(+m[1])/(+m[2]);
+  let m=s.match(/^(\d+)\s+(\d+)\/(\d+)$/);if(m)return+m[1]+(+m[2])/(+m[3]);
+  m=s.match(/^(\d+)\/(\d+)$/);if(m)return(+m[1])/(+m[2]);
   return parseFloat(s);
 }
 function fmtNum(n){if(isNaN(n))return'?';if(n===Math.floor(n))return String(n);return parseFloat(n.toFixed(2)).toString();}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 function openModal(id){document.getElementById(id).classList.add('show');}
 
-// ===== AUTH =====
+// ══ AUTH ══
 function switchAuthTab(tab){
   document.querySelectorAll('.auth-tab').forEach((b,i)=>b.classList.toggle('active',(tab==='login'&&i===0)||(tab==='register'&&i===1)));
   document.getElementById('login-panel').style.display=tab==='login'?'':'none';
   document.getElementById('register-panel').style.display=tab==='register'?'':'none';
 }
-
 async function loadAuthScreen(){
   const{data:users}=await sb.from('users').select('id,username').order('created_at');
-  const list=document.getElementById('accounts-list');
-  list.innerHTML='';
-  if(users&&users.length>0){
+  const list=document.getElementById('accounts-list');list.innerHTML='';
+  if(users&&users.length){
     document.getElementById('login-or').style.display='block';
     users.forEach(u=>{
       const el=document.createElement('div');el.className='account-item';
-      el.innerHTML=`<div class="account-avatar">${u.username[0].toUpperCase()}</div><div class="account-name">${u.username}</div><span style="color:var(--text-light);font-size:12px">點擊選取 →</span>`;
+      el.innerHTML=`<div class="account-avatar">${u.username[0].toUpperCase()}</div><div class="account-name">${u.username}</div><span style="color:var(--text-light);font-size:12px">點擊 →</span>`;
       el.onclick=()=>{document.getElementById('login-username').value=u.username;document.getElementById('login-password').focus();};
       list.appendChild(el);
     });
-  }else{document.getElementById('login-or').style.display='none';}
+  }else document.getElementById('login-or').style.display='none';
 }
-
 async function doLogin(){
   const username=document.getElementById('login-username').value.trim();
   const password=document.getElementById('login-password').value;
   if(!username||!password){showToast('請填入帳號和密碼');return;}
   const{data}=await sb.from('users').select('*').eq('username',username).single();
   if(!data){showToast('找不到此帳號');return;}
-  const hash=await hashPw(password);
-  if(hash!==data.password_hash){showToast('密碼錯誤');return;}
+  if(await hashPw(password)!==data.password_hash){showToast('密碼錯誤');return;}
   loginSuccess(data);
 }
-
 async function doRegister(){
   const username=document.getElementById('reg-username').value.trim();
   const password=document.getElementById('reg-password').value;
   if(username.length<2){showToast('帳號至少2個字');return;}
   if(password.length<4){showToast('密碼至少4位');return;}
-  const hash=await hashPw(password);
-  const{data,error}=await sb.from('users').insert({username,password_hash:hash}).select().single();
+  const{data,error}=await sb.from('users').insert({username,password_hash:await hashPw(password)}).select().single();
   if(error){showToast('帳號已存在');return;}
   loginSuccess(data);
 }
-
-async function hashPw(password){
-  const enc=new TextEncoder();
-  const buf=await crypto.subtle.digest('SHA-256',enc.encode(password+'recipe_salt_2024'));
+async function hashPw(p){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+'recipe_salt_2024'));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-
 function loginSuccess(user){
   currentUser=user;
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').classList.add('active');
   document.getElementById('user-avatar').textContent=user.username[0].toUpperCase();
   document.getElementById('user-name-display').textContent=user.username;
-  newRecipe();
   loadBgSettings();
+  newRecipe();
   renderSaved();
-  updateConvertPage();
+  loadConvertList();
 }
-
 function showLogout(){openModal('logout-modal');}
 function doLogout(){
-  currentUser=null;currentRecipe={id:null,name:'',servings:'4',ingredients:[],steps:[],notes:'',cover:'',folder_id:null};
-  currentFolderPath=[];currentFolderId=null;bgSettings={};
+  currentUser=null;bgSettings={};currentFolderPath=[];currentFolderId=null;convertRecipe=null;
   closeModal('logout-modal');
   document.getElementById('app').classList.remove('active');
   document.getElementById('auth-screen').style.display='';
-  // reset auth screen bg
   document.getElementById('auth-screen').style.backgroundImage='';
   document.getElementById('auth-screen').style.backgroundColor='';
   document.getElementById('login-username').value='';
@@ -498,35 +527,37 @@ function doLogout(){
   loadAuthScreen();
 }
 
-// ===== NAVIGATION =====
+// ══ NAVIGATION ══
 let currentPage='edit';
 function switchPage(page){
   currentPage=page;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.top-tab').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
-  document.getElementById('nav-'+page).classList.add('active');
-  if(page==='convert')updateConvertPage();
+  document.getElementById('tab-'+page).classList.add('active');
   if(page==='saved')renderSaved();
+  if(page==='convert')loadConvertList();
   if(page==='settings')renderBgSettings();
   applyPageBg(page);
 }
 
-// ===== RECIPE EDIT =====
+// ══ EDIT ══
 function newRecipe(){
-  currentRecipe={id:null,name:'',servings:'4',ingredients:[],steps:[],notes:'',cover:'',folder_id:null};
+  currentRecipe={id:null,name:'',servings:'',ingredients:[],steps:'',notes:'',cover:'',drawing:'',folder_id:null};
   coverDataUrl='';
-  renderEditPage();
-}
-
-function renderEditPage(){
-  document.getElementById('recipe-name').value=currentRecipe.name;
-  document.getElementById('recipe-servings').value=currentRecipe.servings;
-  document.getElementById('recipe-notes').value=currentRecipe.notes||'';
-  // steps: support both old array format and new string format
-  const stepsVal=Array.isArray(currentRecipe.steps)?currentRecipe.steps.join('\n'):currentRecipe.steps||'';
-  document.getElementById('steps-text').value=stepsVal;
-  renderIngredients();renderSteps();renderCoverArea();
+  document.getElementById('recipe-name').value='';
+  document.getElementById('recipe-servings').value='';
+  document.getElementById('recipe-notes').value='';
+  document.getElementById('steps-text').value='';
+  // reset collapse
+  ['steps-body','notes-body','draw-body'].forEach(id=>{
+    document.getElementById(id).style.maxHeight='0px';
+    const arrow=document.getElementById(id.replace('-body','-arrow'));
+    if(arrow)arrow.classList.remove('open');
+  });
+  renderIngredients();
+  renderCoverArea();
+  initCanvas();
 }
 
 function renderIngredients(){
@@ -538,59 +569,45 @@ function renderIngredients(){
     list.appendChild(row);
   });
 }
-
-function addIngredient(){currentRecipe.ingredients.push({qty:'',unit:'g',name:''});renderIngredients();const inputs=document.querySelectorAll('.ingredient-row .qty');if(inputs.length)inputs[inputs.length-1].focus();}
+function addIngredient(){
+  currentRecipe.ingredients.push({qty:'',unit:'g',name:''});
+  renderIngredients();
+  const inputs=document.querySelectorAll('.ingredient-row input');
+  if(inputs.length)inputs[inputs.length-2].focus();
+}
 function delIngredient(i){currentRecipe.ingredients.splice(i,1);renderIngredients();}
-
-function renderSteps(){
-  const list=document.getElementById('steps-list');list.innerHTML='';
-  currentRecipe.steps.forEach((step,i)=>{
-    const row=document.createElement('div');row.className='step-row';
-    row.innerHTML=`<div class="step-num">${i+1}</div><textarea onchange="currentRecipe.steps[${i}]=this.value">${step}</textarea><button class="del-btn" onclick="delStep(${i})">✕</button>`;
-    list.appendChild(row);
-  });
-}
-
-function addStep(){
-  const body=document.getElementById('steps-body');
-  if(!body.style.maxHeight||body.style.maxHeight==='0px')toggleCollapse('steps-body','steps-arrow');
-  currentRecipe.steps.push('');renderSteps();
-}
-function delStep(i){currentRecipe.steps.splice(i,1);renderSteps();}
 
 function toggleCollapse(bodyId,arrowId){
   const body=document.getElementById(bodyId);const arrow=document.getElementById(arrowId);
-  if(!body.style.maxHeight||body.style.maxHeight==='0px'){body.style.maxHeight=body.scrollHeight+500+'px';arrow.classList.add('open');}
-  else{body.style.maxHeight='0px';arrow.classList.remove('open');}
+  if(!body.style.maxHeight||body.style.maxHeight==='0px'){
+    body.style.maxHeight=body.scrollHeight+600+'px';arrow.classList.add('open');
+    if(bodyId==='draw-body')setTimeout(()=>initCanvas(),50);
+  }else{body.style.maxHeight='0px';arrow.classList.remove('open');}
 }
 
-// ===== COVER =====
+// ══ COVER ══
 function renderCoverArea(){
   const area=document.getElementById('cover-area');
   const src=coverDataUrl||currentRecipe.cover;
-  if(src)area.innerHTML=`<img src="${src}"><div class="cover-overlay"><span style="color:white;font-size:13px">點擊更換封面</span></div>`;
-  else area.innerHTML=`<div class="cover-placeholder">🖼️</div><div class="cover-hint">點擊設定封面照片</div>`;
+  if(src)area.innerHTML=`<img src="${src}"><div class="cover-overlay"><span style="color:#fff;font-size:13px">點擊更換封面</span></div>`;
+  else area.innerHTML=`<span style="font-size:32px">🖼️</span><span style="font-size:13px;color:var(--text-light);margin-top:4px">點擊設定封面照片</span>`;
 }
-
 function showCoverModal(){
   document.getElementById('cover-url').value=currentRecipe.cover&&!coverDataUrl?currentRecipe.cover:'';
   const src=coverDataUrl||currentRecipe.cover;
   document.getElementById('cover-preview').style.backgroundImage=src?`url(${src})`:'';
   openModal('cover-modal');
 }
-
 function onCoverFile(e){
   const file=e.target.files[0];if(!file)return;
   const r=new FileReader();r.onload=ev=>{coverDataUrl=ev.target.result;document.getElementById('cover-preview').style.backgroundImage=`url(${coverDataUrl})`;};r.readAsDataURL(file);
 }
-
 function applyCover(){
   const url=document.getElementById('cover-url').value.trim();
   if(url){currentRecipe.cover=url;coverDataUrl='';}
   else if(coverDataUrl){currentRecipe.cover=coverDataUrl;coverDataUrl='';}
   renderCoverArea();closeModal('cover-modal');
 }
-
 function clearCover(){
   currentRecipe.cover='';coverDataUrl='';
   document.getElementById('cover-preview').style.backgroundImage='';
@@ -599,9 +616,50 @@ function clearCover(){
   renderCoverArea();closeModal('cover-modal');
 }
 
-// ===== SAVE/LOAD =====
+// ══ CANVAS DRAWING ══
+function initCanvas(){
+  canvas=document.getElementById('drawing-canvas');
+  if(!canvas)return;
+  canvas.width=canvas.offsetWidth||canvas.parentElement.offsetWidth||360;
+  ctx=canvas.getContext('2d');
+  if(currentRecipe.drawing){
+    const img=new Image();img.onload=()=>ctx.drawImage(img,0,0);img.src=currentRecipe.drawing;
+  }else{ctx.clearRect(0,0,canvas.width,canvas.height);}
+  canvas.addEventListener('mousedown',startDraw);
+  canvas.addEventListener('mousemove',doDraw);
+  canvas.addEventListener('mouseup',endDraw);
+  canvas.addEventListener('mouseleave',endDraw);
+  canvas.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const r=canvas.getBoundingClientRect();lastX=t.clientX-r.left;lastY=t.clientY-r.top;drawing=true;},{passive:false});
+  canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const t=e.touches[0];const r=canvas.getBoundingClientRect();const x=t.clientX-r.left;const y=t.clientY-r.top;drawLine(lastX,lastY,x,y);lastX=x;lastY=y;},{passive:false});
+  canvas.addEventListener('touchend',()=>drawing=false);
+}
+function getPos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+function startDraw(e){drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;}
+function doDraw(e){if(!drawing)return;const p=getPos(e);drawLine(lastX,lastY,p.x,p.y);lastX=p.x;lastY=p.y;}
+function endDraw(){drawing=false;}
+function drawLine(x1,y1,x2,y2){
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+  if(drawTool==='eraser'){ctx.strokeStyle='#ffffff';ctx.lineWidth=drawSize*3;}
+  else{ctx.strokeStyle=drawColor;ctx.lineWidth=drawSize;}
+  ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();
+}
+function setTool(tool){
+  drawTool=tool;
+  document.getElementById('tool-pen').classList.toggle('active',tool==='pen');
+  document.getElementById('tool-eraser').classList.toggle('active',tool==='eraser');
+}
+function clearCanvas(){ctx&&ctx.clearRect(0,0,canvas.width,canvas.height);}
+function getDrawingData(){
+  if(!canvas)return'';
+  // Check if canvas is blank
+  const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  const hasContent=data.some((v,i)=>i%4!==3&&v!==0)||data.some((v,i)=>i%4===3&&v!==0);
+  return hasContent?canvas.toDataURL('image/png'):'';
+}
+
+// ══ SAVE / LOAD ══
 async function saveRecipe(){
-  // sync DOM values
+  // sync DOM
   document.querySelectorAll('.ingredient-row').forEach((row,i)=>{
     if(currentRecipe.ingredients[i]){
       const inputs=row.querySelectorAll('input');const sel=row.querySelector('select');
@@ -610,80 +668,63 @@ async function saveRecipe(){
       currentRecipe.ingredients[i].unit=sel.value;
     }
   });
-  document.querySelectorAll('.step-row textarea').forEach((ta,i)=>{if(currentRecipe.steps[i]!==undefined)currentRecipe.steps[i]=ta.value;});
   currentRecipe.name=document.getElementById('recipe-name').value.trim();
   currentRecipe.servings=document.getElementById('recipe-servings').value.trim();
-  currentRecipe.notes=document.getElementById('recipe-notes').value.trim();
   currentRecipe.steps=document.getElementById('steps-text').value.trim();
+  currentRecipe.notes=document.getElementById('recipe-notes').value.trim();
+  currentRecipe.drawing=getDrawingData();
   if(!currentRecipe.name){showToast('請輸入食譜名稱');return;}
-  const payload={user_id:currentUser.id,name:currentRecipe.name,servings:currentRecipe.servings||null,ingredients:currentRecipe.ingredients,steps:currentRecipe.steps,notes:currentRecipe.notes,cover:currentRecipe.cover||'',folder_id:currentRecipe.folder_id||null,sort_order:0};
+  const payload={
+    user_id:currentUser.id,name:currentRecipe.name,
+    servings:currentRecipe.servings||null,
+    ingredients:currentRecipe.ingredients,steps:currentRecipe.steps,
+    notes:currentRecipe.notes,cover:currentRecipe.cover||'',
+    drawing:currentRecipe.drawing||'',
+    folder_id:currentRecipe.folder_id||null,sort_order:0
+  };
   if(currentRecipe.id){
     const{error}=await sb.from('recipes').update(payload).eq('id',currentRecipe.id);
-    if(error){showToast('❌ 更新失敗：'+error.message);console.error(error);return;}
-    showToast('✅ 食譜已更新！');
+    if(error){showToast('❌ 更新失敗：'+error.message);return;}
   }else{
     const{data,error}=await sb.from('recipes').insert(payload).select().single();
-    if(error){showToast('❌ 儲存失敗：'+error.message);console.error(error);return;}
+    if(error){showToast('❌ 儲存失敗：'+error.message);return;}
     if(data)currentRecipe.id=data.id;
-    showToast('✅ 食譜已儲存！');
   }
+  showToast('✅ 已儲存！');
+  setTimeout(()=>newRecipe(),800); // auto clear after save
 }
 
-async function loadRecipe(recipe){
-  currentRecipe={id:recipe.id,name:recipe.name,servings:recipe.servings||'',ingredients:recipe.ingredients||[],steps:recipe.steps||[],notes:recipe.notes||'',cover:recipe.cover||'',folder_id:recipe.folder_id||null};
-  coverDataUrl='';renderEditPage();
-  if(currentRecipe.steps&&(Array.isArray(currentRecipe.steps)?currentRecipe.steps.length>0:currentRecipe.steps))toggleCollapse('steps-body','steps-arrow');
-  if(currentRecipe.notes)toggleCollapse('notes-body','notes-arrow');
-  switchPage('edit');showToast(`📖 已載入「${recipe.name}」`);
+function loadRecipeForEdit(recipe){
+  currentRecipe={
+    id:recipe.id,name:recipe.name,servings:recipe.servings||'',
+    ingredients:recipe.ingredients||[],
+    steps:Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'',
+    notes:recipe.notes||'',cover:recipe.cover||'',
+    drawing:recipe.drawing||'',folder_id:recipe.folder_id||null
+  };
+  coverDataUrl='';
+  document.getElementById('recipe-name').value=currentRecipe.name;
+  document.getElementById('recipe-servings').value=currentRecipe.servings;
+  document.getElementById('steps-text').value=currentRecipe.steps;
+  document.getElementById('recipe-notes').value=currentRecipe.notes;
+  renderIngredients();renderCoverArea();
+  if(currentRecipe.steps){toggleCollapse('steps-body','steps-arrow');}
+  if(currentRecipe.notes){toggleCollapse('notes-body','notes-arrow');}
+  if(currentRecipe.drawing){
+    toggleCollapse('draw-body','draw-arrow');
+    setTimeout(()=>{initCanvas();},100);
+  }
+  switchPage('edit');
+  showToast(`📖 已載入「${recipe.name}」`);
 }
 
 async function deleteRecipe(id){
   if(!confirm('確定要刪除這個食譜嗎？'))return;
   await sb.from('recipes').delete().eq('id',id);
-  if(currentRecipe.id===id)newRecipe();
-  renderSaved();showToast('🗑 食譜已刪除');
+  renderSaved();showToast('🗑 已刪除');
 }
 
-// ===== CONVERT =====
-function setConvertMode(mode){
-  convertMode=mode;
-  document.querySelectorAll('.convert-tab').forEach((b,i)=>b.classList.toggle('active',i===mode));
-  [0,1,2].forEach(i=>document.getElementById('mode-'+i).style.display=i===mode?'':'none');
-  if(mode===2){const sel=document.getElementById('ref-ingredient');sel.innerHTML=currentRecipe.ingredients.map((ing,i)=>`<option value="${i}">${ing.name||'食材'+(i+1)} (${ing.qty}${ing.unit})</option>`).join('');}
-  document.getElementById('convert-result').style.display='none';
-}
-
-function updateConvertPage(){
-  const has=currentRecipe.ingredients.length>0;
-  document.getElementById('no-recipe-msg').style.display=has?'none':'';
-  document.getElementById('convert-body').style.display=has?'':'none';
-  if(has){document.getElementById('convert-recipe-name').textContent=currentRecipe.name||'未命名食譜';document.getElementById('convert-recipe-servings').textContent=`原始份量：${currentRecipe.servings} 人份`;setConvertMode(convertMode);}
-}
-
-function doConvert(){
-  const ings=currentRecipe.ingredients;if(!ings.length)return;
-  let ratio=1;const orig=parseFraction(currentRecipe.servings)||1;
-  if(convertMode===0){
-    const servStr=currentRecipe.servings?currentRecipe.servings.trim():'';
-    if(!servStr){showToast('此食譜尚未設定人數，請先到編輯頁面填寫份量');return;}
-    const t=parseFraction(document.getElementById('target-servings').value);
-    if(!document.getElementById('target-servings').value.trim()){showToast('請輸入目標人數');return;}
-    if(isNaN(t)||t<=0){showToast('請輸入有效人數');return;}
-    ratio=t/orig;}
-  else if(convertMode===1){const tw=parseFraction(document.getElementById('target-weight').value);if(isNaN(tw)||tw<=0){showToast('請輸入有效重量');return;}const wu=['g','kg','ml','L'];let tot=0;ings.forEach(ing=>{if(wu.includes(ing.unit)){let q=parseFraction(ing.qty)||0;if(ing.unit==='kg'||ing.unit==='L')q*=1000;tot+=q;}});if(tot<=0){showToast('⚠️ 此模式只計算 g/kg/ml/L 單位的食材，「個」「片」等單位請改用「依食材」模式');return;}ratio=tw/tot;}
-  else{const ri=parseInt(document.getElementById('ref-ingredient').value);const ra=parseFraction(document.getElementById('ref-amount').value);const ro=parseFraction(ings[ri].qty);if(isNaN(ra)||ra<=0||isNaN(ro)||ro<=0){showToast('請輸入有效份量');return;}ratio=ra/ro;}
-  const rl=document.getElementById('result-list');rl.innerHTML='';
-  ings.forEach((ing,i)=>{
-    const oq=parseFraction(ing.qty);const nq=isNaN(oq)?'?':fmtNum(oq*ratio);
-    const isRef=convertMode===2&&i===parseInt(document.getElementById('ref-ingredient').value);
-    const row=document.createElement('div');row.className='result-row';
-    row.innerHTML=`<span class="result-name">${ing.name||'食材'+(i+1)}${isRef?'<span class="badge-ref">基準</span>':''}</span><span class="result-orig">${ing.qty}${ing.unit}</span><span class="result-new">→ ${nq}${ing.unit}</span>`;
-    rl.appendChild(row);
-  });
-  document.getElementById('convert-result').style.display='';
-}
-
-// ===== FOLDERS & SAVED =====
+// ══ SAVED ══
 async function renderSaved(){
   const list=document.getElementById('saved-list');list.innerHTML='<div class="loading">載入中…</div>';
   renderBreadcrumb();
@@ -691,9 +732,12 @@ async function renderSaved(){
   if(currentFolderId)fq=fq.eq('parent_id',currentFolderId);else fq=fq.is('parent_id',null);
   let rq=sb.from('recipes').select('*').eq('user_id',currentUser.id).order('sort_order');
   if(currentFolderId)rq=rq.eq('folder_id',currentFolderId);else rq=rq.is('folder_id',null);
-  const[{data:folders},{data:recipes}]=await Promise.all([fq,rq]);
+  const[{data:folders,error:fe},{data:recipes,error:re}]=await Promise.all([fq,rq]);
+  if(re)showToast('查詢錯誤：'+re.message);
   list.innerHTML='';
-  if((!folders||!folders.length)&&(!recipes||!recipes.length)){list.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><p>${currentFolderId?'此資料夾是空的':'還沒有食譜，去編輯頁面新增吧！'}</p></div>`;return;}
+  if((!folders||!folders.length)&&(!recipes||!recipes.length)){
+    list.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><p>${currentFolderId?'此資料夾是空的':'還沒有食譜，去新增食譜吧！'}</p></div>`;return;
+  }
   (folders||[]).forEach(f=>{
     const el=document.createElement('div');el.className='folder-item';
     el.innerHTML=`<span class="folder-icon">📁</span><div class="item-info" onclick="enterFolder('${f.id}','${f.name}')"><div class="item-name">${f.name}</div><div class="item-meta">資料夾</div></div><div class="item-actions"><button class="icon-btn" onclick="event.stopPropagation();deleteFolder('${f.id}')">🗑</button></div>`;
@@ -702,9 +746,8 @@ async function renderSaved(){
   (recipes||[]).forEach(recipe=>{
     const el=document.createElement('div');el.className='recipe-item';
     const thumb=recipe.cover?`<div class="recipe-thumb"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-thumb">🍽</div>`;
-    const safeRecipe=JSON.stringify(recipe).replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    el.innerHTML=`${thumb}<div class="item-info" onclick='loadRecipe(${JSON.stringify(recipe).replace(/'/g,"\\'")})'><div class="item-name">${recipe.name}</div><div class="item-meta">${recipe.servings} 人份 · ${(recipe.ingredients||[]).length} 樣食材</div></div><div class="item-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();deleteRecipe('${recipe.id}')">🗑</button></div>`;
-    el.querySelector('.item-info').onclick=()=>loadRecipe(recipe);
+    el.innerHTML=`${thumb}<div class="item-info"><div class="item-name">${recipe.name}</div><div class="item-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 樣食材</div></div><div class="item-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();deleteRecipe('${recipe.id}')">🗑</button></div>`;
+    el.querySelector('.item-info').onclick=()=>loadRecipeForEdit(recipe);
     list.appendChild(el);
   });
 }
@@ -719,23 +762,18 @@ function renderBreadcrumb(){
     item.onclick=()=>{currentFolderPath=currentFolderPath.slice(0,i+1);currentFolderId=seg.id;renderSaved();};bc.appendChild(item);
   });
 }
-
 function enterFolder(id,name){currentFolderPath.push({id,name});currentFolderId=id;renderSaved();}
-
 function showNewFolderModal(){document.getElementById('new-folder-name').value='';openModal('new-folder-modal');}
-
 async function createFolder(){
   const name=document.getElementById('new-folder-name').value.trim();
   if(!name){showToast('請輸入名稱');return;}
   await sb.from('folders').insert({user_id:currentUser.id,name,parent_id:currentFolderId||null,sort_order:0});
   closeModal('new-folder-modal');renderSaved();showToast('📁 資料夾已建立');
 }
-
 async function deleteFolder(id){
-  if(!confirm('確定要刪除此資料夾嗎？（裡面的食譜不會刪除）'))return;
-  await sb.from('folders').delete().eq('id',id);renderSaved();showToast('🗑 資料夾已刪除');
+  if(!confirm('確定要刪除此資料夾嗎？'))return;
+  await sb.from('folders').delete().eq('id',id);renderSaved();showToast('🗑 已刪除');
 }
-
 async function showMoveModal(recipeId){
   const listEl=document.getElementById('move-folder-list');listEl.innerHTML='<div class="loading">載入中…</div>';openModal('move-modal');
   const{data:folders}=await sb.from('folders').select('*').eq('user_id',currentUser.id).order('name');
@@ -747,66 +785,136 @@ async function showMoveModal(recipeId){
   (folders||[]).forEach(f=>{
     const el=document.createElement('div');el.className='folder-item';el.style.cursor='pointer';
     el.innerHTML=`<span class="folder-icon">📁</span><div class="item-info"><div class="item-name">${f.name}</div></div>`;
-    el.onclick=async()=>{await sb.from('recipes').update({folder_id:f.id}).eq('id',recipeId);closeModal('move-modal');renderSaved();showToast('已移動至 '+f.name);};
+    el.onclick=async()=>{await sb.from('recipes').update({folder_id:f.id}).eq('id',recipeId);closeModal('move-modal');renderSaved();showToast('已移至 '+f.name);};
     listEl.appendChild(el);
   });
 }
 
-// ===== BACKGROUND SETTINGS =====
+// ══ CONVERT ══
+async function loadConvertList(){
+  document.getElementById('convert-pick').style.display='';
+  document.getElementById('convert-calc').style.display='none';
+  const listEl=document.getElementById('convert-recipe-list');listEl.innerHTML='<div class="loading">載入中…</div>';
+  const{data:recipes}=await sb.from('recipes').select('*').eq('user_id',currentUser.id).order('name');
+  listEl.innerHTML='';
+  if(!recipes||!recipes.length){listEl.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><p>還沒有食譜，請先新增！</p></div>';return;}
+  recipes.forEach(recipe=>{
+    const el=document.createElement('div');el.className='recipe-item';
+    const thumb=recipe.cover?`<div class="recipe-thumb"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-thumb">🍽</div>`;
+    el.innerHTML=`${thumb}<div class="item-info"><div class="item-name">${recipe.name}</div><div class="item-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 樣食材</div></div>`;
+    el.style.cursor='pointer';
+    el.onclick=()=>selectConvertRecipe(recipe);
+    listEl.appendChild(el);
+  });
+}
+
+function selectConvertRecipe(recipe){
+  convertRecipe=recipe;
+  convertRecipe.ingredients=recipe.ingredients||[];
+  document.getElementById('sel-recipe-name').textContent=recipe.name;
+  document.getElementById('sel-recipe-servings').textContent=recipe.servings?`原始份量：${recipe.servings} 人份`:'（未設定人數）';
+  document.getElementById('convert-pick').style.display='none';
+  document.getElementById('convert-calc').style.display='';
+  document.getElementById('convert-result').style.display='none';
+  setConvertMode(0);
+}
+
+function backToPick(){loadConvertList();}
+
+function setConvertMode(mode){
+  convertMode=mode;
+  document.querySelectorAll('.convert-tab').forEach((b,i)=>b.classList.toggle('active',i===mode));
+  [0,1,2].forEach(i=>document.getElementById('mode-'+i).style.display=i===mode?'':'none');
+  if(mode===2&&convertRecipe){
+    const sel=document.getElementById('ref-ingredient');
+    sel.innerHTML=convertRecipe.ingredients.map((ing,i)=>`<option value="${i}">${ing.name||'食材'+(i+1)} (${ing.qty}${ing.unit})</option>`).join('');
+  }
+  document.getElementById('convert-result').style.display='none';
+}
+
+function doConvert(){
+  const ings=convertRecipe?convertRecipe.ingredients:[];
+  if(!ings.length)return;
+  let ratio=1;
+  const origServings=parseFraction(convertRecipe.servings)||1;
+  if(convertMode===0){
+    const servStr=convertRecipe.servings?String(convertRecipe.servings).trim():'';
+    if(!servStr){showToast('此食譜未設定人數，請改用其他換算方式');return;}
+    const t=parseFraction(document.getElementById('target-servings').value);
+    if(!document.getElementById('target-servings').value.trim()){showToast('請輸入目標人數');return;}
+    if(isNaN(t)||t<=0){showToast('請輸入有效人數');return;}
+    ratio=t/origServings;
+  }else if(convertMode===1){
+    const tw=parseFraction(document.getElementById('target-weight').value);
+    if(isNaN(tw)||tw<=0){showToast('請輸入有效重量');return;}
+    const wu=['g','kg','ml','L'];let tot=0;
+    ings.forEach(ing=>{if(wu.includes(ing.unit)){let q=parseFraction(ing.qty)||0;if(ing.unit==='kg'||ing.unit==='L')q*=1000;tot+=q;}});
+    if(tot<=0){showToast('⚠️ 找不到可計算重量的食材，請改用「依食材」模式');return;}
+    ratio=tw/tot;
+  }else{
+    const ri=parseInt(document.getElementById('ref-ingredient').value);
+    const ra=parseFraction(document.getElementById('ref-amount').value);
+    const ro=parseFraction(ings[ri].qty);
+    if(isNaN(ra)||ra<=0||isNaN(ro)||ro<=0){showToast('請輸入有效份量');return;}
+    ratio=ra/ro;
+  }
+  const rl=document.getElementById('result-list');rl.innerHTML='';
+  ings.forEach((ing,i)=>{
+    const oq=parseFraction(ing.qty);const nq=isNaN(oq)?'?':fmtNum(oq*ratio);
+    const isRef=convertMode===2&&i===parseInt(document.getElementById('ref-ingredient').value);
+    const row=document.createElement('div');row.className='result-row';
+    row.innerHTML=`<span class="result-name">${ing.name||'食材'+(i+1)}${isRef?'<span class="badge-ref">基準</span>':''}</span><span class="result-orig">${ing.qty}${ing.unit}</span><span class="result-new">→ ${nq}${ing.unit}</span>`;
+    rl.appendChild(row);
+  });
+  document.getElementById('convert-result').style.display='';
+}
+
+// ══ BACKGROUND ══
 function loadBgSettings(){
   const raw=localStorage.getItem('bgSettings_'+(currentUser?currentUser.id:'guest'));
   bgSettings=raw?JSON.parse(raw):{};
   BG_PAGES.forEach(p=>applyPageBg(p.key));
 }
-
 function saveBgSettings(){localStorage.setItem('bgSettings_'+(currentUser?currentUser.id:'guest'),JSON.stringify(bgSettings));}
-
 function applyPageBg(pageKey){
   const setting=bgSettings[pageKey];
-  let el;
-  if(pageKey==='auth')el=document.getElementById('auth-screen');
-  else el=document.getElementById('page-'+pageKey);
+  const el=pageKey==='auth'?document.getElementById('auth-screen'):document.getElementById('page-'+pageKey);
   if(!el)return;
   if(!setting||setting.type==='none'){el.style.backgroundColor='';el.style.backgroundImage='';}
   else if(setting.type==='color'){el.style.backgroundColor=setting.value;el.style.backgroundImage='';}
   else if(setting.type==='image'){el.style.backgroundImage=`url(${setting.value})`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.backgroundColor='';}
 }
-
 function renderBgSettings(){
   const container=document.getElementById('bg-settings-list');container.innerHTML='';
   BG_PAGES.forEach(page=>{
     const setting=bgSettings[page.key]||{type:'none',value:''};
-    const previewStyle=setting.type==='color'?`background-color:${setting.value}`:setting.type==='image'?`background-image:url(${setting.value});background-size:cover;background-position:center`:'background:linear-gradient(135deg,#f8f6f3,#e0dcd8)';
+    const previewStyle=setting.type==='color'?`background-color:${setting.value}`:setting.type==='image'?`background-image:url(${setting.value});background-size:cover;background-position:center`:'background:linear-gradient(135deg,var(--green-ultra),var(--green-pale))';
     const card=document.createElement('div');card.className='bg-setting-card';
     card.innerHTML=`
-      <div class="bg-setting-header"><span class="bg-page-icon">${page.icon}</span><span class="bg-page-name">${page.name}</span></div>
+      <div class="bg-setting-header"><span>${page.icon}</span><span style="font-weight:700;font-size:15px">${page.name}</span></div>
       <div class="bg-type-tabs">
-        <button class="bg-type-btn${setting.type==='none'?' active':''}" onclick="setBgType('${page.key}','none')">無背景</button>
+        <button class="bg-type-btn${setting.type==='none'?' active':''}" onclick="setBgType('${page.key}','none')">無</button>
         <button class="bg-type-btn${setting.type==='color'?' active':''}" onclick="setBgType('${page.key}','color')">純色</button>
         <button class="bg-type-btn${setting.type==='image'?' active':''}" onclick="setBgType('${page.key}','image')">圖片</button>
       </div>
       <div id="bg-color-row-${page.key}" style="display:${setting.type==='color'?'block':'none'}">
-        <label style="font-size:12px;margin-bottom:4px">選擇顏色</label>
-        <input type="color" value="${setting.type==='color'?setting.value:'#f8f6f3'}" oninput="setBgColor('${page.key}',this.value)" style="width:100%;height:44px">
+        <input type="color" value="${setting.type==='color'?setting.value:'#d8f3dc'}" oninput="setBgColor('${page.key}',this.value)" style="width:100%;height:44px">
       </div>
       <div id="bg-img-row-${page.key}" style="display:${setting.type==='image'?'block':'none'}">
         <div style="display:flex;gap:8px">
           <button class="btn btn-outline btn-sm" onclick="showBgImgModal('${page.key}')">📷 選取圖片</button>
-          ${setting.type==='image'&&setting.value?`<button class="btn btn-ghost btn-sm" onclick="clearBgImg('${page.key}')">🗑 清除</button>`:''}
+          ${setting.type==='image'&&setting.value?`<button class="btn btn-ghost btn-sm" onclick="clearBgImg('${page.key}')">清除</button>`:''}
         </div>
       </div>
       <div class="bg-preview" id="bg-preview-${page.key}" style="${previewStyle}"></div>`;
     container.appendChild(card);
   });
 }
-
 function setBgType(pageKey,type){
   if(!bgSettings[pageKey])bgSettings[pageKey]={type:'none',value:''};
-  bgSettings[pageKey].type=type;
-  if(type==='none')bgSettings[pageKey].value='';
+  bgSettings[pageKey].type=type;if(type==='none')bgSettings[pageKey].value='';
   saveBgSettings();applyPageBg(pageKey);renderBgSettings();
 }
-
 function setBgColor(pageKey,color){
   if(!bgSettings[pageKey])bgSettings[pageKey]={};
   bgSettings[pageKey].type='color';bgSettings[pageKey].value=color;
@@ -814,39 +922,30 @@ function setBgColor(pageKey,color){
   const prev=document.getElementById('bg-preview-'+pageKey);
   if(prev){prev.style.backgroundColor=color;prev.style.backgroundImage='';}
 }
-
 function showBgImgModal(pageKey){
   bgEditTarget=pageKey;bgImgDataUrl='';
-  document.getElementById('bg-file-input').value='';
-  document.getElementById('bg-url-input').value='';
+  document.getElementById('bg-file-input').value='';document.getElementById('bg-url-input').value='';
   const setting=bgSettings[pageKey];
-  const preview=document.getElementById('bg-img-preview');
-  if(setting&&setting.type==='image'&&setting.value)preview.style.backgroundImage=`url(${setting.value})`;
-  else preview.style.backgroundImage='';
+  document.getElementById('bg-img-preview').style.backgroundImage=setting&&setting.type==='image'&&setting.value?`url(${setting.value})`:'';
   openModal('bg-img-modal');
 }
-
 function onBgFile(e){
   const file=e.target.files[0];if(!file)return;
   const r=new FileReader();r.onload=ev=>{bgImgDataUrl=ev.target.result;document.getElementById('bg-img-preview').style.backgroundImage=`url(${bgImgDataUrl})`;};r.readAsDataURL(file);
 }
-
 function applyBgImg(){
-  const url=document.getElementById('bg-url-input').value.trim();
-  const val=url||bgImgDataUrl;
+  const url=document.getElementById('bg-url-input').value.trim();const val=url||bgImgDataUrl;
   if(!val){showToast('請選擇圖片或輸入網址');return;}
   if(!bgSettings[bgEditTarget])bgSettings[bgEditTarget]={};
-  bgSettings[bgEditTarget].type='image';bgSettings[bgEditTarget].value=val;
-  bgImgDataUrl='';
+  bgSettings[bgEditTarget].type='image';bgSettings[bgEditTarget].value=val;bgImgDataUrl='';
   saveBgSettings();applyPageBg(bgEditTarget);closeModal('bg-img-modal');renderBgSettings();
 }
-
 function clearBgImg(pageKey){
   if(bgSettings[pageKey]){bgSettings[pageKey].type='none';bgSettings[pageKey].value='';}
   saveBgSettings();applyPageBg(pageKey);renderBgSettings();
 }
 
-// ===== INIT =====
+// ══ INIT ══
 document.addEventListener('DOMContentLoaded',()=>{
   loadAuthScreen();
   addIngredient();
