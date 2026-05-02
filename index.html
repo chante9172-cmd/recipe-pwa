@@ -227,8 +227,7 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
         </div>
         <div class="collapse-body" id="steps-body" style="max-height:0">
           <div style="height:14px"></div>
-          <div id="steps-list"></div>
-          <button class="btn btn-outline btn-full btn-sm" onclick="addStep()">＋ 新增步驟</button>
+          <textarea id="steps-text" placeholder="1. 先將食材洗淨切好&#10;2. 熱鍋後加入油&#10;3. ..." style="min-height:160px;resize:vertical"></textarea>
         </div>
       </div>
       <div class="card">
@@ -524,6 +523,9 @@ function renderEditPage(){
   document.getElementById('recipe-name').value=currentRecipe.name;
   document.getElementById('recipe-servings').value=currentRecipe.servings;
   document.getElementById('recipe-notes').value=currentRecipe.notes||'';
+  // steps: support both old array format and new string format
+  const stepsVal=Array.isArray(currentRecipe.steps)?currentRecipe.steps.join('\n'):currentRecipe.steps||'';
+  document.getElementById('steps-text').value=stepsVal;
   renderIngredients();renderSteps();renderCoverArea();
 }
 
@@ -612,6 +614,7 @@ async function saveRecipe(){
   currentRecipe.name=document.getElementById('recipe-name').value.trim();
   currentRecipe.servings=document.getElementById('recipe-servings').value.trim();
   currentRecipe.notes=document.getElementById('recipe-notes').value.trim();
+  currentRecipe.steps=document.getElementById('steps-text').value.trim();
   if(!currentRecipe.name){showToast('請輸入食譜名稱');return;}
   const payload={user_id:currentUser.id,name:currentRecipe.name,servings:currentRecipe.servings||null,ingredients:currentRecipe.ingredients,steps:currentRecipe.steps,notes:currentRecipe.notes,cover:currentRecipe.cover||'',folder_id:currentRecipe.folder_id||null,sort_order:0};
   if(currentRecipe.id){
@@ -629,7 +632,7 @@ async function saveRecipe(){
 async function loadRecipe(recipe){
   currentRecipe={id:recipe.id,name:recipe.name,servings:recipe.servings||'',ingredients:recipe.ingredients||[],steps:recipe.steps||[],notes:recipe.notes||'',cover:recipe.cover||'',folder_id:recipe.folder_id||null};
   coverDataUrl='';renderEditPage();
-  if(currentRecipe.steps.length>0)toggleCollapse('steps-body','steps-arrow');
+  if(currentRecipe.steps&&(Array.isArray(currentRecipe.steps)?currentRecipe.steps.length>0:currentRecipe.steps))toggleCollapse('steps-body','steps-arrow');
   if(currentRecipe.notes)toggleCollapse('notes-body','notes-arrow');
   switchPage('edit');showToast(`📖 已載入「${recipe.name}」`);
 }
