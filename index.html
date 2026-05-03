@@ -295,7 +295,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <button class="btn btn-outline btn-sm" onclick="editCurrentDetail()">✏️ 編輯</button>
       </div>
       <!-- Cover -->
-      <div id="detail-cover" style="display:none;width:100%;height:140px;border-radius:var(--r);overflow:hidden;margin-bottom:14px"><img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover"></div>
+      <div id="detail-cover" style="display:none;width:100%;height:220px;border-radius:var(--r);overflow:hidden;margin-bottom:14px"><img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover"></div>
       <!-- Info -->
       <div class="card" style="padding:14px 18px">
         <div style="font-size:22px;font-weight:700" id="detail-name"></div>
@@ -521,7 +521,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <div style="position:relative;user-select:none" id="crop-container">
             <img id="crop-img" style="width:100%;border-radius:8px;display:block;max-height:240px;object-fit:contain">
             <div id="crop-overlay" style="position:absolute;inset:0;border-radius:8px"></div>
-            <div id="crop-box" style="position:absolute;border:2px solid white;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);cursor:move;border-radius:4px"></div>
+            <div id="crop-box" style="position:absolute;border:2px solid white;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);cursor:move;border-radius:4px;display:none"></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button class="btn btn-ghost btn-sm" onclick="setCropAspect(1,1)">1:1</button>
@@ -546,6 +546,11 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <div id="filter-preview" style="margin-top:8px;width:100%;height:80px;border-radius:8px;background:#f0f0f0;overflow:hidden;display:none">
             <canvas id="filter-canvas" style="width:100%;height:100%;object-fit:cover"></canvas>
           </div>
+        </div>
+        <!-- Drawing on cover -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✏️ 在照片上繪圖</div>
+          <div id="cover-draw-widget"></div>
         </div>
           <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✍️ 加上文字</div>
           <div style="display:flex;gap:8px">
@@ -1490,7 +1495,7 @@ let rawCoverSrc='';
 function renderCoverArea(){
   const area=document.getElementById('cover-area');
   const src=coverDataUrl||CR.cover;
-  if(src)area.innerHTML=`<img src="${src}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000"><div class="cover-overlay"><span style="color:#fff;font-size:13px">點擊更換封面</span></div>`;
+  if(src)area.innerHTML=`<img src="${src}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="cover-overlay"><span style="color:#fff;font-size:13px">點擊更換封面</span></div>`;
   else area.innerHTML=`<span style="font-size:30px">🖼️</span><span style="font-size:13px;color:var(--tl);margin-top:4px">點擊設定封面照片</span>`;
 }
 
@@ -1518,6 +1523,12 @@ function showCoverPreview(src){
     document.getElementById('cover-edit-tools').style.display='block';
     document.getElementById('cover-apply-btn').style.display='';
     initCropBox();
+    // Init drawing widget sized to match preview image
+    setTimeout(()=>{
+      const previewImg=document.getElementById('cover-preview-img');
+      const h=previewImg.offsetHeight||200;
+      createDrawWidget('cover-draw-widget',h);
+    },100);
   };
 }
 
@@ -1538,13 +1549,16 @@ function onCoverFile(e){
 function initCropBox(){
   const container=document.getElementById('crop-container');
   const cropImg=document.getElementById('crop-img');
+  const cropBox=document.getElementById('crop-box');
   cropImg.src=rawCoverSrc;
   cropImg.onload=()=>{
     const cw=container.offsetWidth;const ch=cropImg.offsetHeight;
     cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
-    updateCropBox();
+    cropBox.style.display='none'; // hidden until user taps
     setupCropDrag(container);
   };
+  // Tap image to enable crop
+  cropImg.onclick=()=>{cropBox.style.display='block';updateCropBox();};
 }
 
 function updateCropBox(){
@@ -1560,11 +1574,9 @@ function updateCropBox(){
 
 function setCropAspect(aw,ah){
   cropState.aspectW=aw;cropState.aspectH=ah;
-  if(aw>0&&ah>0){
-    const ratio=aw/ah;
-    cropState.h=cropState.w/ratio;
-    updateCropBox();
-  }
+  document.getElementById('crop-box').style.display='block';
+  if(aw>0&&ah>0){cropState.h=cropState.w/aw*ah;}
+  updateCropBox();
 }
 
 function setupCropDrag(container){
@@ -1619,9 +1631,20 @@ function applyCover(){
       ctx.textAlign='center';
       ctx.fillText(text,canvas.width/2,canvas.height-fontSize);
     }
-    coverDataUrl=canvas.toDataURL('image/jpeg',0.85);
-    CR.cover=coverDataUrl;
-    renderCoverArea();closeModal('cover-modal');
+    // Drawing overlay
+    const drawData=getWidgetData('cover-draw-widget');
+    if(drawData){
+      const drawImg=new Image();
+      drawImg.onload=()=>{
+        ctx.drawImage(drawImg,0,0,canvas.width,canvas.height);
+        coverDataUrl=canvas.toDataURL('image/jpeg',0.85);
+        CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');
+      };
+      drawImg.src=drawData;
+    }else{
+      coverDataUrl=canvas.toDataURL('image/jpeg',0.85);
+      CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');
+    }
   };
   img.onerror=()=>{CR.cover=rawCoverSrc;coverDataUrl='';renderCoverArea();closeModal('cover-modal');};
   img.src=rawCoverSrc;
