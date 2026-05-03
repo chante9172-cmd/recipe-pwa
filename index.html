@@ -524,13 +524,119 @@ const BG_PAGES=[
 const drawWidgets={};
 
 const TOOLS={
-  pen:{label:'🖊️',tip:'原子筆',opacity:1,widthMul:1,cap:'round',join:'round',smooth:false},
-  pencil:{label:'✏️',tip:'鉛筆',opacity:0.75,widthMul:0.8,cap:'round',join:'round',smooth:false},
-  highlighter:{label:'🟡',tip:'螢光筆',opacity:0.35,widthMul:6,cap:'square',join:'bevel',smooth:false},
-  watercolor:{label:'🖌️',tip:'水彩筆',opacity:0.18,widthMul:4,cap:'round',join:'round',smooth:true},
-  crayon:{label:'🖍️',tip:'蠟筆',opacity:0.65,widthMul:2.5,cap:'round',join:'round',smooth:false},
-  eraser:{label:'🧹',tip:'橡皮擦',opacity:1,widthMul:5,cap:'round',join:'round',smooth:false},
+  pen:{label:'🖊️',tip:'原子筆'},
+  pencil:{label:'✏️',tip:'鉛筆'},
+  highlighter:{label:'🟡',tip:'螢光筆'},
+  watercolor:{label:'🖌️',tip:'水彩筆'},
+  crayon:{label:'🖍️',tip:'蠟筆'},
+  eraser:{label:'🧹',tip:'橡皮擦'},
 };
+
+// Unified draw function - very distinct per tool
+function applyBrush(ctx, tool, color, size, x1, y1, x2, y2){
+  ctx.save();
+  const dx=x2-x1, dy=y2-y1;
+  const dist=Math.sqrt(dx*dx+dy*dy)||1;
+
+  if(tool==='eraser'){
+    ctx.globalCompositeOperation='destination-out';
+    ctx.globalAlpha=1;
+    ctx.lineWidth=size*4;
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.strokeStyle='rgba(0,0,0,1)';
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+
+  }else if(tool==='pen'){
+    // Sharp, thin, solid — like a ballpoint pen
+    ctx.globalCompositeOperation='source-over';
+    ctx.globalAlpha=1;
+    ctx.lineWidth=size;
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.strokeStyle=color;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+
+  }else if(tool==='pencil'){
+    // Grainy, rough texture — scatter dots along path
+    ctx.globalCompositeOperation='source-over';
+    const steps=Math.max(1,Math.floor(dist/2));
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const px=x1+dx*t, py=y1+dy*t;
+      const grains=Math.floor(size*3);
+      for(let g=0;g<grains;g++){
+        const ox=(Math.random()-.5)*size*2.2;
+        const oy=(Math.random()-.5)*size*2.2;
+        const r=Math.random();
+        ctx.globalAlpha=r*0.4+0.1;
+        ctx.fillStyle=color;
+        const dotSize=Math.random()*1.2+0.3;
+        ctx.beginPath();ctx.arc(px+ox,py+oy,dotSize,0,Math.PI*2);ctx.fill();
+      }
+    }
+
+  }else if(tool==='highlighter'){
+    // Very wide, flat, semi-transparent — like a real highlighter marker
+    ctx.globalCompositeOperation='multiply';
+    ctx.globalAlpha=0.5;
+    ctx.lineWidth=size*8;
+    ctx.lineCap='square';ctx.lineJoin='miter';
+    ctx.strokeStyle=color;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+
+  }else if(tool==='watercolor'){
+    // Soft, spreading, layered — wet brush feel
+    const steps=Math.max(1,Math.floor(dist/3));
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const px=x1+dx*t, py=y1+dy*t;
+      // Multiple soft blobs
+      const blobs=6;
+      for(let b=0;b<blobs;b++){
+        const spread=size*2.5;
+        const ox=(Math.random()-.5)*spread;
+        const oy=(Math.random()-.5)*spread;
+        const bSize=size*(Math.random()*1.5+0.8);
+        const grad=ctx.createRadialGradient(px+ox,py+oy,0,px+ox,py+oy,bSize);
+        grad.addColorStop(0,color+'55');
+        grad.addColorStop(0.5,color+'22');
+        grad.addColorStop(1,color+'00');
+        ctx.globalAlpha=1;
+        ctx.globalCompositeOperation='source-over';
+        ctx.fillStyle=grad;
+        ctx.beginPath();ctx.arc(px+ox,py+oy,bSize,0,Math.PI*2);ctx.fill();
+      }
+    }
+
+  }else if(tool==='crayon'){
+    // Chunky, rough, textured — like a wax crayon
+    const steps=Math.max(1,Math.floor(dist/1.5));
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const px=x1+dx*t, py=y1+dy*t;
+      // Wide rough strokes with gaps
+      ctx.globalCompositeOperation='source-over';
+      ctx.lineCap='round';ctx.lineJoin='round';
+      const strands=5;
+      for(let s=0;s<strands;s++){
+        const ox=(Math.random()-.5)*size*2;
+        const oy=(Math.random()-.5)*size*2;
+        ctx.globalAlpha=Math.random()*0.5+0.25;
+        ctx.strokeStyle=color;
+        ctx.lineWidth=size*0.7+Math.random()*size*0.8;
+        ctx.beginPath();
+        ctx.moveTo(px+ox-1,py+oy);ctx.lineTo(px+ox+1,py+oy);
+        ctx.stroke();
+        // Rough texture dots
+        if(Math.random()>0.6){
+          ctx.globalAlpha=Math.random()*0.3;
+          ctx.fillStyle=color;
+          ctx.beginPath();ctx.arc(px+ox+(Math.random()-.5)*size,py+oy+(Math.random()-.5)*size,Math.random()*1.5,0,Math.PI*2);ctx.fill();
+        }
+      }
+    }
+  }
+  ctx.restore();
+}
 
 function createDrawWidget(containerId, canvasHeight=260){
   const container=document.getElementById(containerId);
@@ -587,29 +693,7 @@ function initDrawWidget(id){
 
 function doDrawLine(id,x1,y1,x2,y2){
   const state=drawWidgets[id];if(!state||!state.ctx)return;
-  const t=TOOLS[state.tool];const ctx=state.ctx;
-  ctx.save();
-  if(state.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;ctx.strokeStyle='rgba(0,0,0,1)';}
-  else{ctx.globalCompositeOperation='source-over';ctx.globalAlpha=t.opacity;ctx.strokeStyle=state.color;}
-  ctx.lineWidth=state.size*t.widthMul;
-  ctx.lineCap=t.cap;ctx.lineJoin=t.join;
-  if(state.tool==='watercolor'){
-    // multiple soft strokes for watercolor effect
-    for(let i=0;i<3;i++){
-      const ox=(Math.random()-.5)*state.size*.8,oy=(Math.random()-.5)*state.size*.8;
-      ctx.beginPath();ctx.moveTo(x1+ox,y1+oy);ctx.lineTo(x2+ox,y2+oy);ctx.stroke();
-    }
-  }else if(state.tool==='crayon'){
-    // crayon: multiple thin lines with random offset
-    for(let i=0;i<4;i++){
-      const ox=(Math.random()-.5)*state.size*1.5,oy=(Math.random()-.5)*state.size*1.5;
-      ctx.lineWidth=state.size*0.8;
-      ctx.beginPath();ctx.moveTo(x1+ox,y1+oy);ctx.lineTo(x2+ox,y2+oy);ctx.stroke();
-    }
-  }else{
-    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
-  }
-  ctx.restore();
+  applyBrush(state.ctx,state.tool,state.color,state.size,x1,y1,x2,y2);
 }
 
 function setDrawTool(id,tool){
@@ -747,15 +831,7 @@ function initAnnoCanvas(section){
 
 function drawAnnoLine(section,x1,y1,x2,y2){
   const st=annoState[section];if(!st||!st.ctx)return;
-  const t=TOOLS[st.tool];const ctx=st.ctx;
-  ctx.save();
-  if(st.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;ctx.strokeStyle='rgba(0,0,0,1)';}
-  else{ctx.globalCompositeOperation='source-over';ctx.globalAlpha=t.opacity;ctx.strokeStyle=st.color;}
-  ctx.lineWidth=st.size*t.widthMul;ctx.lineCap=t.cap;ctx.lineJoin=t.join;
-  if(st.tool==='watercolor'){for(let i=0;i<3;i++){const ox=(Math.random()-.5)*st.size*.8,oy=(Math.random()-.5)*st.size*.8;ctx.beginPath();ctx.moveTo(x1+ox,y1+oy);ctx.lineTo(x2+ox,y2+oy);ctx.stroke();}}
-  else if(st.tool==='crayon'){for(let i=0;i<4;i++){const ox=(Math.random()-.5)*st.size*1.5,oy=(Math.random()-.5)*st.size*1.5;ctx.lineWidth=st.size*0.8;ctx.beginPath();ctx.moveTo(x1+ox,y1+oy);ctx.lineTo(x2+ox,y2+oy);ctx.stroke();}}
-  else{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
-  ctx.restore();
+  applyBrush(st.ctx,st.tool,st.color,st.size,x1,y1,x2,y2);
 }
 
 function setAnnoTool(section,tool){
