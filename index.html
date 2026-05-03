@@ -178,6 +178,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--gd);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;transition:transform .3s;white-space:nowrap;box-shadow:0 4px 16px rgba(27,67,50,.3)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .mb10{margin-bottom:10px}
+.crop-handle{width:14px;height:14px;background:white;border:2px solid rgba(0,0,0,0.4);border-radius:3px;z-index:3}
 /* EDIT ORDER MODE */
 .edit-order-active .recipe-card{animation:wiggle .25s ease infinite alternate;cursor:grab;position:relative}
 @keyframes wiggle{from{transform:rotate(-1.5deg)}to{transform:rotate(1.5deg)}}
@@ -528,7 +529,12 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
             <img id="crop-img" style="width:100%;border-radius:8px;display:block;max-height:240px;object-fit:contain">
             <div id="crop-dismiss" style="position:fixed;inset:0;z-index:1;display:none" onclick="document.getElementById('crop-box').style.display='none';document.getElementById('crop-dismiss').style.display='none';cropActive=false;"></div>
             <div id="crop-overlay" style="position:absolute;inset:0;border-radius:8px"></div>
-            <div id="crop-box" style="position:absolute;border:2px solid white;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);cursor:move;border-radius:4px;display:none;z-index:2"></div>
+            <div id="crop-box" style="position:absolute;border:2px solid white;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);cursor:move;border-radius:4px;display:none;z-index:2">
+              <div class="crop-handle" id="ch-nw" style="position:absolute;top:-6px;left:-6px;cursor:nw-resize"></div>
+              <div class="crop-handle" id="ch-ne" style="position:absolute;top:-6px;right:-6px;cursor:ne-resize"></div>
+              <div class="crop-handle" id="ch-sw" style="position:absolute;bottom:-6px;left:-6px;cursor:sw-resize"></div>
+              <div class="crop-handle" id="ch-se" style="position:absolute;bottom:-6px;right:-6px;cursor:se-resize"></div>
+            </div>
           </div>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button class="btn btn-ghost btn-sm" onclick="setCropAspect(1,1)">1:1</button>
@@ -1769,29 +1775,33 @@ function setCropAspect(aw,ah){
 
 function setupCropDrag(container){
   const box=document.getElementById('crop-box');
-  // Remove old listeners
   const newBox=box.cloneNode(true);box.parentNode.replaceChild(newBox,box);
   const getXY=(e)=>{const r=container.getBoundingClientRect();const cl=e.touches?e.touches[0]:e;return{x:cl.clientX-r.left,y:cl.clientY-r.top};};
-  let startState={};
-  const onStart=(e)=>{
-    e.preventDefault();const p=getXY(e);
-    startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};
-    cropState.dragging=true;
-  };
-  const onMove=(e)=>{
-    if(!cropState.dragging)return;e.preventDefault();
-    const p=getXY(e);const dx=p.x-startState.x;const dy=p.y-startState.y;
-    cropState.x=startState.cx+dx;cropState.y=startState.cy+dy;
-    updateCropBox();
-  };
-  const onEnd=()=>cropState.dragging=false;
-  // Stop propagation so cropHideListener doesn't fire when dragging
-  newBox.addEventListener('mousedown',(e)=>{e.stopPropagation();onStart(e);});
-  document.addEventListener('mousemove',onMove);
+  let startState={};let resizeDir=null;
+  const onEnd=()=>{cropState.dragging=false;resizeDir=null;};
+  // Move box
+  newBox.addEventListener('mousedown',(e)=>{if(e.target.classList.contains('crop-handle'))return;e.preventDefault();e.stopPropagation();const p=getXY(e);startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};resizeDir=null;cropState.dragging=true;});
+  newBox.addEventListener('touchstart',(e)=>{if(e.target.classList.contains('crop-handle'))return;e.preventDefault();e.stopPropagation();const p=getXY(e);startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};resizeDir=null;cropState.dragging=true;},{passive:false});
+  document.addEventListener('mousemove',(e)=>{if(!cropState.dragging||resizeDir)return;e.preventDefault();const p=getXY(e);cropState.x=startState.cx+(p.x-startState.x);cropState.y=startState.cy+(p.y-startState.y);updateCropBox();});
   document.addEventListener('mouseup',onEnd);
-  newBox.addEventListener('touchstart',(e)=>{e.stopPropagation();onStart(e);},{passive:false});
-  document.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('touchmove',(e)=>{if(!cropState.dragging||resizeDir)return;e.preventDefault();const p=getXY(e);cropState.x=startState.cx+(p.x-startState.x);cropState.y=startState.cy+(p.y-startState.y);updateCropBox();},{passive:false});
   document.addEventListener('touchend',onEnd);
+  // Resize handles
+  ['nw','ne','sw','se'].forEach(dir=>{
+    const handle=newBox.querySelector('#ch-'+dir);if(!handle)return;
+    const startResize=(e)=>{e.preventDefault();e.stopPropagation();resizeDir=dir;cropState.dragging=true;const p=getXY(e);startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};};
+    handle.addEventListener('mousedown',startResize);
+    handle.addEventListener('touchstart',startResize,{passive:false});
+  });
+  const doResize=(p)=>{if(!cropState.dragging||!resizeDir)return;const dx=p.x-startState.x;const dy=p.y-startState.y;const min=30;let {cx,cy,cw,ch}=startState;
+    if(resizeDir==='se'){cw=Math.max(min,cw+dx);ch=Math.max(min,ch+dy);}
+    else if(resizeDir==='sw'){const nw=Math.max(min,cw-dx);cx=cx+(cw-nw);cw=nw;ch=Math.max(min,ch+dy);}
+    else if(resizeDir==='ne'){cw=Math.max(min,cw+dx);const nh=Math.max(min,ch-dy);cy=cy+(ch-nh);ch=nh;}
+    else if(resizeDir==='nw'){const nw=Math.max(min,cw-dx);const nh=Math.max(min,ch-dy);cx=cx+(cw-nw);cy=cy+(ch-nh);cw=nw;ch=nh;}
+    if(cropState.aspectW>0&&cropState.aspectH>0)ch=cw/cropState.aspectW*cropState.aspectH;
+    cropState.x=cx;cropState.y=cy;cropState.w=cw;cropState.h=ch;updateCropBox();};
+  document.addEventListener('mousemove',(e)=>{if(resizeDir){e.preventDefault();doResize(getXY(e));}});
+  document.addEventListener('touchmove',(e)=>{if(resizeDir){e.preventDefault();doResize(getXY(e));}},{passive:false});
 }
 
 function applyCover(){
