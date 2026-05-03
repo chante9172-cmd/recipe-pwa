@@ -91,11 +91,13 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 /* GRID LAYOUT - horizontal scroll */
 .recipe-grid{display:flex;flex-direction:row;gap:6px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;margin-bottom:8px}
 .recipe-grid::-webkit-scrollbar{display:none}
-.recipe-card{flex-shrink:0;width:130px;background:rgba(255,255,255,0.92);border-radius:10px;border:1px solid var(--border);cursor:pointer;overflow:hidden;box-shadow:var(--shadow)}
-.recipe-card-img{display:none}
-.recipe-card-name{font-weight:700;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.recipe-card-meta{font-size:10px;color:var(--tl);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-.recipe-card-actions{display:flex;gap:3px;margin-top:5px;justify-content:flex-end}
+.recipe-card{flex-shrink:0;width:160px;background:rgba(255,255,255,0.95);border-radius:10px;border:1.5px solid var(--border);cursor:pointer;padding:7px;display:flex;align-items:center;gap:8px;position:relative;box-shadow:var(--shadow)}
+.recipe-card-img{width:46px;height:46px;flex-shrink:0;border-radius:6px;border:1.5px solid var(--border);background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden}
+.recipe-card-img img{width:100%;height:100%;object-fit:cover}
+.recipe-card-body{flex:1;min-width:0}
+.recipe-card-name{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recipe-card-meta{font-size:10px;color:var(--tl);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.recipe-card-actions{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
 .icon-btn{background:var(--gp);border:none;border-radius:5px;width:22px;height:22px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;color:var(--gd)}
 
 /* FOLDER ITEMS */
@@ -296,7 +298,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       </div>
       <!-- Cover -->
       <div id="detail-cover" style="display:none;width:100%;display:flex;justify-content:center;margin-bottom:14px">
-        <div style="width:45%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)">
+        <div style="width:15%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)">
           <img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover">
         </div>
       </div>
@@ -570,7 +572,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
             <div class="draw-size-row" style="margin-top:6px">
               <span style="font-size:12px;color:var(--tl)">粗細</span>
               <input type="range" id="cover-draw-size" min="1" max="30" value="5">
-              <button class="btn btn-ghost btn-sm" onclick="clearCoverDraw()">🗑 清除</button>
+              <button class="btn btn-ghost btn-sm" onclick="undoCoverDraw()">↩ 返回</button><button class="btn btn-ghost btn-sm" onclick="clearCoverDraw()">🗑 清除</button>
             </div>
           </div>
         </div>
@@ -813,7 +815,7 @@ function createDrawWidget(containerId, canvasHeight=260){
       <span>粗細</span>
       <input type="range" id="ds-${id}" min="1" max="30" value="5" oninput="drawWidgets['${id}'].size=parseInt(this.value);document.getElementById('dsv-${id}').textContent=this.value">
       <span id="dsv-${id}">5</span>px
-      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearDrawWidget('${id}')">🗑 清除</button>
+      <button class="btn btn-ghost btn-sm" onclick="undoDraw('${id}')">↩ 返回</button><button class="btn btn-ghost btn-sm" onclick="clearDrawWidget('${id}')">🗑 清除</button>
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
       <span style="font-size:11px;color:var(--tl);align-self:center">濾鏡：</span>
@@ -845,11 +847,11 @@ function initDrawWidget(id){
   const getPos=(clientX,clientY)=>{const r=c.getBoundingClientRect();const sx=c.width/r.width;const sy=c.height/r.height;return{x:(clientX-r.left)*sx,y:(clientY-r.top)*sy};};
   c.addEventListener('mousedown',e=>{state.drawing=true;state.points=[];const p=getPos(e.clientX,e.clientY);state.points.push(p);state.strokeSnapshot=c.toDataURL();});
   c.addEventListener('mousemove',e=>{if(!state.drawing)return;const p=getPos(e.clientX,e.clientY);smoothDraw(id,p);});
-  c.addEventListener('mouseup',()=>{state.drawing=false;state.points=[];});
-  c.addEventListener('mouseleave',()=>{state.drawing=false;state.points=[];});
+  c.addEventListener('mouseup',()=>{state.drawing=false;state.points=[];saveDrawHistory(id);});
+  c.addEventListener('mouseleave',()=>{if(state.drawing){state.drawing=false;state.points=[];saveDrawHistory(id);}});
   c.addEventListener('touchstart',e=>{e.preventDefault();state.drawing=true;state.points=[];const t=e.touches[0];const p=getPos(t.clientX,t.clientY);state.points.push(p);state.strokeSnapshot=c.toDataURL();},{passive:false});
   c.addEventListener('touchmove',e=>{e.preventDefault();if(!state.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);smoothDraw(id,p);},{passive:false});
-  c.addEventListener('touchend',()=>{state.drawing=false;state.points=[];});
+  c.addEventListener('touchend',()=>{state.drawing=false;state.points=[];saveDrawHistory(id);});
 }
 
 function smoothDraw(id, newPoint){
@@ -1102,7 +1104,7 @@ function buildAnnoTools(section, toolsContainerId){
       <span style="font-size:12px;color:var(--tl)">粗細</span>
       <input type="range" min="1" max="30" value="${st.size}" oninput="annoState['${section}'].size=parseInt(this.value)">
     </div>
-    <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearAnnoCanvas('${section}')">🗑 清除筆跡</button>
+    <button class="btn btn-ghost btn-sm" onclick="undoAnno('${section}')">↩ 返回</button><button class="btn btn-ghost btn-sm" onclick="clearAnnoCanvas('${section}')">🗑 清除筆跡</button>
   </div>
   <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
     <span style="font-size:11px;color:var(--tl);align-self:center">濾鏡：</span>
@@ -1172,11 +1174,11 @@ function initAnnoCanvas(section){
 
   newCanvas.addEventListener('mousedown',e=>{st.drawing=true;st.points=[];const p=getPos(e.clientX,e.clientY);st.points.push(p);st.strokeSnapshot=newCanvas.toDataURL();});
   newCanvas.addEventListener('mousemove',e=>{if(!st.drawing)return;const p=getPos(e.clientX,e.clientY);smoothDrawAnno(section,p);});
-  newCanvas.addEventListener('mouseup',()=>{st.drawing=false;st.points=[];});
-  newCanvas.addEventListener('mouseleave',()=>{st.drawing=false;st.points=[];});
+  newCanvas.addEventListener('mouseup',()=>{st.drawing=false;st.points=[];saveAnnoHistory(section);});
+  newCanvas.addEventListener('mouseleave',()=>{if(st.drawing){st.drawing=false;st.points=[];saveAnnoHistory(section);}});
   newCanvas.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);st.points=[];st.points.push(p);st.drawing=true;st.strokeSnapshot=newCanvas.toDataURL();},{passive:false});
   newCanvas.addEventListener('touchmove',e=>{e.preventDefault();if(!st.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);smoothDrawAnno(section,p);},{passive:false});
-  newCanvas.addEventListener('touchend',()=>{st.drawing=false;st.points=[];});
+  newCanvas.addEventListener('touchend',()=>{st.drawing=false;st.points=[];saveAnnoHistory(section);});
 
   // Build tools
   buildAnnoTools(section,`${section}-anno-tools`);
@@ -1567,7 +1569,68 @@ function onCoverFile(e){
   r.readAsDataURL(f);
 }
 
-// ── COVER DRAWING ──
+// ── UNDO HISTORY ──
+const drawHistory={};   // id -> [dataUrl, ...]
+const annoHistory={};   // section -> [dataUrl, ...]
+
+function saveDrawHistory(id){
+  const state=drawWidgets[id];if(!state||!state.canvas||!state.ctx)return;
+  if(!drawHistory[id])drawHistory[id]=[];
+  drawHistory[id].push(state.canvas.toDataURL());
+  if(drawHistory[id].length>20)drawHistory[id].shift();
+}
+
+function undoDraw(id){
+  const state=drawWidgets[id];if(!state||!state.canvas||!state.ctx)return;
+  if(!drawHistory[id]||drawHistory[id].length<2){
+    // Clear to blank
+    state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);
+    if(drawHistory[id])drawHistory[id]=[];
+    return;
+  }
+  drawHistory[id].pop(); // remove current
+  const prev=drawHistory[id][drawHistory[id].length-1];
+  const img=new Image();
+  img.onload=()=>{state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);state.ctx.drawImage(img,0,0);state.strokeSnapshot=state.canvas.toDataURL();};
+  img.src=prev;
+}
+
+function saveAnnoHistory(section){
+  const st=annoState[section];if(!st||!st.canvas||!st.ctx)return;
+  if(!annoHistory[section])annoHistory[section]=[];
+  annoHistory[section].push(st.canvas.toDataURL());
+  if(annoHistory[section].length>20)annoHistory[section].shift();
+}
+
+function undoAnno(section){
+  const st=annoState[section];if(!st||!st.canvas||!st.ctx)return;
+  if(!annoHistory[section]||annoHistory[section].length<2){
+    st.ctx.clearRect(0,0,st.canvas.width,st.canvas.height);
+    if(annoHistory[section])annoHistory[section]=[];
+    return;
+  }
+  annoHistory[section].pop();
+  const prev=annoHistory[section][annoHistory[section].length-1];
+  const img=new Image();
+  img.onload=()=>{st.ctx.clearRect(0,0,st.canvas.width,st.canvas.height);st.ctx.drawImage(img,0,0);st.strokeSnapshot=st.canvas.toDataURL();};
+  img.src=prev;
+}
+
+// Cover draw undo
+const coverDrawHistory=[];
+function saveCoverDrawHistory(){
+  const canvas=document.getElementById('cover-draw-canvas');if(!canvas)return;
+  coverDrawHistory.push(canvas.toDataURL());
+  if(coverDrawHistory.length>20)coverDrawHistory.shift();
+}
+function undoCoverDraw(){
+  const canvas=document.getElementById('cover-draw-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  if(coverDrawHistory.length<2){ctx.clearRect(0,0,canvas.width,canvas.height);coverDrawHistory.length=0;return;}
+  coverDrawHistory.pop();
+  const prev=coverDrawHistory[coverDrawHistory.length-1];
+  const img=new Image();img.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0);};img.src=prev;
+}
 let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
 
 function initCoverDraw(src){
@@ -1592,11 +1655,11 @@ function setupCoverDrawEvents(canvas,ctx){
   const getPos=(clientX,clientY)=>{const r=c.getBoundingClientRect();const sx=c.width/r.width;const sy=c.height/r.height;return{x:(clientX-r.left)*sx,y:(clientY-r.top)*sy};};
   c.addEventListener('mousedown',e=>{coverDrawState.drawing=true;coverDrawState.points=[];const p=getPos(e.clientX,e.clientY);coverDrawState.points.push(p);coverDrawState.strokeSnapshot=c.toDataURL();});
   c.addEventListener('mousemove',e=>{if(!coverDrawState.drawing)return;const p=getPos(e.clientX,e.clientY);coverDrawState.points.push(p);redrawCoverStroke(c.getContext('2d'),c);});
-  c.addEventListener('mouseup',()=>coverDrawState.drawing=false);
+  c.addEventListener('mouseup',()=>{coverDrawState.drawing=false;saveCoverDrawHistory();});
   c.addEventListener('mouseleave',()=>coverDrawState.drawing=false);
   c.addEventListener('touchstart',e=>{e.preventDefault();coverDrawState.drawing=true;coverDrawState.points=[];const t=e.touches[0];const p=getPos(t.clientX,t.clientY);coverDrawState.points.push(p);coverDrawState.strokeSnapshot=c.toDataURL();},{passive:false});
   c.addEventListener('touchmove',e=>{e.preventDefault();if(!coverDrawState.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);coverDrawState.points.push(p);redrawCoverStroke(c.getContext('2d'),c);},{passive:false});
-  c.addEventListener('touchend',()=>coverDrawState.drawing=false);
+  c.addEventListener('touchend',()=>{coverDrawState.drawing=false;saveCoverDrawHistory();});
 }
 
 function redrawCoverStroke(ctx,canvas){
@@ -2065,8 +2128,8 @@ function renderSavedList(folders,recipes){
   recipes.forEach(recipe=>{
     const card=document.createElement('div');card.className='recipe-card';
     card.dataset.id=recipe.id;card.dataset.type='recipe';
-    const coverHtml=recipe.cover?`<img src="${recipe.cover}" style="width:100%;height:60px;object-fit:cover;border-radius:8px 8px 0 0;display:block" onerror="this.style.display='none'">`:'';
-    card.innerHTML=`${coverHtml}<div style="padding:6px 8px 7px"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe('${recipe.id}'))">🗑</button></div></div>`;
+    const coverHtml=recipe.cover?`<div class="recipe-card-img"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
+    card.innerHTML=`${coverHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div></div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe('${recipe.id}'))">🗑</button></div>`;
     card.onclick=(e)=>{if(!isEditOrder&&!e.target.closest('.icon-btn'))showRecipeDetail(recipe);};
     grid.appendChild(card);
   });
