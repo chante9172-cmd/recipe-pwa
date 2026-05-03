@@ -296,7 +296,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       </div>
       <!-- Cover -->
       <div id="detail-cover" style="display:none;width:100%;display:flex;justify-content:center;margin-bottom:14px">
-        <div style="width:60%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)">
+        <div style="width:45%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)">
           <img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover">
         </div>
       </div>
@@ -1533,7 +1533,11 @@ function hideCoverPreview(){
   document.getElementById('cover-preview-wrap').style.display='none';
   document.getElementById('cover-edit-tools').style.display='none';
   document.getElementById('cover-apply-btn').style.display='none';
-  if(cropHideListener){document.removeEventListener('click',cropHideListener);cropHideListener=null;}
+  if(cropHideListener){
+    document.removeEventListener('mousedown',cropHideListener,true);
+    document.removeEventListener('touchstart',cropHideListener,true);
+    cropHideListener=null;
+  }
 }
 
 function showCoverPreview(src){
@@ -1629,27 +1633,32 @@ function getCoverDrawData(){
   if(!Array.from(data).some((v,i)=>i%4===3&&v>0))return'';
   return canvas.toDataURL('image/png');
 }
+let cropActive=false;
 function initCropBox(){
   const container=document.getElementById('crop-container');
   const cropImg=document.getElementById('crop-img');
   const cropBox=document.getElementById('crop-box');
   cropImg.src=rawCoverSrc;
-  // Remove old click listener
-  if(cropHideListener)document.removeEventListener('click',cropHideListener);
-  cropImg.onclick=null;
+  // Remove old listeners
+  if(cropHideListener){document.removeEventListener('mousedown',cropHideListener,true);cropHideListener=null;}
+  cropActive=false;cropImg.onclick=null;
+  // Global listener using capture phase - fires before anything else
+  cropHideListener=(e)=>{
+    if(!cropActive)return;
+    const box=document.getElementById('crop-box');
+    if(box&&!box.contains(e.target)&&e.target!==cropImg){
+      box.style.display='none';cropActive=false;
+    }
+  };
+  document.addEventListener('mousedown',cropHideListener,true);
+  document.addEventListener('touchstart',cropHideListener,{capture:true,passive:true});
   cropImg.onload=()=>{
-    const cw=container.offsetWidth;const ch=cropImg.offsetHeight;
-    cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
     cropBox.style.display='none';
     setupCropDrag(container);
-    // Tap image to enable crop
-    cropImg.onclick=(e)=>{e.stopPropagation();cropBox.style.display='block';updateCropBox();};
-    // Click outside to hide - using capture to catch all clicks
-    cropHideListener=(e)=>{
-      if(cropBox.style.display==='none')return;
-      if(!container.contains(e.target))cropBox.style.display='none';
+    cropImg.onclick=(e)=>{
+      if(!cropActive){const cw=container.offsetWidth;const ch=cropImg.offsetHeight;cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};}
+      cropActive=true;cropBox.style.display='block';updateCropBox();
     };
-    document.addEventListener('click',cropHideListener);
   };
 }
 
@@ -1665,10 +1674,11 @@ function updateCropBox(){
 }
 
 function setCropAspect(aw,ah){
+  if(event)event.stopPropagation();
   cropState.aspectW=aw;cropState.aspectH=ah;
-  document.getElementById('crop-box').style.display='block';
-  if(aw>0&&ah>0){cropState.h=cropState.w/aw*ah;}
-  updateCropBox();
+  if(!cropActive){const container=document.getElementById('crop-container');const cropImg=document.getElementById('crop-img');const cw=container.offsetWidth;const ch=cropImg.offsetHeight;cropState.x=cw*0.1;cropState.y=ch*0.1;cropState.w=cw*0.8;cropState.h=ch*0.8;cropActive=true;}
+  if(aw>0&&ah>0)cropState.h=cropState.w/aw*ah;
+  document.getElementById('crop-box').style.display='block';updateCropBox();
 }
 
 function setupCropDrag(container){
