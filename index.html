@@ -287,6 +287,57 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div id="saved-list"><div class="loading">載入中…</div></div>
     </div>
 
+    <!-- RECIPE DETAIL PAGE -->
+    <div class="page" id="page-detail">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <button class="btn btn-ghost btn-sm" onclick="backToSaved()">← 返回</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-outline btn-sm" onclick="editCurrentDetail()">✏️ 編輯</button>
+      </div>
+      <!-- Cover -->
+      <div id="detail-cover" style="display:none;width:100%;height:140px;border-radius:var(--r);overflow:hidden;margin-bottom:14px"><img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover"></div>
+      <!-- Info -->
+      <div class="card" style="padding:14px 18px">
+        <div style="font-size:22px;font-weight:700" id="detail-name"></div>
+        <div style="font-size:13px;color:var(--tl);margin-top:4px" id="detail-servings"></div>
+      </div>
+      <!-- Conversion -->
+      <div class="card">
+        <div class="card-title">比例換算</div>
+        <div id="detail-ref-hint" style="font-size:13px;color:var(--tl);margin-bottom:10px">點任一食材的「設為基準」開始換算</div>
+        <div id="detail-ref-input" style="display:none;margin-bottom:12px">
+          <label id="detail-ref-label" style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:6px"></label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="detail-ref-amount" placeholder="輸入你有多少" style="flex:1" oninput="recalcDetail()">
+            <span id="detail-ref-unit" style="display:flex;align-items:center;font-weight:600;color:var(--gd);flex-shrink:0"></span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+          <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--tl);background:var(--gu);border-bottom:1px solid var(--border)">食材</div>
+          <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--tl);background:var(--gu);border-bottom:1px solid var(--border);text-align:right">原始</div>
+          <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--gd);background:var(--gu);border-bottom:1px solid var(--border);text-align:right">換算後</div>
+          <div id="detail-ing-rows" style="display:contents"></div>
+        </div>
+      </div>
+      <!-- Steps -->
+      <div id="detail-steps-card" class="card" style="display:none">
+        <div class="card-title">做法</div>
+        <div id="detail-steps" style="font-size:15px;line-height:1.8;white-space:pre-wrap;color:var(--text)"></div>
+        <div id="detail-steps-drawing" style="margin-top:10px;display:none"><img style="width:100%;border-radius:8px" id="detail-steps-img"></div>
+      </div>
+      <!-- Notes -->
+      <div id="detail-notes-card" class="card" style="display:none">
+        <div class="card-title">備註</div>
+        <div id="detail-notes" style="font-size:15px;line-height:1.8;white-space:pre-wrap;color:var(--text)"></div>
+        <div id="detail-notes-drawing" style="margin-top:10px;display:none"><img style="width:100%;border-radius:8px" id="detail-notes-img"></div>
+      </div>
+      <!-- Drawing -->
+      <div id="detail-drawing-card" class="card" style="display:none">
+        <div class="card-title">手繪筆記</div>
+        <img id="detail-drawing-img" style="width:100%;border-radius:8px">
+      </div>
+    </div>
+
     <!-- EDIT PAGE -->
     <div class="page" id="page-edit">
       <div class="cover-area" id="cover-area" onclick="showCoverModal()">
@@ -422,8 +473,11 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       </div>
       <div>
         <div class="settings-label">👤 帳號設定</div>
-        <div class="bg-card">
-          <button class="btn btn-danger btn-full" onclick="showConfirm('登出帳號','確定要登出嗎？',doLogout)">登出帳號</button>
+        <div class="bg-card" style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-outline btn-full" onclick="showChangeNameModal()">改名稱</button>
+          <button class="btn btn-outline btn-full" onclick="showChangePasswordModal()">改密碼</button>
+          <button class="btn btn-danger btn-full" onclick="showConfirm('刪除帳號','確定要刪除帳號嗎？所有食譜也會一併刪除，無法復原！',deleteAccount)">刪除帳號</button>
+          <button class="btn btn-ghost btn-full" onclick="showConfirm('登出帳號','確定要登出嗎？',doLogout)">登出帳號</button>
         </div>
       </div>
     </div>
@@ -489,7 +543,28 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="change-name-modal">
+  <div class="modal">
+    <div class="modal-title">改名稱</div>
+    <div class="mb10"><label>新名稱（至少2字）</label><input type="text" id="new-name-input" placeholder="輸入新名稱"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('change-name-modal')">取消</button>
+      <button class="btn btn-primary" onclick="doChangeName()">確定</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="change-pw-modal">
+  <div class="modal">
+    <div class="modal-title">改密碼</div>
+    <div class="mb10"><label>舊密碼</label><input type="password" id="old-pw-input" placeholder="輸入舊密碼"></div>
+    <div class="mb10"><label>新密碼（至少4位）</label><input type="password" id="new-pw-input" placeholder="輸入新密碼"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('change-pw-modal')">取消</button>
+      <button class="btn btn-primary" onclick="doChangePassword()">確定</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const sb=supabase.createClient(
@@ -1065,7 +1140,136 @@ function loadAnnoData(section,dataUrl){
   annoState[section].lastData=dataUrl||'';
 }
 
-// ── UTILS ──
+// ── ACCOUNT MANAGEMENT ──
+function showChangeNameModal(){document.getElementById('new-name-input').value='';openModal('change-name-modal');}
+function showChangePasswordModal(){document.getElementById('old-pw-input').value='';document.getElementById('new-pw-input').value='';openModal('change-pw-modal');}
+
+async function doChangeName(){
+  const name=document.getElementById('new-name-input').value.trim();
+  if(name.length<2){showToast('名稱至少2個字');return;}
+  const{error}=await sb.from('users').update({username:name}).eq('id',currentUser.id);
+  if(error){showToast('更新失敗');return;}
+  currentUser.username=name;
+  document.getElementById('user-av').textContent=name[0].toUpperCase();
+  document.getElementById('user-name').textContent=name;
+  closeModal('change-name-modal');showToast('✅ 名稱已更新');
+}
+
+async function doChangePassword(){
+  const oldPw=document.getElementById('old-pw-input').value;
+  const newPw=document.getElementById('new-pw-input').value;
+  if(!oldPw){showToast('請輸入舊密碼');return;}
+  if(newPw.length<4){showToast('新密碼至少4位');return;}
+  const oldHash=await hashPw(oldPw);
+  const{data}=await sb.from('users').select('password_hash').eq('id',currentUser.id).single();
+  if(!data||data.password_hash!==oldHash){showToast('舊密碼錯誤');return;}
+  const newHash=await hashPw(newPw);
+  const{error}=await sb.from('users').update({password_hash:newHash}).eq('id',currentUser.id);
+  if(error){showToast('更新失敗');return;}
+  closeModal('change-pw-modal');showToast('✅ 密碼已更新');
+}
+
+async function deleteAccount(){
+  await sb.from('recipes').delete().eq('user_id',currentUser.id);
+  await sb.from('folders').delete().eq('user_id',currentUser.id);
+  await sb.from('users').delete().eq('id',currentUser.id);
+  doLogout();showToast('帳號已刪除');
+}
+
+// ── RECIPE DETAIL ──
+let detailRecipe=null;
+let detailRefIdx=null;
+
+function showRecipeDetail(recipe){
+  detailRecipe=recipe;
+  detailRefIdx=null;
+  // Fill in data
+  document.getElementById('detail-name').textContent=recipe.name;
+  document.getElementById('detail-servings').textContent=recipe.servings?`${recipe.servings} 人份`:'';
+  // Cover
+  if(recipe.cover){
+    document.getElementById('detail-cover').style.display='block';
+    document.getElementById('detail-cover-img').src=recipe.cover;
+  }else{document.getElementById('detail-cover').style.display='none';}
+  // Steps
+  const steps=Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'';
+  if(steps||recipe.steps_drawing){
+    document.getElementById('detail-steps-card').style.display='';
+    document.getElementById('detail-steps').textContent=steps;
+    if(recipe.steps_drawing){document.getElementById('detail-steps-drawing').style.display='';document.getElementById('detail-steps-img').src=recipe.steps_drawing;}
+    else document.getElementById('detail-steps-drawing').style.display='none';
+  }else document.getElementById('detail-steps-card').style.display='none';
+  // Notes
+  if(recipe.notes||recipe.notes_drawing){
+    document.getElementById('detail-notes-card').style.display='';
+    document.getElementById('detail-notes').textContent=recipe.notes||'';
+    if(recipe.notes_drawing){document.getElementById('detail-notes-drawing').style.display='';document.getElementById('detail-notes-img').src=recipe.notes_drawing;}
+    else document.getElementById('detail-notes-drawing').style.display='none';
+  }else document.getElementById('detail-notes-card').style.display='none';
+  // Drawing
+  if(recipe.drawing){document.getElementById('detail-drawing-card').style.display='';document.getElementById('detail-drawing-img').src=recipe.drawing;}
+  else document.getElementById('detail-drawing-card').style.display='none';
+  // Reset conversion
+  document.getElementById('detail-ref-hint').style.display='block';
+  document.getElementById('detail-ref-input').style.display='none';
+  document.getElementById('detail-ref-amount').value='';
+  renderDetailIngredients(1);
+  switchPage('detail');
+}
+
+function renderDetailIngredients(ratio){
+  const ings=detailRecipe?.ingredients||[];
+  const container=document.getElementById('detail-ing-rows');
+  container.innerHTML='';
+  ings.forEach((ing,i)=>{
+    const origQty=parseFraction(ing.qty);
+    const newQty=isNaN(origQty)?'?':fmtNum(origQty*ratio);
+    const isRef=i===detailRefIdx;
+    const borderStyle=`border-bottom:1px solid var(--border)`;
+    // Name cell
+    const nameCell=document.createElement('div');
+    nameCell.style.cssText=`padding:10px;font-size:14px;font-weight:${isRef?700:500};color:var(--text);${borderStyle};display:flex;align-items:center;gap:6px`;
+    nameCell.innerHTML=`${ing.name||'食材'+(i+1)}<button onclick="setDetailRef(${i})" style="font-size:10px;padding:2px 6px;border-radius:6px;border:1px solid ${isRef?'var(--gd)':'var(--border)'};background:${isRef?'var(--gp)':'white'};color:${isRef?'var(--gd)':'var(--tl)'};cursor:pointer;white-space:nowrap">設為基準</button>`;
+    // Orig cell
+    const origCell=document.createElement('div');
+    origCell.style.cssText=`padding:10px;font-size:14px;color:var(--tl);${borderStyle};text-align:right`;
+    origCell.textContent=`${ing.qty}${ing.unit}`;
+    // New cell
+    const newCell=document.createElement('div');
+    newCell.style.cssText=`padding:10px;font-size:14px;font-weight:700;color:var(--gd);${borderStyle};text-align:right`;
+    newCell.textContent=ratio===1?'—':`${newQty}${ing.unit}`;
+    container.appendChild(nameCell);container.appendChild(origCell);container.appendChild(newCell);
+  });
+}
+
+function setDetailRef(idx){
+  detailRefIdx=idx;
+  const ing=detailRecipe.ingredients[idx];
+  document.getElementById('detail-ref-hint').style.display='none';
+  document.getElementById('detail-ref-input').style.display='block';
+  document.getElementById('detail-ref-label').textContent=`${ing.name||'食材'+(idx+1)}：你有多少？`;
+  document.getElementById('detail-ref-unit').textContent=ing.unit;
+  document.getElementById('detail-ref-amount').value='';
+  document.getElementById('detail-ref-amount').focus();
+  renderDetailIngredients(1);
+}
+
+function recalcDetail(){
+  if(detailRefIdx===null)return;
+  const val=parseFraction(document.getElementById('detail-ref-amount').value);
+  const orig=parseFraction(detailRecipe.ingredients[detailRefIdx].qty);
+  if(isNaN(val)||val<=0||isNaN(orig)||orig<=0){renderDetailIngredients(1);return;}
+  renderDetailIngredients(val/orig);
+}
+
+function backToSaved(){
+  detailRecipe=null;detailRefIdx=null;
+  switchPage('saved');
+}
+
+function editCurrentDetail(){
+  if(detailRecipe)loadRecipeForEdit(detailRecipe);
+}
 function parseFraction(s){
   if(!s)return NaN;s=String(s).trim();
   const u={'½':.5,'⅓':1/3,'⅔':2/3,'¼':.25,'¾':.75,'⅛':.125,'⅜':.375,'⅝':.625,'⅞':.875};
@@ -1152,11 +1356,13 @@ function switchPage(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.top-tab').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
-  document.getElementById('tab-'+page).classList.add('active');
+  const tabEl=document.getElementById('tab-'+page);
+  if(tabEl)tabEl.classList.add('active');
+  else document.getElementById('tab-saved').classList.add('active'); // detail uses saved tab highlight
   if(page==='saved')renderSaved();
   if(page==='convert')loadConvertList();
   if(page==='settings')renderBgSettings();
-  applyPageBg(page);
+  applyPageBg(page==='detail'?'saved':page);
 }
 
 // ── EDIT ──
@@ -1463,7 +1669,7 @@ function renderSavedList(folders,recipes){
     const card=document.createElement('div');card.className='recipe-card';
     card.dataset.id=recipe.id;card.dataset.type='recipe';
     card.innerHTML=`<div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe('${recipe.id}'))">🗑</button></div>`;
-    card.onclick=(e)=>{if(!isEditOrder&&!e.target.closest('.icon-btn'))loadRecipeForEdit(recipe);};
+    card.onclick=(e)=>{if(!isEditOrder&&!e.target.closest('.icon-btn'))showRecipeDetail(recipe);};
     grid.appendChild(card);
   });
   list.appendChild(grid);
