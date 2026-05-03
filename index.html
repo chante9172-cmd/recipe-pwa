@@ -295,8 +295,8 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <button class="btn btn-outline btn-sm" onclick="editCurrentDetail()">✏️ 編輯</button>
       </div>
       <!-- Cover -->
-      <div id="detail-cover" style="display:none;width:100%;padding:0 5%;margin-bottom:14px;background:transparent">
-        <div style="width:100%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden">
+      <div id="detail-cover" style="display:none;width:100%;display:flex;justify-content:center;margin-bottom:14px">
+        <div style="width:60%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)">
           <img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover">
         </div>
       </div>
@@ -551,10 +551,28 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
             <canvas id="filter-canvas" style="width:100%;height:100%;object-fit:cover"></canvas>
           </div>
         </div>
-        <!-- Drawing on cover -->
+        <!-- Drawing directly on photo -->
         <div style="margin-bottom:10px">
-          <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✏️ 在照片上繪圖</div>
-          <div id="cover-draw-widget"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✏️ 直接在照片上畫</div>
+          <div style="position:relative;display:inline-block;width:100%;border-radius:10px;overflow:hidden">
+            <img id="cover-draw-img" style="width:100%;display:block;border-radius:10px;max-height:260px;object-fit:contain">
+            <canvas id="cover-draw-canvas" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair"></canvas>
+          </div>
+          <div style="margin-top:8px">
+            <div class="draw-toolbar" style="flex-wrap:wrap">
+              <button class="draw-tool-btn active" id="cdtb-pen" onclick="setCoverDrawTool('pen')" title="原子筆">🖊️</button>
+              <button class="draw-tool-btn" id="cdtb-highlighter" onclick="setCoverDrawTool('highlighter')" title="螢光筆">🟡</button>
+              <button class="draw-tool-btn" id="cdtb-pencil" onclick="setCoverDrawTool('pencil')" title="鉛筆">✏️</button>
+              <button class="draw-tool-btn" id="cdtb-crayon" onclick="setCoverDrawTool('crayon')" title="蠟筆">🖍️</button>
+              <button class="draw-tool-btn" id="cdtb-eraser" onclick="setCoverDrawTool('eraser')" title="橡皮擦">🧹</button>
+              <input class="draw-color" type="color" id="cover-draw-color" value="#000000" title="顏色">
+            </div>
+            <div class="draw-size-row" style="margin-top:6px">
+              <span style="font-size:12px;color:var(--tl)">粗細</span>
+              <input type="range" id="cover-draw-size" min="1" max="30" value="5">
+              <button class="btn btn-ghost btn-sm" onclick="clearCoverDraw()">🗑 清除</button>
+            </div>
+          </div>
         </div>
           <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✍️ 加上文字</div>
           <div style="display:flex;gap:8px">
@@ -1528,12 +1546,7 @@ function showCoverPreview(src){
     document.getElementById('cover-edit-tools').style.display='block';
     document.getElementById('cover-apply-btn').style.display='';
     initCropBox();
-    // Init drawing widget sized to match preview image
-    setTimeout(()=>{
-      const previewImg=document.getElementById('cover-preview-img');
-      const h=previewImg.offsetHeight||200;
-      createDrawWidget('cover-draw-widget',h);
-    },100);
+    initCoverDraw(src);
   };
 }
 
@@ -1550,8 +1563,72 @@ function onCoverFile(e){
   r.readAsDataURL(f);
 }
 
-// ── CROP ──
-let cropHideListener=null;
+// ── COVER DRAWING ──
+let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
+
+function initCoverDraw(src){
+  const img=document.getElementById('cover-draw-img');
+  const canvas=document.getElementById('cover-draw-canvas');
+  img.src=src;
+  img.onload=()=>{
+    canvas.width=canvas.offsetWidth;
+    canvas.height=canvas.offsetHeight;
+    coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    setupCoverDrawEvents(canvas,ctx);
+  };
+}
+
+function setupCoverDrawEvents(canvas,ctx){
+  const newCanvas=canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(newCanvas,canvas);
+  document.getElementById('cover-draw-canvas');
+  const c=newCanvas;
+  const getPos=(clientX,clientY)=>{const r=c.getBoundingClientRect();const sx=c.width/r.width;const sy=c.height/r.height;return{x:(clientX-r.left)*sx,y:(clientY-r.top)*sy};};
+  c.addEventListener('mousedown',e=>{coverDrawState.drawing=true;coverDrawState.points=[];const p=getPos(e.clientX,e.clientY);coverDrawState.points.push(p);coverDrawState.strokeSnapshot=c.toDataURL();});
+  c.addEventListener('mousemove',e=>{if(!coverDrawState.drawing)return;const p=getPos(e.clientX,e.clientY);coverDrawState.points.push(p);redrawCoverStroke(c.getContext('2d'),c);});
+  c.addEventListener('mouseup',()=>coverDrawState.drawing=false);
+  c.addEventListener('mouseleave',()=>coverDrawState.drawing=false);
+  c.addEventListener('touchstart',e=>{e.preventDefault();coverDrawState.drawing=true;coverDrawState.points=[];const t=e.touches[0];const p=getPos(t.clientX,t.clientY);coverDrawState.points.push(p);coverDrawState.strokeSnapshot=c.toDataURL();},{passive:false});
+  c.addEventListener('touchmove',e=>{e.preventDefault();if(!coverDrawState.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);coverDrawState.points.push(p);redrawCoverStroke(c.getContext('2d'),c);},{passive:false});
+  c.addEventListener('touchend',()=>coverDrawState.drawing=false);
+}
+
+function redrawCoverStroke(ctx,canvas){
+  if(!coverDrawState.strokeSnapshot||coverDrawState.points.length<2)return;
+  const img=new Image();
+  img.onload=()=>{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0);
+    drawFullPath(ctx,coverDrawState.tool,coverDrawState.points,
+      document.getElementById('cover-draw-color').value,
+      parseInt(document.getElementById('cover-draw-size').value)||5);
+  };
+  img.src=coverDrawState.strokeSnapshot;
+}
+
+function setCoverDrawTool(tool){
+  coverDrawState.tool=tool;
+  document.querySelectorAll('[id^="cdtb-"]').forEach(b=>b.classList.remove('active'));
+  document.getElementById('cdtb-'+tool).classList.add('active');
+}
+
+function clearCoverDraw(){
+  const canvas=document.getElementById('cover-draw-canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
+}
+
+function getCoverDrawData(){
+  const canvas=document.getElementById('cover-draw-canvas');
+  if(!canvas)return'';
+  const data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+  if(!Array.from(data).some((v,i)=>i%4===3&&v>0))return'';
+  return canvas.toDataURL('image/png');
+}
 function initCropBox(){
   const container=document.getElementById('crop-container');
   const cropImg=document.getElementById('crop-img');
@@ -1646,8 +1723,8 @@ function applyCover(){
       ctx.textAlign='center';
       ctx.fillText(text,canvas.width/2,canvas.height-fontSize);
     }
-    // Drawing overlay
-    const drawData=getWidgetData('cover-draw-widget');
+    // Drawing overlay from canvas drawn on photo
+    const drawData=getCoverDrawData();
     if(drawData){
       const drawImg=new Image();
       drawImg.onload=()=>{
