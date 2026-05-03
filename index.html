@@ -295,7 +295,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <button class="btn btn-outline btn-sm" onclick="editCurrentDetail()">✏️ 編輯</button>
       </div>
       <!-- Cover -->
-      <div id="detail-cover" style="display:none;width:100%;height:220px;border-radius:var(--r);overflow:hidden;margin-bottom:14px"><img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover"></div>
+      <div id="detail-cover" style="display:none;width:100%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;margin-bottom:14px"><img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover"></div>
       <!-- Info -->
       <div class="card" style="padding:14px 18px">
         <div style="font-size:22px;font-weight:700" id="detail-name"></div>
@@ -1554,11 +1554,17 @@ function initCropBox(){
   cropImg.onload=()=>{
     const cw=container.offsetWidth;const ch=cropImg.offsetHeight;
     cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
-    cropBox.style.display='none'; // hidden until user taps
+    cropBox.style.display='none';
     setupCropDrag(container);
   };
   // Tap image to enable crop
   cropImg.onclick=()=>{cropBox.style.display='block';updateCropBox();};
+  // Click anywhere outside crop container → hide crop box
+  document.addEventListener('click', function hideCropOnOutside(e){
+    if(!container.contains(e.target)&&!e.target.closest('.btn')){
+      cropBox.style.display='none';
+    }
+  });
 }
 
 function updateCropBox(){
@@ -1718,7 +1724,7 @@ function applyAnnoFilter(section,filter){
 }
 
 function clearCover(){
-  CR.cover='';coverDataUrl='';rawCoverSrc='';
+  CR.cover='';coverDataUrl='';rawCoverSrc='';activeFilter='none';
   document.getElementById('cover-file').value='';
   document.getElementById('cover-url').value='';
   hideCoverPreview();
