@@ -20,7 +20,7 @@
   --danger:#c0392b;--shadow:0 2px 16px rgba(27,67,50,.10);--r:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'Noto Sans TC',sans-serif;background:var(--gu);color:var(--text);min-height:100vh;overflow-x:hidden}
+body{font-family:'Noto Sans TC',sans-serif;background:transparent;color:var(--text);min-height:100vh;overflow-x:hidden}
 
 /* AUTH */
 #auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,var(--gd) 0%,var(--g) 60%,var(--gm) 100%);background-size:cover;background-position:center}
@@ -70,8 +70,8 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 .top-tab svg{opacity:.6;transition:opacity .2s}
 .top-tab.active svg{opacity:1}
 
-.page-content{flex:1;overflow-y:auto;padding-bottom:24px}
-.page{display:none;padding:16px}.page.active{display:block}
+.page-content{flex:1;overflow-y:auto;padding-bottom:24px;background:transparent}
+.page{display:none;padding:16px;background:transparent}.page.active{display:block}
 
 /* CARDS */
 .card{background:#fff;border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--gp)}
@@ -89,15 +89,15 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 .search-icon{color:var(--tl);font-size:16px;flex-shrink:0}
 
 /* GRID LAYOUT */
-.recipe-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
-.recipe-card{background:#fff;border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--gp);overflow:hidden;cursor:pointer;position:relative}
-.recipe-card-img{width:100%;height:90px;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden}
+.recipe-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.recipe-card{background:#fff;border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--gp);overflow:hidden;cursor:pointer;position:relative;active:scale(.96)}
+.recipe-card-img{width:100%;aspect-ratio:1/1;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden}
 .recipe-card-img img{width:100%;height:100%;object-fit:cover}
-.recipe-card-body{padding:8px 10px 10px}
-.recipe-card-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.recipe-card-meta{font-size:11px;color:var(--tl);margin-top:2px}
-.recipe-card-actions{display:flex;gap:4px;margin-top:6px}
-.icon-btn{background:var(--gp);border:none;border-radius:7px;width:28px;height:28px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;color:var(--gd)}
+.recipe-card-body{padding:5px 6px 6px}
+.recipe-card-name{font-weight:700;font-size:12px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:var(--text)}
+.recipe-card-meta{font-size:10px;color:var(--tl);margin-top:2px}
+.recipe-card-actions{display:flex;gap:3px;margin-top:4px;justify-content:flex-end}
+.icon-btn{background:var(--gp);border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;color:var(--gd)}
 
 /* FOLDER ITEMS */
 .folder-item{display:flex;align-items:center;gap:12px;background:#fff;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:var(--shadow);border:1px solid var(--gp)}
@@ -180,6 +180,8 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 </style>
 </head>
 <body>
+<!-- Full-screen background layer -->
+<div id="bg-overlay" style="position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center;transition:background .3s"></div>
 
 <!-- AUTH -->
 <div id="auth-screen">
@@ -1008,7 +1010,7 @@ function loadRecipeForEdit(recipe){
   document.getElementById('recipe-notes').value=CR.notes;
   renderIngredients();renderCoverArea();
   // Reset section modes
-  ['steps','notes'].forEach(s=>setSectionModeUI(s,'text'));
+  ['steps','notes'].forEach(s=>setAnnotateModeUI(s,'edit'));
   if(CR.steps)toggleCollapse('steps-body','steps-arrow');
   if(CR.notes)toggleCollapse('notes-body','notes-arrow');
   if(CR.steps_drawing){loadAnnoData('steps',CR.steps_drawing);}
@@ -1047,9 +1049,7 @@ function renderSavedList(folders,recipes){
       const card=document.createElement('div');card.className='recipe-card';
       const imgHtml=recipe.cover?`<div class="recipe-card-img"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
       card.innerHTML=`${imgHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe('${recipe.id}'))">🗑</button></div></div>`;
-      card.querySelector('.recipe-card-img').onclick=()=>loadRecipeForEdit(recipe);
-      card.querySelector('.recipe-card-name').onclick=()=>loadRecipeForEdit(recipe);
-      card.querySelector('.recipe-card-meta').onclick=()=>loadRecipeForEdit(recipe);
+      card.onclick=(e)=>{if(!e.target.closest('.icon-btn'))loadRecipeForEdit(recipe);};
       grid.appendChild(card);
     });
     list.appendChild(grid);
@@ -1124,7 +1124,6 @@ function renderConvertList(recipes){
     const imgHtml=recipe.cover?`<div class="recipe-card-img"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
     card.innerHTML=`${imgHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div></div>`;
     card.onclick=()=>selectConvertRecipe(recipe);
-    grid.appendChild(card);
   });
   listEl.appendChild(grid);
 }
@@ -1194,11 +1193,26 @@ function loadBgSettings(){
 function saveBgSettings(){localStorage.setItem('bgSettings_'+(currentUser?.id||'guest'),JSON.stringify(bgSettings));}
 function applyPageBg(pageKey){
   const setting=bgSettings[pageKey];
-  const el=pageKey==='auth'?document.getElementById('auth-screen'):document.getElementById('page-'+pageKey);
-  if(!el)return;
-  if(!setting||setting.type==='none'){el.style.backgroundColor='';el.style.backgroundImage='';}
-  else if(setting.type==='color'){el.style.backgroundColor=setting.value;el.style.backgroundImage='';}
-  else if(setting.type==='image'){el.style.backgroundImage=`url(${setting.value})`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.backgroundColor='';}
+  const overlay=document.getElementById('bg-overlay');
+  // Also clear individual page backgrounds (legacy cleanup)
+  const pageEl=pageKey==='auth'?document.getElementById('auth-screen'):document.getElementById('page-'+pageKey);
+  if(pageEl){pageEl.style.backgroundColor='';pageEl.style.backgroundImage='';}
+  if(!overlay)return;
+  if(!setting||setting.type==='none'){
+    overlay.style.backgroundColor='';overlay.style.backgroundImage='';
+  }else if(setting.type==='color'){
+    overlay.style.backgroundColor=setting.value;overlay.style.backgroundImage='';
+  }else if(setting.type==='image'){
+    overlay.style.backgroundImage=`url(${setting.value})`;
+    overlay.style.backgroundSize='cover';overlay.style.backgroundPosition='center';
+    overlay.style.backgroundColor='';
+  }
+  // Auth screen special handling
+  if(pageKey==='auth'&&pageEl){
+    if(!setting||setting.type==='none'){pageEl.style.background='linear-gradient(160deg,var(--gd) 0%,var(--g) 60%,var(--gm) 100%)';}
+    else if(setting.type==='color'){pageEl.style.backgroundColor=setting.value;pageEl.style.backgroundImage='';}
+    else if(setting.type==='image'){pageEl.style.backgroundImage=`url(${setting.value})`;pageEl.style.backgroundSize='cover';pageEl.style.backgroundPosition='center';}
+  }
 }
 function renderBgSettings(){
   const c=document.getElementById('bg-settings-list');c.innerHTML='';
