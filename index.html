@@ -557,9 +557,9 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <!-- Drawing directly on photo -->
         <div style="margin-bottom:10px">
           <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✏️ 直接在照片上畫</div>
-          <div style="position:relative;display:inline-block;width:100%;border-radius:10px;overflow:hidden;background:#111">
-            <img id="cover-draw-img" style="width:100%;display:block;border-radius:10px;max-height:280px;object-fit:contain">
-            <canvas id="cover-draw-canvas" style="position:absolute;top:0;left:0;touch-action:none;cursor:crosshair;pointer-events:auto"></canvas>
+          <div style="position:relative;width:100%;border-radius:10px;overflow:hidden;line-height:0">
+            <img id="cover-draw-img" style="width:100%;height:auto;display:block;border-radius:10px;max-height:300px;object-fit:cover">
+            <canvas id="cover-draw-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair"></canvas>
           </div>
           <div style="margin-top:8px">
             <div class="draw-toolbar" style="flex-wrap:wrap">
@@ -1636,29 +1636,16 @@ let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:nul
 
 function initCoverDraw(src){
   const img=document.getElementById('cover-draw-img');
-  let canvas=document.getElementById('cover-draw-canvas');
   img.src=src;
   img.onload=()=>{
-    // Position canvas exactly over the visible image area (accounting for object-fit:contain)
-    const imgRect=img.getBoundingClientRect();
-    const natW=img.naturalWidth,natH=img.naturalHeight;
-    const dispW=imgRect.width,dispH=imgRect.height;
-    const natRatio=natW/natH,dispRatio=dispW/dispH;
-    let drawW=dispW,drawH=dispH,offsetX=0,offsetY=0;
-    if(natRatio>dispRatio){drawH=dispW/natRatio;offsetY=(dispH-drawH)/2;}
-    else if(natRatio<dispRatio){drawW=dispH*natRatio;offsetX=(dispW-drawW)/2;}
-    canvas.style.position='absolute';
-    canvas.style.left=offsetX+'px';
-    canvas.style.top=offsetY+'px';
-    canvas.style.width=drawW+'px';
-    canvas.style.height=drawH+'px';
-    canvas.style.touchAction='none';
-    canvas.style.cursor='crosshair';
-    canvas.width=Math.round(drawW);
-    canvas.height=Math.round(drawH);
+    const canvas=document.getElementById('cover-draw-canvas');
+    // Size canvas to match the rendered image exactly
+    const w=img.offsetWidth||img.parentElement.offsetWidth||300;
+    const h=img.offsetHeight||Math.round(w*img.naturalHeight/img.naturalWidth)||200;
+    canvas.width=w;canvas.height=h;
     coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
     const ctx=canvas.getContext('2d');
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0,0,w,h);
     setupCoverDrawEvents(canvas,ctx);
   };
 }
@@ -1706,8 +1693,9 @@ function clearCoverDraw(){
 }
 
 function getCoverDrawData(){
+  // After setupCoverDrawEvents, the canvas may have been cloned - find by id
   const canvas=document.getElementById('cover-draw-canvas');
-  if(!canvas)return'';
+  if(!canvas||!canvas.width||!canvas.height)return'';
   const data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
   if(!Array.from(data).some((v,i)=>i%4===3&&v>0))return'';
   return canvas.toDataURL('image/png');
