@@ -1646,15 +1646,21 @@ function initCoverDraw(src){
   const img=document.getElementById('cover-draw-img');
   img.src=src;
   img.onload=()=>{
-    const canvas=document.getElementById('cover-draw-canvas');
-    // Size canvas to match the rendered image exactly
-    const w=img.offsetWidth||img.parentElement.offsetWidth||300;
-    const h=img.offsetHeight||Math.round(w*img.naturalHeight/img.naturalWidth)||200;
-    canvas.width=w;canvas.height=h;
-    coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
-    const ctx=canvas.getContext('2d');
-    ctx.clearRect(0,0,w,h);
-    setupCoverDrawEvents(canvas,ctx);
+    // Use requestAnimationFrame to ensure layout is computed after modal renders
+    requestAnimationFrame(()=>{
+      const canvas=document.getElementById('cover-draw-canvas');
+      const container=img.parentElement;
+      const w=container.offsetWidth||300;
+      // Use natural ratio to compute height - reliable even before CSS layout
+      const h=Math.round(w*img.naturalHeight/img.naturalWidth)||200;
+      canvas.width=w;canvas.height=h;
+      // Force canvas CSS to match
+      canvas.style.width=w+'px';canvas.style.height=h+'px';
+      coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
+      const ctx=canvas.getContext('2d');
+      ctx.clearRect(0,0,w,h);
+      setupCoverDrawEvents(canvas,ctx);
+    });
   };
 }
 
@@ -1712,7 +1718,12 @@ function initCropBox(){
   const cropImg=document.getElementById('crop-img');
   const cropBox=document.getElementById('crop-box');
   cropImg.src=rawCoverSrc;
-  if(cropHideListener){document.removeEventListener('click',cropHideListener);cropHideListener=null;}
+  if(cropHideListener){
+    const mi=document.querySelector('#cover-modal .modal');
+    if(mi)mi.removeEventListener('click',cropHideListener);
+    else document.removeEventListener('click',cropHideListener);
+    cropHideListener=null;
+  }
   cropActive=false;cropImg.onclick=null;
   cropImg.onload=()=>{
     cropBox.style.display='none';
@@ -1725,14 +1736,16 @@ function initCropBox(){
       }
       cropActive=true;cropBox.style.display='block';updateCropBox();
       if(!cropHideListener){
+        // Use the modal inner div so we catch all clicks inside modal reliably
+        const modalInner=document.querySelector('#cover-modal .modal');
         cropHideListener=(e)=>{
           if(!cropActive)return;
-          const modal=document.getElementById('cover-modal');
-          if(modal&&modal.contains(e.target)&&!container.contains(e.target)){
+          if(!container.contains(e.target)&&e.target!==cropImg){
             cropBox.style.display='none';cropActive=false;
           }
         };
-        document.addEventListener('click',cropHideListener);
+        if(modalInner)modalInner.addEventListener('click',cropHideListener);
+        else document.addEventListener('click',cropHideListener);
       }
     };
   };
