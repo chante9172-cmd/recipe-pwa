@@ -1647,34 +1647,34 @@ let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:nul
 
 function initCoverDraw(src){
   const img=document.getElementById('cover-draw-img');
-  const canvas=document.getElementById('cover-draw-canvas');
   const container=document.getElementById('cover-draw-container');
-  img.onload=()=>{
-    const natW=img.naturalWidth, natH=img.naturalHeight;
-    const ratio=natH/natW;
-    // Show image and set canvas to exact same pixel size
-    img.style.visibility='visible';
-    const w=container.offsetWidth||300;
-    const h=Math.round(w*ratio);
-    canvas.width=w;
-    canvas.height=h;
-    canvas.style.width=w+'px';
-    canvas.style.height=h+'px';
-    canvas.style.top='0';
-    canvas.style.left='0';
-    canvas.style.display='block';
-    coverDrawState.points=[];
-    coverDrawState.strokeSnapshot=null;
-    const ctx=canvas.getContext('2d');
-    ctx.clearRect(0,0,w,h);
-    // Remove old listeners by overwriting
-    const newCanvas=canvas.cloneNode(false);
-    newCanvas.width=canvas.width;newCanvas.height=canvas.height;
-    newCanvas.style.cssText=canvas.style.cssText;
-    canvas.parentNode.replaceChild(newCanvas,canvas);
-    setupCoverDrawEvents(newCanvas,newCanvas.getContext('2d'));
-  };
   img.src=src;
+  img.onload=()=>{
+    // rAF ensures cover-edit-tools layout is computed after display:block
+    requestAnimationFrame(()=>{
+      const natW=img.naturalWidth,natH=img.naturalHeight;
+      const ratio=natH/natW;
+      // Fallback: use modal width if container not yet laid out
+      let w=container.offsetWidth;
+      if(!w){
+        const modal=document.querySelector('#cover-modal .modal');
+        w=modal?modal.offsetWidth-48:300;
+      }
+      const h=Math.round(w*ratio);
+      img.style.visibility='visible';
+      // Create fresh canvas to avoid stale listeners
+      const oldCanvas=document.getElementById('cover-draw-canvas');
+      const canvas=document.createElement('canvas');
+      canvas.id='cover-draw-canvas';
+      canvas.width=w;canvas.height=h;
+      canvas.style.cssText=`position:absolute;top:0;left:0;width:${w}px;height:${h}px;touch-action:none;cursor:crosshair;display:block`;
+      oldCanvas.parentNode.replaceChild(canvas,oldCanvas);
+      coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
+      const ctx=canvas.getContext('2d');
+      ctx.clearRect(0,0,w,h);
+      setupCoverDrawEvents(canvas,ctx);
+    });
+  };
 }
 
 function setupCoverDrawEvents(canvas,ctx){
