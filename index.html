@@ -498,15 +498,67 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 </div>
 
 <div class="modal-overlay" id="cover-modal">
-  <div class="modal">
+  <div class="modal" style="padding-bottom:30px">
     <div class="modal-title">設定封面照片</div>
-    <div class="mb10"><label>📷 從相簿選取</label><input type="file" id="cover-file" accept="image/*" onchange="onCoverFile(event)"></div>
-    <div class="mb10"><label>🔗 圖片網址</label><input type="url" id="cover-url" placeholder="https://..."></div>
-    <div id="cover-preview" style="width:100%;height:110px;border-radius:10px;border:1.5px solid var(--border);background:var(--gu);background-size:cover;background-position:center;margin-bottom:14px"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('cover-modal')">取消</button>
-      <button class="btn btn-danger btn-sm" onclick="clearCover()" style="flex:none;padding:11px 14px">🗑</button>
-      <button class="btn btn-primary" onclick="applyCover()">套用</button>
+
+    <!-- Step 1: Select image -->
+    <div id="cover-step1">
+      <div class="mb10"><label>📷 從相簿選取</label><input type="file" id="cover-file" accept="image/*" onchange="onCoverFile(event)"></div>
+      <div class="mb10"><label>🔗 圖片網址</label>
+        <div style="display:flex;gap:8px">
+          <input type="url" id="cover-url" placeholder="https://..." style="flex:1">
+          <button class="btn btn-outline btn-sm" onclick="loadCoverUrl()">載入</button>
+        </div>
+      </div>
+      <!-- Full photo preview -->
+      <div id="cover-preview-wrap" style="display:none;margin-bottom:14px">
+        <img id="cover-preview-img" style="width:100%;border-radius:10px;max-height:260px;object-fit:contain;background:#f0f0f0">
+      </div>
+      <div id="cover-edit-tools" style="display:none;margin-bottom:14px">
+        <!-- Crop controls -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✂️ 裁切（拖曳調整）</div>
+          <div style="position:relative;user-select:none" id="crop-container">
+            <img id="crop-img" style="width:100%;border-radius:8px;display:block;max-height:240px;object-fit:contain">
+            <div id="crop-overlay" style="position:absolute;inset:0;border-radius:8px"></div>
+            <div id="crop-box" style="position:absolute;border:2px solid white;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);cursor:move;border-radius:4px"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-ghost btn-sm" onclick="setCropAspect(1,1)">1:1</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCropAspect(16,9)">16:9</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCropAspect(4,3)">4:3</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCropAspect(0,0)">自由</button>
+          </div>
+        </div>
+        <!-- Filters -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">🎨 濾鏡效果</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="setCoverFilter('none')">原始</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCoverFilter('blur')">模糊</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCoverFilter('mosaic')">馬賽克</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCoverFilter('grayscale')">黑白</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCoverFilter('sepia')">復古</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCoverFilter('warm')">暖色</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCoverFilter('cool')">冷色</button>
+            <button class="btn btn-ghost btn-sm" onclick="setCoverFilter('bright')">增亮</button>
+          </div>
+          <div id="filter-preview" style="margin-top:8px;width:100%;height:80px;border-radius:8px;background:#f0f0f0;overflow:hidden;display:none">
+            <canvas id="filter-canvas" style="width:100%;height:100%;object-fit:cover"></canvas>
+          </div>
+        </div>
+          <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✍️ 加上文字</div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="cover-text-input" placeholder="輸入文字…" style="flex:1">
+            <input type="color" id="cover-text-color" value="#ffffff" style="width:40px;padding:2px;height:42px">
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('cover-modal')">取消</button>
+        <button class="btn btn-danger btn-sm" onclick="clearCover()" style="flex:none;padding:11px 14px">🗑</button>
+        <button class="btn btn-primary" id="cover-apply-btn" onclick="applyCover()" style="display:none">套用</button>
+      </div>
     </div>
   </div>
 </div>
@@ -735,6 +787,13 @@ function createDrawWidget(containerId, canvasHeight=260){
       <input type="range" id="ds-${id}" min="1" max="30" value="5" oninput="drawWidgets['${id}'].size=parseInt(this.value);document.getElementById('dsv-${id}').textContent=this.value">
       <span id="dsv-${id}">5</span>px
       <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearDrawWidget('${id}')">🗑 清除</button>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+      <span style="font-size:11px;color:var(--tl);align-self:center">濾鏡：</span>
+      <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyDrawFilter('${id}','blur')">模糊</button>
+      <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyDrawFilter('${id}','mosaic')">馬賽克</button>
+      <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyDrawFilter('${id}','grayscale')">黑白</button>
+      <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyDrawFilter('${id}','sepia')">復古</button>
     </div>
     <canvas class="draw-canvas" id="dc2-${id}" height="${canvasHeight}"></canvas>`;
 
@@ -1017,6 +1076,13 @@ function buildAnnoTools(section, toolsContainerId){
       <input type="range" min="1" max="30" value="${st.size}" oninput="annoState['${section}'].size=parseInt(this.value)">
     </div>
     <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearAnnoCanvas('${section}')">🗑 清除筆跡</button>
+  </div>
+  <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+    <span style="font-size:11px;color:var(--tl);align-self:center">濾鏡：</span>
+    <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyAnnoFilter('${section}','blur')">模糊</button>
+    <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyAnnoFilter('${section}','mosaic')">馬賽克</button>
+    <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyAnnoFilter('${section}','grayscale')">黑白</button>
+    <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyAnnoFilter('${section}','sepia')">復古</button>
   </div>`;
 }
 
@@ -1417,20 +1483,222 @@ function toggleCollapse(bodyId,arrowId){
 }
 
 // ── COVER ──
+let activeFilter='none';
+let cropState={x:10,y:10,w:80,h:80,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
+let rawCoverSrc='';
+
 function renderCoverArea(){
   const area=document.getElementById('cover-area');
   const src=coverDataUrl||CR.cover;
   if(src)area.innerHTML=`<img src="${src}"><div class="cover-overlay"><span style="color:#fff;font-size:13px">點擊更換封面</span></div>`;
   else area.innerHTML=`<span style="font-size:30px">🖼️</span><span style="font-size:13px;color:var(--tl);margin-top:4px">點擊設定封面照片</span>`;
 }
+
 function showCoverModal(){
-  document.getElementById('cover-url').value=CR.cover&&!coverDataUrl?CR.cover:'';
-  document.getElementById('cover-preview').style.backgroundImage=(coverDataUrl||CR.cover)?`url(${coverDataUrl||CR.cover})`:'';
+  document.getElementById('cover-url').value='';
+  rawCoverSrc=coverDataUrl||CR.cover||'';
+  if(rawCoverSrc){showCoverPreview(rawCoverSrc);}
+  else{hideCoverPreview();}
   openModal('cover-modal');
 }
-function onCoverFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{coverDataUrl=ev.target.result;document.getElementById('cover-preview').style.backgroundImage=`url(${coverDataUrl})`;};r.readAsDataURL(f);}
-function applyCover(){const u=document.getElementById('cover-url').value.trim();if(u){CR.cover=u;coverDataUrl='';}else if(coverDataUrl){CR.cover=coverDataUrl;coverDataUrl='';}renderCoverArea();closeModal('cover-modal');}
-function clearCover(){CR.cover='';coverDataUrl='';document.getElementById('cover-preview').style.backgroundImage='';document.getElementById('cover-file').value='';document.getElementById('cover-url').value='';renderCoverArea();closeModal('cover-modal');}
+
+function hideCoverPreview(){
+  document.getElementById('cover-preview-wrap').style.display='none';
+  document.getElementById('cover-edit-tools').style.display='none';
+  document.getElementById('cover-apply-btn').style.display='none';
+}
+
+function showCoverPreview(src){
+  rawCoverSrc=src;
+  const wrap=document.getElementById('cover-preview-wrap');
+  const img=document.getElementById('cover-preview-img');
+  wrap.style.display='block';
+  img.src=src;
+  img.onload=()=>{
+    document.getElementById('cover-edit-tools').style.display='block';
+    document.getElementById('cover-apply-btn').style.display='';
+    initCropBox();
+  };
+}
+
+function loadCoverUrl(){
+  const url=document.getElementById('cover-url').value.trim();
+  if(!url){showToast('請輸入圖片網址');return;}
+  showCoverPreview(url);
+}
+
+function onCoverFile(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>showCoverPreview(ev.target.result);
+  r.readAsDataURL(f);
+}
+
+// ── CROP ──
+function initCropBox(){
+  const container=document.getElementById('crop-container');
+  const cropImg=document.getElementById('crop-img');
+  cropImg.src=rawCoverSrc;
+  cropImg.onload=()=>{
+    const cw=container.offsetWidth;const ch=cropImg.offsetHeight;
+    cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
+    updateCropBox();
+    setupCropDrag(container);
+  };
+}
+
+function updateCropBox(){
+  const box=document.getElementById('crop-box');
+  const container=document.getElementById('crop-container');
+  const cw=container.offsetWidth;const ch=document.getElementById('crop-img').offsetHeight||200;
+  const x=Math.max(0,Math.min(cropState.x,cw-cropState.w));
+  const y=Math.max(0,Math.min(cropState.y,ch-cropState.h));
+  const w=Math.min(cropState.w,cw-x);const h=Math.min(cropState.h,ch-y);
+  cropState.x=x;cropState.y=y;cropState.w=w;cropState.h=h;
+  box.style.left=x+'px';box.style.top=y+'px';box.style.width=w+'px';box.style.height=h+'px';
+}
+
+function setCropAspect(aw,ah){
+  cropState.aspectW=aw;cropState.aspectH=ah;
+  if(aw>0&&ah>0){
+    const ratio=aw/ah;
+    cropState.h=cropState.w/ratio;
+    updateCropBox();
+  }
+}
+
+function setupCropDrag(container){
+  const box=document.getElementById('crop-box');
+  // Remove old listeners
+  const newBox=box.cloneNode(true);box.parentNode.replaceChild(newBox,box);
+  const getXY=(e)=>{const r=container.getBoundingClientRect();const cl=e.touches?e.touches[0]:e;return{x:cl.clientX-r.left,y:cl.clientY-r.top};};
+  let startState={};
+  const onStart=(e)=>{
+    e.preventDefault();const p=getXY(e);
+    startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};
+    cropState.dragging=true;
+  };
+  const onMove=(e)=>{
+    if(!cropState.dragging)return;e.preventDefault();
+    const p=getXY(e);const dx=p.x-startState.x;const dy=p.y-startState.y;
+    cropState.x=startState.cx+dx;cropState.y=startState.cy+dy;
+    updateCropBox();
+  };
+  const onEnd=()=>cropState.dragging=false;
+  newBox.addEventListener('mousedown',onStart);
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onEnd);
+  newBox.addEventListener('touchstart',onStart,{passive:false});
+  document.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('touchend',onEnd);
+}
+
+function applyCover(){
+  const cropImg=document.getElementById('crop-img');
+  if(!cropImg.src||cropImg.src===window.location.href){showToast('請先選取照片');return;}
+  const container=document.getElementById('crop-container');
+  const dispW=container.offsetWidth;const dispH=cropImg.offsetHeight;
+  const natW=cropImg.naturalWidth;const natH=cropImg.naturalHeight;
+  const scaleX=natW/dispW;const scaleY=natH/dispH;
+  const cx=cropState.x*scaleX;const cy=cropState.y*scaleY;
+  const cw=cropState.w*scaleX;const ch=cropState.h*scaleY;
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.round(cw);canvas.height=Math.round(ch);
+  const ctx=canvas.getContext('2d');
+  const img=new Image();img.crossOrigin='anonymous';
+  img.onload=()=>{
+    // Apply filter + crop
+    applyFilterToCtx(ctx,img,cx,cy,cw,ch,0,0,canvas.width,canvas.height,activeFilter);
+    // Text overlay
+    const text=document.getElementById('cover-text-input').value.trim();
+    if(text){
+      const fontSize=Math.max(20,canvas.width/15);
+      ctx.font=`bold ${fontSize}px sans-serif`;
+      ctx.fillStyle=document.getElementById('cover-text-color').value;
+      ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=8;
+      ctx.textAlign='center';
+      ctx.fillText(text,canvas.width/2,canvas.height-fontSize);
+    }
+    coverDataUrl=canvas.toDataURL('image/jpeg',0.85);
+    CR.cover=coverDataUrl;
+    renderCoverArea();closeModal('cover-modal');
+  };
+  img.onerror=()=>{CR.cover=rawCoverSrc;coverDataUrl='';renderCoverArea();closeModal('cover-modal');};
+  img.src=rawCoverSrc;
+}
+
+function setCoverFilter(filter){
+  activeFilter=filter;
+  document.querySelectorAll('#cover-edit-tools .btn-ghost').forEach(b=>b.style.border='');
+  event.target.style.border='2px solid var(--gd)';
+  const previewDiv=document.getElementById('filter-preview');
+  const canvas=document.getElementById('filter-canvas');
+  if(!rawCoverSrc){return;}
+  previewDiv.style.display='block';
+  canvas.width=canvas.offsetWidth*2||400;canvas.height=canvas.offsetHeight*2||160;
+  const ctx=canvas.getContext('2d');
+  const img=new Image();img.crossOrigin='anonymous';
+  img.onload=()=>applyFilterToCtx(ctx,img,0,0,img.naturalWidth,img.naturalHeight,0,0,canvas.width,canvas.height,filter);
+  img.onerror=()=>previewDiv.style.display='none';
+  img.src=rawCoverSrc;
+}
+
+function applyFilterToCtx(ctx,img,sx,sy,sw,sh,dx,dy,dw,dh,filter){
+  ctx.save();
+  if(filter==='mosaic'){
+    const blockSize=Math.max(4,Math.floor(dw/25));
+    const smallW=Math.floor(dw/blockSize);const smallH=Math.floor(dh/blockSize);
+    const off=document.createElement('canvas');off.width=smallW;off.height=smallH;
+    const offCtx=off.getContext('2d');
+    offCtx.drawImage(img,sx,sy,sw,sh,0,0,smallW,smallH);
+    ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(off,0,0,smallW,smallH,dx,dy,dw,dh);
+    ctx.imageSmoothingEnabled=true;
+  }else{
+    if(filter==='blur')ctx.filter='blur(5px)';
+    else if(filter==='grayscale')ctx.filter='grayscale(100%)';
+    else if(filter==='sepia')ctx.filter='sepia(80%)';
+    else if(filter==='bright')ctx.filter='brightness(140%) contrast(110%)';
+    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
+    ctx.filter='none';
+    if(filter==='warm'){ctx.globalCompositeOperation='multiply';ctx.globalAlpha=0.2;ctx.fillStyle='#ff9944';ctx.fillRect(dx,dy,dw,dh);}
+    else if(filter==='cool'){ctx.globalCompositeOperation='multiply';ctx.globalAlpha=0.2;ctx.fillStyle='#4499ff';ctx.fillRect(dx,dy,dw,dh);}
+  }
+  ctx.restore();
+}
+
+// ── DRAW WIDGET FILTERS ──
+function applyDrawFilter(id,filter){
+  const state=drawWidgets[id];if(!state||!state.canvas||!state.ctx)return;
+  const c=state.canvas;const ctx=state.ctx;
+  const imgData=c.toDataURL();
+  const img=new Image();
+  img.onload=()=>{
+    ctx.clearRect(0,0,c.width,c.height);
+    applyFilterToCtx(ctx,img,0,0,img.naturalWidth,img.naturalHeight,0,0,c.width,c.height,filter);
+    state.strokeSnapshot=c.toDataURL();
+  };
+  img.src=imgData;
+}
+
+function applyAnnoFilter(section,filter){
+  const st=annoState[section];if(!st||!st.canvas||!st.ctx)return;
+  const c=st.canvas;const ctx=st.ctx;
+  const imgData=c.toDataURL();
+  const img=new Image();
+  img.onload=()=>{
+    ctx.clearRect(0,0,c.width,c.height);
+    applyFilterToCtx(ctx,img,0,0,img.naturalWidth,img.naturalHeight,0,0,c.width,c.height,filter);
+    st.strokeSnapshot=c.toDataURL();
+  };
+  img.src=imgData;
+}
+  CR.cover='';coverDataUrl='';rawCoverSrc='';
+  document.getElementById('cover-file').value='';
+  document.getElementById('cover-url').value='';
+  hideCoverPreview();
+  renderCoverArea();closeModal('cover-modal');
+}
 
 // ── SAVE ──
 async function saveRecipe(){
