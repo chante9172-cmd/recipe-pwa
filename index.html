@@ -65,8 +65,10 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 /* TABS - hand-drawn style */
 .top-tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
 .top-tabs::-webkit-scrollbar{display:none}
-.top-tab{flex-shrink:0;padding:10px 14px;border:none;background:transparent;color:rgba(255,255,255,.55);font-family:'Caveat',cursive;font-size:16px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;letter-spacing:.5px}
+.top-tab{flex-shrink:0;padding:8px 14px 10px;border:none;background:transparent;color:rgba(255,255,255,.5);font-family:'Caveat',cursive;font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;letter-spacing:.3px;display:flex;flex-direction:column;align-items:center;gap:1px}
 .top-tab.active{color:#fff;border-bottom:3px solid var(--gl)}
+.top-tab svg{opacity:.6;transition:opacity .2s}
+.top-tab.active svg{opacity:1}
 
 .page-content{flex:1;overflow-y:auto;padding-bottom:24px}
 .page{display:none;padding:16px}.page.active{display:block}
@@ -215,10 +217,48 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       </button>
     </div>
     <div class="top-tabs">
-      <button class="top-tab" id="tab-saved" onclick="switchPage('saved')">📚 已儲存</button>
-      <button class="top-tab" id="tab-edit" onclick="switchPage('edit')">✏️ 新增食譜</button>
-      <button class="top-tab" id="tab-convert" onclick="switchPage('convert')">⚖️ 比例換算</button>
-      <button class="top-tab" id="tab-settings" onclick="switchPage('settings')">⚙️ 設定</button>
+      <button class="top-tab" id="tab-saved" onclick="switchPage('saved')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
+          <path d="M3 5.5C3 4.1 4 3 5.5 3h4c.6 0 1.1.5 1.1 1.1v14.8c0 .6-.5 1.1-1.1 1.1H5.5C4 20 3 19 3 17.5z" stroke-dasharray="0.5 0" style="stroke-dashoffset:0.3"/>
+          <path d="M13.4 3h5.1C19.9 3 21 4.1 21 5.5V17.5C21 19 19.9 20 18.5 20h-5.1c-.6 0-1.1-.5-1.1-1.1V4.1c0-.6.5-1.1 1.1-1.1z"/>
+          <line x1="6" y1="7" x2="9" y2="7.3"/>
+          <line x1="6" y1="10" x2="9" y2="10.2"/>
+          <line x1="6" y1="13" x2="8.5" y2="13.1"/>
+          <line x1="15" y1="7" x2="18.5" y2="6.8"/>
+          <line x1="15" y1="10" x2="18.5" y2="10.1"/>
+          <line x1="15" y1="13" x2="17" y2="13.2"/>
+        </svg>
+        已儲存
+      </button>
+      <button class="top-tab" id="tab-edit" onclick="switchPage('edit')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
+          <path d="M4 20.5l3.5-.8L19 9.2a2.1 2.1 0 00-3-3L4.8 17z"/>
+          <path d="M16.2 6.3l1.3 1.3"/>
+          <path d="M4.8 17l1.2 1.2"/>
+          <line x1="3.5" y1="21" x2="7" y2="19.7"/>
+        </svg>
+        新增食譜
+      </button>
+      <button class="top-tab" id="tab-convert" onclick="switchPage('convert')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
+          <line x1="12" y1="3.5" x2="12" y2="7"/>
+          <path d="M5.5 7.5h13.2"/>
+          <path d="M4 8l-1.5 5.5h7.2z"/>
+          <path d="M20 8l1.5 5.5h-7.2z"/>
+          <line x1="2.5" y1="13.5" x2="9.5" y2="13.5"/>
+          <line x1="14.5" y1="13.5" x2="21.5" y2="13.5"/>
+          <path d="M5 17c0 1.1.9 2 2 2s2-.9 2-2"/>
+          <path d="M15 17c0 1.1.9 2 2 2s2-.9 2-2"/>
+        </svg>
+        比例換算
+      </button>
+      <button class="top-tab" id="tab-settings" onclick="switchPage('settings')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
+          <circle cx="12" cy="12" r="3.2"/>
+          <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.4l1.4 1.4M17.3 17.4l1.4 1.4M5.3 18.6l1.4-1.4M17.3 6.6l1.4-1.4"/>
+        </svg>
+        設定
+      </button>
     </div>
   </div>
 
@@ -254,7 +294,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <button class="btn btn-outline btn-full btn-sm" onclick="addIngredient()">＋ 新增食材</button>
       </div>
 
-      <!-- STEPS with draw toggle -->
+      <!-- STEPS with annotation overlay -->
       <div class="card">
         <div class="col-header" onclick="toggleCollapse('steps-body','steps-arrow')">
           <div class="card-title" style="margin-bottom:0">做法</div>
@@ -262,18 +302,27 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         </div>
         <div class="col-body" id="steps-body" style="max-height:0">
           <div style="height:12px"></div>
-          <div class="draw-mode-toggle">
-            <button class="mode-btn active" id="steps-text-btn" onclick="setSectionMode('steps','text')">⌨️ 文字</button>
-            <button class="mode-btn" id="steps-draw-btn" onclick="setSectionMode('steps','draw')">✏️ 手繪</button>
+          <!-- Mode toggle -->
+          <div class="draw-mode-toggle" style="margin-bottom:10px">
+            <button class="mode-btn active" id="steps-edit-btn" onclick="setAnnotateMode('steps','edit')">⌨️ 編輯文字</button>
+            <button class="mode-btn" id="steps-annotate-btn" onclick="setAnnotateMode('steps','annotate')">🖊️ 在上面畫</button>
           </div>
-          <div id="steps-text-area"><textarea id="steps-text" placeholder="輸入做法…" style="min-height:120px;resize:vertical"></textarea></div>
-          <div id="steps-draw-area" style="display:none">
-            <div id="steps-draw-widget"></div>
+          <!-- Text area (edit mode) -->
+          <div id="steps-edit-area">
+            <textarea id="steps-text" placeholder="輸入做法…" style="min-height:120px;resize:vertical"></textarea>
+          </div>
+          <!-- Annotation mode: text display + canvas overlay -->
+          <div id="steps-annotate-area" style="display:none">
+            <div style="position:relative;border-radius:10px;overflow:hidden;border:1.5px solid var(--border)">
+              <div id="steps-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:120px;word-break:break-all"></div>
+              <canvas id="steps-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:transparent"></canvas>
+            </div>
+            <div id="steps-anno-tools" style="margin-top:8px"></div>
           </div>
         </div>
       </div>
 
-      <!-- NOTES with draw toggle -->
+      <!-- NOTES with annotation overlay -->
       <div class="card">
         <div class="col-header" onclick="toggleCollapse('notes-body','notes-arrow')">
           <div class="card-title" style="margin-bottom:0">備註</div>
@@ -281,13 +330,19 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         </div>
         <div class="col-body" id="notes-body" style="max-height:0">
           <div style="height:12px"></div>
-          <div class="draw-mode-toggle">
-            <button class="mode-btn active" id="notes-text-btn" onclick="setSectionMode('notes','text')">⌨️ 文字</button>
-            <button class="mode-btn" id="notes-draw-btn" onclick="setSectionMode('notes','draw')">✏️ 手繪</button>
+          <div class="draw-mode-toggle" style="margin-bottom:10px">
+            <button class="mode-btn active" id="notes-edit-btn" onclick="setAnnotateMode('notes','edit')">⌨️ 編輯文字</button>
+            <button class="mode-btn" id="notes-annotate-btn" onclick="setAnnotateMode('notes','annotate')">🖊️ 在上面畫</button>
           </div>
-          <div id="notes-text-area"><textarea id="recipe-notes" placeholder="小技巧、注意事項…" style="min-height:80px;resize:vertical"></textarea></div>
-          <div id="notes-draw-area" style="display:none">
-            <div id="notes-draw-widget"></div>
+          <div id="notes-edit-area">
+            <textarea id="recipe-notes" placeholder="小技巧、注意事項…" style="min-height:80px;resize:vertical"></textarea>
+          </div>
+          <div id="notes-annotate-area" style="display:none">
+            <div style="position:relative;border-radius:10px;overflow:hidden;border:1.5px solid var(--border)">
+              <div id="notes-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:80px;word-break:break-all"></div>
+              <canvas id="notes-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:transparent"></canvas>
+            </div>
+            <div id="notes-anno-tools" style="margin-top:8px"></div>
           </div>
         </div>
       </div>
@@ -581,27 +636,143 @@ function loadWidgetData(id,dataUrl){
   }
 }
 
-// Section mode toggle (text / draw)
-function setSectionMode(section, mode){
-  const textArea=document.getElementById(`${section}-text-area`);
-  const drawArea=document.getElementById(`${section}-draw-area`);
-  const textBtn=document.getElementById(`${section}-text-btn`);
-  const drawBtn=document.getElementById(`${section}-draw-btn`);
-  textArea.style.display=mode==='text'?'':'none';
-  drawArea.style.display=mode==='draw'?'':'none';
-  textBtn.classList.toggle('active',mode==='text');
-  drawBtn.classList.toggle('active',mode==='draw');
-  if(mode==='draw'){
-    const widgetId=`${section}-draw-widget`;
-    if(!drawWidgets[widgetId]){
-      createDrawWidget(widgetId,200);
-    }else{
-      initDrawWidget(widgetId);
-    }
+// ── ANNOTATION MODE ──
+const annoState={};// steps, notes
+
+function buildAnnoTools(section, toolsContainerId){
+  const container=document.getElementById(toolsContainerId);
+  if(!container)return;
+  const st=annoState[section];
+  let toolBtns='';
+  const annoTools={
+    pen:{label:'🖊️',tip:'原子筆'},
+    highlighter:{label:'🟡',tip:'螢光筆'},
+    pencil:{label:'✏️',tip:'鉛筆'},
+    watercolor:{label:'🖌️',tip:'水彩筆'},
+    crayon:{label:'🖍️',tip:'蠟筆'},
+    eraser:{label:'🧹',tip:'橡皮擦'},
+  };
+  Object.entries(annoTools).forEach(([k,t])=>{
+    toolBtns+=`<button class="draw-tool-btn${k===st.tool?' active':''}" onclick="setAnnoTool('${section}','${k}')" title="${t.tip}">${t.label}</button>`;
+  });
+  container.innerHTML=`<div class="draw-toolbar" style="flex-wrap:wrap">
+    ${toolBtns}
+    <input class="draw-color" type="color" value="${st.color}" onchange="annoState['${section}'].color=this.value" title="顏色">
+    <div class="draw-size-row">
+      <span style="font-size:12px;color:var(--tl)">粗細</span>
+      <input type="range" min="1" max="30" value="${st.size}" oninput="annoState['${section}'].size=parseInt(this.value)">
+    </div>
+    <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearAnnoCanvas('${section}')">🗑 清除筆跡</button>
+  </div>`;
+}
+
+function setAnnotateMode(section, mode){
+  const editArea=document.getElementById(`${section}-edit-area`);
+  const annoArea=document.getElementById(`${section}-annotate-area`);
+  const editBtn=document.getElementById(`${section}-edit-btn`);
+  const annoBtn=document.getElementById(`${section}-annotate-btn`);
+
+  editArea.style.display=mode==='edit'?'':'none';
+  annoArea.style.display=mode==='annotate'?'':'none';
+  editBtn.classList.toggle('active',mode==='edit');
+  annoBtn.classList.toggle('active',mode==='annotate');
+
+  if(mode==='annotate'){
+    // Show text content in display div
+    const textVal=section==='steps'?document.getElementById('steps-text').value:document.getElementById('recipe-notes').value;
+    document.getElementById(`${section}-text-display`).textContent=textVal||'（無內容）';
+
+    // Init annotation canvas
+    setTimeout(()=>initAnnoCanvas(section),60);
+
     // Expand parent
     const body=document.getElementById(`${section}-body`);
-    if(body)body.style.maxHeight=body.scrollHeight+600+'px';
+    if(body)body.style.maxHeight=body.scrollHeight+400+'px';
   }
+}
+
+function initAnnoCanvas(section){
+  if(!annoState[section])annoState[section]={tool:'highlighter',color:'#ffff00',size:6,drawing:false,lastX:0,lastY:0,lastData:''};
+  const st=annoState[section];
+  const textDisplay=document.getElementById(`${section}-text-display`);
+  const canvas=document.getElementById(`${section}-anno-canvas`);
+  if(!canvas||!textDisplay)return;
+
+  // Match canvas height to text display height
+  const h=textDisplay.offsetHeight||120;
+  canvas.height=h;
+  canvas.width=canvas.offsetWidth||canvas.parentElement.offsetWidth||340;
+
+  // Clone to remove old listeners
+  const newCanvas=canvas.cloneNode(false);
+  canvas.parentNode.replaceChild(newCanvas,canvas);
+  st.canvas=newCanvas;
+  st.ctx=newCanvas.getContext('2d');
+
+  // Restore previous drawing
+  if(st.lastData){
+    const img=new Image();
+    img.onload=()=>st.ctx.drawImage(img,0,0,newCanvas.width,newCanvas.height);
+    img.src=st.lastData;
+  }
+
+  const getPos=(clientX,clientY)=>{
+    const r=newCanvas.getBoundingClientRect();
+    const scaleX=newCanvas.width/r.width;
+    const scaleY=newCanvas.height/r.height;
+    return{x:(clientX-r.left)*scaleX,y:(clientY-r.top)*scaleY};
+  };
+
+  newCanvas.addEventListener('mousedown',e=>{st.drawing=true;const p=getPos(e.clientX,e.clientY);st.lastX=p.x;st.lastY=p.y;});
+  newCanvas.addEventListener('mousemove',e=>{if(!st.drawing)return;const p=getPos(e.clientX,e.clientY);drawAnnoLine(section,st.lastX,st.lastY,p.x,p.y);st.lastX=p.x;st.lastY=p.y;});
+  newCanvas.addEventListener('mouseup',()=>st.drawing=false);
+  newCanvas.addEventListener('mouseleave',()=>st.drawing=false);
+  newCanvas.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);st.lastX=p.x;st.lastY=p.y;st.drawing=true;},{passive:false});
+  newCanvas.addEventListener('touchmove',e=>{e.preventDefault();if(!st.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);drawAnnoLine(section,st.lastX,st.lastY,p.x,p.y);st.lastX=p.x;st.lastY=p.y;},{passive:false});
+  newCanvas.addEventListener('touchend',()=>st.drawing=false);
+
+  // Build tools
+  buildAnnoTools(section,`${section}-anno-tools`);
+}
+
+function drawAnnoLine(section,x1,y1,x2,y2){
+  const st=annoState[section];if(!st||!st.ctx)return;
+  const t=TOOLS[st.tool];const ctx=st.ctx;
+  ctx.save();
+  if(st.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;ctx.strokeStyle='rgba(0,0,0,1)';}
+  else{ctx.globalCompositeOperation='source-over';ctx.globalAlpha=t.opacity;ctx.strokeStyle=st.color;}
+  ctx.lineWidth=st.size*t.widthMul;ctx.lineCap=t.cap;ctx.lineJoin=t.join;
+  if(st.tool==='watercolor'){for(let i=0;i<3;i++){const ox=(Math.random()-.5)*st.size*.8,oy=(Math.random()-.5)*st.size*.8;ctx.beginPath();ctx.moveTo(x1+ox,y1+oy);ctx.lineTo(x2+ox,y2+oy);ctx.stroke();}}
+  else if(st.tool==='crayon'){for(let i=0;i<4;i++){const ox=(Math.random()-.5)*st.size*1.5,oy=(Math.random()-.5)*st.size*1.5;ctx.lineWidth=st.size*0.8;ctx.beginPath();ctx.moveTo(x1+ox,y1+oy);ctx.lineTo(x2+ox,y2+oy);ctx.stroke();}}
+  else{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+  ctx.restore();
+}
+
+function setAnnoTool(section,tool){
+  if(!annoState[section])return;
+  annoState[section].tool=tool;
+  // If switching to highlighter, default to yellow
+  if(tool==='highlighter'&&annoState[section].color==='#1b4332')annoState[section].color='#ffff00';
+  buildAnnoTools(section,`${section}-anno-tools`);
+  initAnnoCanvas(section);
+}
+
+function clearAnnoCanvas(section){
+  const st=annoState[section];
+  if(st&&st.ctx&&st.canvas){st.ctx.clearRect(0,0,st.canvas.width,st.canvas.height);st.lastData='';}
+}
+
+function getAnnoData(section){
+  const st=annoState[section];
+  if(!st||!st.canvas||!st.ctx)return'';
+  const data=st.ctx.getImageData(0,0,st.canvas.width,st.canvas.height).data;
+  if(!Array.from(data).some((v,i)=>i%4===3&&v>0))return'';
+  return st.canvas.toDataURL('image/png');
+}
+
+function loadAnnoData(section,dataUrl){
+  if(!annoState[section])annoState[section]={tool:'highlighter',color:'#ffff00',size:6,drawing:false,lastX:0,lastY:0,lastData:''};
+  annoState[section].lastData=dataUrl||'';
 }
 
 // ── UTILS ──
@@ -711,22 +882,21 @@ function newRecipe(){
     const arr=document.getElementById(id.replace('-body','-arrow'));
     if(arr)arr.classList.remove('open');
   });
-  // Reset section modes to text
+  // Reset annotation modes to edit
   ['steps','notes'].forEach(s=>{
-    setSectionModeUI(s,'text');
-    // clear widgets
-    clearDrawWidget(`${s}-draw-widget`);
+    setAnnotateModeUI(s,'edit');
+    if(annoState[s])annoState[s].lastData='';
   });
   clearDrawWidget('main-draw-widget');
   renderIngredients();
   renderCoverArea();
 }
 
-function setSectionModeUI(section,mode){
-  document.getElementById(`${section}-text-area`).style.display=mode==='text'?'':'none';
-  document.getElementById(`${section}-draw-area`).style.display=mode==='draw'?'':'none';
-  document.getElementById(`${section}-text-btn`).classList.toggle('active',mode==='text');
-  document.getElementById(`${section}-draw-btn`).classList.toggle('active',mode==='draw');
+function setAnnotateModeUI(section,mode){
+  document.getElementById(`${section}-edit-area`).style.display=mode==='edit'?'':'none';
+  document.getElementById(`${section}-annotate-area`).style.display=mode==='annotate'?'':'none';
+  document.getElementById(`${section}-edit-btn`).classList.toggle('active',mode==='edit');
+  document.getElementById(`${section}-annotate-btn`).classList.toggle('active',mode==='annotate');
 }
 
 function renderIngredients(){
@@ -779,17 +949,51 @@ async function saveRecipe(){
   CR.steps=document.getElementById('steps-text').value.trim();
   CR.notes=document.getElementById('recipe-notes').value.trim();
   CR.drawing=getWidgetData('main-draw-widget');
-  CR.steps_drawing=getWidgetData('steps-draw-widget');
-  CR.notes_drawing=getWidgetData('notes-draw-widget');
+  CR.steps_drawing=getAnnoData('steps');
+  CR.notes_drawing=getAnnoData('notes');
   if(!CR.name){showToast('請輸入食譜名稱');return;}
-  const payload={user_id:currentUser.id,name:CR.name,servings:CR.servings||null,ingredients:CR.ingredients,steps:CR.steps,notes:CR.notes,cover:CR.cover||'',drawing:CR.drawing||'',steps_drawing:CR.steps_drawing||'',notes_drawing:CR.notes_drawing||'',folder_id:CR.folder_id||null,sort_order:0};
+
+  const payload={
+    user_id:currentUser.id,name:CR.name,servings:CR.servings||null,
+    ingredients:CR.ingredients,steps:CR.steps,notes:CR.notes,
+    cover:CR.cover||'',folder_id:CR.folder_id||null,sort_order:0
+  };
+
+  // Try with drawing data first
+  const fullPayload={...payload,drawing:CR.drawing||'',steps_drawing:CR.steps_drawing||'',notes_drawing:CR.notes_drawing||''};
+
+  let error;
   if(CR.id){
-    const{error}=await sb.from('recipes').update(payload).eq('id',CR.id);
-    if(error){showToast('❌ 更新失敗：'+error.message);return;}
+    const res=await sb.from('recipes').update(fullPayload).eq('id',CR.id);
+    error=res.error;
+    // If column missing, try without drawing columns
+    if(error&&(error.message.includes('column')||error.code==='42703')){
+      const res2=await sb.from('recipes').update(payload).eq('id',CR.id);
+      error=res2.error;
+      if(!error)showToast('⚠️ 手繪注釋未儲存，請先在 Supabase 執行新增欄位的 SQL');
+    }
   }else{
-    const{data,error}=await sb.from('recipes').insert(payload).select().single();
-    if(error){showToast('❌ 儲存失敗：'+error.message);return;}
-    if(data)CR.id=data.id;
+    const res=await sb.from('recipes').insert(fullPayload).select().single();
+    error=res.error;
+    if(res.data)CR.id=res.data.id;
+    // If column missing, try without drawing columns
+    if(error&&(error.message.includes('column')||error.code==='42703')){
+      const res2=await sb.from('recipes').insert(payload).select().single();
+      error=res2.error;
+      if(!error&&res2.data){CR.id=res2.data.id;showToast('⚠️ 手繪注釋未儲存，請先在 Supabase 執行新增欄位的 SQL');}
+    }
+  }
+
+  if(error){
+    // Translate common errors to Chinese
+    let msg=error.message||'';
+    if(msg.includes('column'))msg='欄位不存在，請在 Supabase 新增 drawing/steps_drawing/notes_drawing 欄位';
+    else if(msg.includes('too large')||msg.includes('size'))msg='圖片太大，請減少手繪內容後再儲存';
+    else if(msg.includes('network')||msg.includes('fetch'))msg='網路連線失敗，請檢查網路後重試';
+    else if(msg.includes('JWT')||msg.includes('auth'))msg='登入已過期，請重新登入';
+    else if(msg.includes('permission')||msg.includes('policy'))msg='權限錯誤，請重新登入';
+    showToast('❌ 儲存失敗：'+msg);
+    return;
   }
   showToast('✅ 已儲存！');
   setTimeout(()=>newRecipe(),800);
@@ -807,8 +1011,8 @@ function loadRecipeForEdit(recipe){
   ['steps','notes'].forEach(s=>setSectionModeUI(s,'text'));
   if(CR.steps)toggleCollapse('steps-body','steps-arrow');
   if(CR.notes)toggleCollapse('notes-body','notes-arrow');
-  if(CR.steps_drawing){setSectionMode('steps','draw');setTimeout(()=>loadWidgetData('steps-draw-widget',CR.steps_drawing),150);}
-  if(CR.notes_drawing){setSectionMode('notes','draw');setTimeout(()=>loadWidgetData('notes-draw-widget',CR.notes_drawing),150);}
+  if(CR.steps_drawing){loadAnnoData('steps',CR.steps_drawing);}
+  if(CR.notes_drawing){loadAnnoData('notes',CR.notes_drawing);}
   if(CR.drawing){toggleCollapse('draw-body','draw-arrow');setTimeout(()=>loadWidgetData('main-draw-widget',CR.drawing),150);}
   switchPage('edit');showToast(`📖 已載入「${recipe.name}」`);
 }
