@@ -682,11 +682,11 @@ function initDrawWidget(id){
     const img=new Image();img.onload=()=>state.ctx.drawImage(img,0,0,c.width,c.height);img.src=state.lastData;
   }
   const getPos=(clientX,clientY)=>{const r=c.getBoundingClientRect();const sx=c.width/r.width;const sy=c.height/r.height;return{x:(clientX-r.left)*sx,y:(clientY-r.top)*sy};};
-  c.addEventListener('mousedown',e=>{state.drawing=true;state.points=[];const p=getPos(e.clientX,e.clientY);state.points.push(p);state.lastX=p.x;state.lastY=p.y;});
+  c.addEventListener('mousedown',e=>{state.drawing=true;state.points=[];const p=getPos(e.clientX,e.clientY);state.points.push(p);state.lastX=p.x;state.lastY=p.y;if(state.tool==='highlighter')state.strokeSnapshot=c.toDataURL();else state.strokeSnapshot=null;});
   c.addEventListener('mousemove',e=>{if(!state.drawing)return;const p=getPos(e.clientX,e.clientY);smoothDraw(id,p);});
   c.addEventListener('mouseup',()=>{state.drawing=false;state.points=[];});
   c.addEventListener('mouseleave',()=>{state.drawing=false;state.points=[];});
-  c.addEventListener('touchstart',e=>{e.preventDefault();state.drawing=true;state.points=[];const t=e.touches[0];const p=getPos(t.clientX,t.clientY);state.points.push(p);state.lastX=p.x;state.lastY=p.y;},{passive:false});
+  c.addEventListener('touchstart',e=>{e.preventDefault();state.drawing=true;state.points=[];const t=e.touches[0];const p=getPos(t.clientX,t.clientY);state.points.push(p);state.lastX=p.x;state.lastY=p.y;if(state.tool==='highlighter')state.strokeSnapshot=c.toDataURL();else state.strokeSnapshot=null;},{passive:false});
   c.addEventListener('touchmove',e=>{e.preventDefault();if(!state.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);smoothDraw(id,p);},{passive:false});
   c.addEventListener('touchend',()=>{state.drawing=false;state.points=[];});
 }
@@ -695,14 +695,46 @@ function smoothDraw(id, newPoint){
   const state=drawWidgets[id];if(!state)return;
   state.points.push(newPoint);
   if(state.points.length<2)return;
-  const pts=state.points;
-  const len=pts.length;
-  // Use midpoint bezier smoothing
+  const pts=state.points;const len=pts.length;
   const p0=pts[len-2];const p1=pts[len-1];
   const mid={x:(p0.x+p1.x)/2,y:(p0.y+p1.y)/2};
-  applyBrushSmooth(state.ctx,state.tool,state.color,state.size,p0,p1,mid);
-  // Keep buffer small
-  if(state.points.length>8)state.points.shift();
+
+  if(state.tool==='highlighter'){
+    // Restore pre-stroke canvas then redraw entire stroke to avoid segment overlap
+    if(state.strokeSnapshot){
+      const img=new Image();
+      img.onload=()=>{
+        state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);
+        state.ctx.drawImage(img,0,0);
+        drawHighlighterPath(state.ctx,state.points,state.color,state.size);
+      };
+      img.src=state.strokeSnapshot;
+    }else{
+      drawHighlighterPath(state.ctx,state.points,state.color,state.size);
+    }
+  }else{
+    applyBrushSmooth(state.ctx,state.tool,state.color,state.size,p0,p1,mid);
+    if(state.points.length>8)state.points.shift();
+  }
+}
+
+function drawHighlighterPath(ctx,points,color,size){
+  if(points.length<2)return;
+  ctx.save();
+  ctx.globalCompositeOperation='source-over';
+  ctx.globalAlpha=0.28;
+  ctx.lineWidth=size*8;
+  ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.strokeStyle=color;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x,points[0].y);
+  for(let i=1;i<points.length-1;i++){
+    const mid={x:(points[i].x+points[i+1].x)/2,y:(points[i].y+points[i+1].y)/2};
+    ctx.quadraticCurveTo(points[i].x,points[i].y,mid.x,mid.y);
+  }
+  ctx.lineTo(points[points.length-1].x,points[points.length-1].y);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function applyBrushSmooth(ctx,tool,color,size,p0,p1,mid){
@@ -730,10 +762,11 @@ function applyBrushSmooth(ctx,tool,color,size,p0,p1,mid){
     }
 
   }else if(tool==='highlighter'){
-    ctx.globalCompositeOperation='multiply';
-    ctx.globalAlpha=0.45;
+    // Draw as single continuous wide stroke - no overlap per segment
+    ctx.globalCompositeOperation='source-over';
+    ctx.globalAlpha=0.3;
     ctx.lineWidth=size*8;
-    ctx.lineCap='square';ctx.lineJoin='miter';
+    ctx.lineCap='butt';ctx.lineJoin='round';
     ctx.strokeStyle=color;
     ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.quadraticCurveTo(p0.x,p0.y,mid.x,mid.y);ctx.stroke();
 
