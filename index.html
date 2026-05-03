@@ -176,6 +176,12 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--gd);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;transition:transform .3s;white-space:nowrap;box-shadow:0 4px 16px rgba(27,67,50,.3)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .mb10{margin-bottom:10px}
+/* EDIT ORDER MODE */
+.edit-order-active .recipe-card{animation:wiggle .25s ease infinite alternate;cursor:grab;position:relative}
+@keyframes wiggle{from{transform:rotate(-1.5deg)}to{transform:rotate(1.5deg)}}
+.edit-order-active .recipe-card.dragging{animation:none;opacity:.5;border:2px dashed var(--gd)}
+.edit-order-active .recipe-card.drag-over{border:2px solid var(--gd);background:var(--gp)}
+.edit-order-active .icon-btn{pointer-events:none;opacity:.3}
 </style>
 </head>
 <body>
@@ -273,6 +279,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       </div>
       <div class="saved-toolbar">
         <button class="btn btn-outline btn-sm" onclick="showNewFolderModal()">📁 新增資料夾</button>
+        <button class="btn btn-ghost btn-sm" id="edit-order-btn" onclick="toggleEditOrder()">✏️ 編輯順序</button>
       </div>
       <div class="breadcrumb" id="breadcrumb"></div>
       <div id="saved-list"><div class="loading">載入中…</div></div>
@@ -1030,13 +1037,122 @@ function loadRecipeForEdit(recipe){
   }
 }
 
-// ── SAVED ──
+// ── EDIT ORDER ──
+let isEditOrder=false;
+let dragSrcIdx=null;
+let orderItems=[]; // [{type:'folder'|'recipe', id, el}]
+
+function toggleEditOrder(){
+  isEditOrder=!isEditOrder;
+  const btn=document.getElementById('edit-order-btn');
+  const grid=document.querySelector('.recipe-grid');
+  if(isEditOrder){
+    btn.textContent='✅ 完成';
+    btn.classList.add('btn-primary');
+    btn.classList.remove('btn-ghost');
+    if(grid)grid.classList.add('edit-order-active');
+    enableDrag();
+  }else{
+    btn.textContent='✏️ 編輯順序';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-ghost');
+    if(grid)grid.classList.remove('edit-order-active');
+    saveOrder();
+  }
+}
+
+function enableDrag(){
+  const grid=document.querySelector('.recipe-grid');
+  if(!grid)return;
+  const cards=[...grid.querySelectorAll('.recipe-card')];
+  orderItems=cards.map((el,i)=>{
+    const id=el.dataset.id;const type=el.dataset.type;
+    return{type,id,el};
+  });
+  cards.forEach((card,i)=>{
+    card.setAttribute('draggable','true');
+    card.addEventListener('dragstart',e=>{dragSrcIdx=i;card.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    card.addEventListener('dragend',e=>{card.classList.remove('dragging');cards.forEach(c=>c.classList.remove('drag-over'));});
+    card.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';cards.forEach(c=>c.classList.remove('drag-over'));card.classList.add('drag-over');});
+    card.addEventListener('drop',e=>{
+      e.preventDefault();card.classList.remove('drag-over');
+      if(dragSrcIdx===null||dragSrcIdx===i)return;
+      const grid=document.querySelector('.recipe-grid');
+      const allCards=[...grid.querySelectorAll('.recipe-card')];
+      const src=allCards[dragSrcIdx];
+      if(i>dragSrcIdx)grid.insertBefore(src,card.nextSibling);
+      else grid.insertBefore(src,card);
+      dragSrcIdx=null;
+    });
+    // Touch support
+    let touchStartX,touchStartY,touchClone;
+    card.addEventListener('touchstart',e=>{
+      if(!isEditOrder)return;
+      dragSrcIdx=i;
+      const t=e.touches[0];touchStartX=t.clientX;touchStartY=t.clientY;
+      touchClone=card.cloneNode(true);
+      touchClone.style.cssText=`position:fixed;z-index:9999;opacity:.85;pointer-events:none;width:${card.offsetWidth}px;transform:scale(1.08) rotate(-2deg);transition:none;left:${card.getBoundingClientRect().left}px;top:${card.getBoundingClientRect().top}px`;
+      document.body.appendChild(touchClone);
+      card.style.opacity='.3';
+    },{passive:true});
+    card.addEventListener('touchmove',e=>{
+      if(!isEditOrder||!touchClone)return;
+      e.preventDefault();
+      const t=e.touches[0];
+      touchClone.style.left=(t.clientX-card.offsetWidth/2)+'px';
+      touchClone.style.top=(t.clientY-card.offsetHeight/2)+'px';
+      // Find card under touch
+      touchClone.style.display='none';
+      const el=document.elementFromPoint(t.clientX,t.clientY);
+      touchClone.style.display='';
+      const targetCard=el?.closest('.recipe-card');
+      if(targetCard&&targetCard!==card){
+        const allCards=[...document.querySelectorAll('.recipe-grid .recipe-card')];
+        const ti=allCards.indexOf(targetCard);
+        if(ti!==-1)dragSrcIdx=i; // track
+        allCards.forEach(c=>c.classList.remove('drag-over'));
+        targetCard.classList.add('drag-over');
+      }
+    },{passive:false});
+    card.addEventListener('touchend',e=>{
+      if(!isEditOrder||!touchClone)return;
+      if(touchClone)touchClone.remove();
+      card.style.opacity='';
+      const t=e.changedTouches[0];
+      const el=document.elementFromPoint(t.clientX,t.clientY);
+      const targetCard=el?.closest('.recipe-card');
+      const grid=document.querySelector('.recipe-grid');
+      const allCards=[...grid.querySelectorAll('.recipe-card')];
+      const ti=allCards.indexOf(targetCard);
+      if(targetCard&&targetCard!==card&&ti!==-1){
+        if(ti>i)grid.insertBefore(card,targetCard.nextSibling);
+        else grid.insertBefore(card,targetCard);
+      }
+      allCards.forEach(c=>c.classList.remove('drag-over'));
+      dragSrcIdx=null;touchClone=null;
+    },{passive:true});
+  });
+}
+
+async function saveOrder(){
+  const grid=document.querySelector('.recipe-grid');
+  if(!grid)return;
+  const cards=[...grid.querySelectorAll('.recipe-card')];
+  const updates=cards.map((card,i)=>({id:card.dataset.id,type:card.dataset.type,sort_order:i}));
+  const recipeUpdates=updates.filter(u=>u.type==='recipe');
+  const folderUpdates=updates.filter(u=>u.type==='folder');
+  await Promise.all([
+    ...recipeUpdates.map(u=>sb.from('recipes').update({sort_order:u.sort_order}).eq('id',u.id)),
+    ...folderUpdates.map(u=>sb.from('folders').update({sort_order:u.sort_order}).eq('id',u.id)),
+  ]);
+  showToast('✅ 順序已儲存');
+}
 async function renderSaved(){
   const list=document.getElementById('saved-list');list.innerHTML='<div class="loading">載入中…</div>';
   renderBreadcrumb();
   let fq=sb.from('folders').select('*').eq('user_id',currentUser.id).order('sort_order');
   if(currentFolderId)fq=fq.eq('parent_id',currentFolderId);else fq=fq.is('parent_id',null);
-  let rq=sb.from('recipes').select('*').eq('user_id',currentUser.id).order('name');
+  let rq=sb.from('recipes').select('*').eq('user_id',currentUser.id).order('sort_order');
   if(currentFolderId)rq=rq.eq('folder_id',currentFolderId);else rq=rq.is('folder_id',null);
   const[{data:folders,error:fe},{data:recipes,error:re}]=await Promise.all([fq,rq]);
   if(re)showToast('查詢錯誤：'+re.message);
@@ -1046,25 +1162,29 @@ async function renderSaved(){
 
 function renderSavedList(folders,recipes){
   const list=document.getElementById('saved-list');list.innerHTML='';
+  // Reset edit order mode
+  isEditOrder=false;
+  const btn=document.getElementById('edit-order-btn');
+  if(btn){btn.textContent='✏️ 編輯順序';btn.classList.remove('btn-primary');btn.classList.add('btn-ghost');}
   if(!folders.length&&!recipes.length){
     list.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><p>${currentFolderId?'此資料夾是空的':'還沒有食譜！'}</p></div>`;return;
   }
+  const grid=document.createElement('div');grid.className='recipe-grid';
   folders.forEach(f=>{
-    const el=document.createElement('div');el.className='folder-item';
-    el.innerHTML=`<span class="folder-icon">📁</span><div class="item-info" onclick="enterFolder('${f.id}','${f.name}')"><div class="item-name">${f.name}</div><div class="item-meta">資料夾</div></div><div class="item-actions"><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除資料夾','裡面的食譜會移回根目錄',()=>deleteFolder('${f.id}'))">🗑</button></div>`;
-    list.appendChild(el);
+    const card=document.createElement('div');card.className='recipe-card';
+    card.dataset.id=f.id;card.dataset.type='folder';
+    card.innerHTML=`<div class="recipe-card-name">📁 ${f.name}</div><div class="recipe-card-meta">資料夾</div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除資料夾','裡面的食譜會移回根目錄',()=>deleteFolder('${f.id}'))">🗑</button></div>`;
+    card.onclick=(e)=>{if(!isEditOrder&&!e.target.closest('.icon-btn'))enterFolder(f.id,f.name);};
+    grid.appendChild(card);
   });
-  if(recipes.length){
-    const grid=document.createElement('div');grid.className='recipe-grid';
-    recipes.forEach(recipe=>{
-      const card=document.createElement('div');card.className='recipe-card';
-      const imgHtml=recipe.cover?`<div class="recipe-card-img"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
-      card.innerHTML=`${imgHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe('${recipe.id}'))">🗑</button></div></div>`;
-      card.onclick=(e)=>{if(!e.target.closest('.icon-btn'))loadRecipeForEdit(recipe);};
-      grid.appendChild(card);
-    });
-    list.appendChild(grid);
-  }
+  recipes.forEach(recipe=>{
+    const card=document.createElement('div');card.className='recipe-card';
+    card.dataset.id=recipe.id;card.dataset.type='recipe';
+    card.innerHTML=`<div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe('${recipe.id}'))">🗑</button></div>`;
+    card.onclick=(e)=>{if(!isEditOrder&&!e.target.closest('.icon-btn'))loadRecipeForEdit(recipe);};
+    grid.appendChild(card);
+  });
+  list.appendChild(grid);
 }
 
 function filterSaved(q){
