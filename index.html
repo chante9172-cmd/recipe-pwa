@@ -295,7 +295,11 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <button class="btn btn-outline btn-sm" onclick="editCurrentDetail()">✏️ 編輯</button>
       </div>
       <!-- Cover -->
-      <div id="detail-cover" style="display:none;width:100%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;margin-bottom:14px"><img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover"></div>
+      <div id="detail-cover" style="display:none;width:100%;padding:0 5%;margin-bottom:14px;background:transparent">
+        <div style="width:100%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden">
+          <img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover">
+        </div>
+      </div>
       <!-- Info -->
       <div class="card" style="padding:14px 18px">
         <div style="font-size:22px;font-weight:700" id="detail-name"></div>
@@ -1511,6 +1515,7 @@ function hideCoverPreview(){
   document.getElementById('cover-preview-wrap').style.display='none';
   document.getElementById('cover-edit-tools').style.display='none';
   document.getElementById('cover-apply-btn').style.display='none';
+  if(cropHideListener){document.removeEventListener('click',cropHideListener);cropHideListener=null;}
 }
 
 function showCoverPreview(src){
@@ -1546,25 +1551,29 @@ function onCoverFile(e){
 }
 
 // ── CROP ──
+let cropHideListener=null;
 function initCropBox(){
   const container=document.getElementById('crop-container');
   const cropImg=document.getElementById('crop-img');
   const cropBox=document.getElementById('crop-box');
   cropImg.src=rawCoverSrc;
+  // Remove old click listener
+  if(cropHideListener)document.removeEventListener('click',cropHideListener);
+  cropImg.onclick=null;
   cropImg.onload=()=>{
     const cw=container.offsetWidth;const ch=cropImg.offsetHeight;
     cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
     cropBox.style.display='none';
     setupCropDrag(container);
+    // Tap image to enable crop
+    cropImg.onclick=(e)=>{e.stopPropagation();cropBox.style.display='block';updateCropBox();};
+    // Click outside to hide - using capture to catch all clicks
+    cropHideListener=(e)=>{
+      if(cropBox.style.display==='none')return;
+      if(!container.contains(e.target))cropBox.style.display='none';
+    };
+    document.addEventListener('click',cropHideListener);
   };
-  // Tap image to enable crop
-  cropImg.onclick=()=>{cropBox.style.display='block';updateCropBox();};
-  // Click anywhere outside crop container → hide crop box
-  document.addEventListener('click', function hideCropOnOutside(e){
-    if(!container.contains(e.target)&&!e.target.closest('.btn')){
-      cropBox.style.display='none';
-    }
-  });
 }
 
 function updateCropBox(){
