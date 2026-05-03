@@ -642,7 +642,7 @@ function createDrawWidget(containerId, canvasHeight=260){
   const container=document.getElementById(containerId);
   if(!container)return;
   const id=containerId;
-  const state={tool:'pen',color:'#1b4332',size:5,drawing:false,lastX:0,lastY:0,lastData:null};
+  const state={tool:'pen',color:'#000000',size:5,drawing:false,lastX:0,lastY:0,lastData:null,points:[],strokeSnapshot:null};
   drawWidgets[id]=state;
 
   let toolBtns='';
@@ -653,7 +653,7 @@ function createDrawWidget(containerId, canvasHeight=260){
   container.innerHTML=`
     <div class="draw-toolbar">
       ${toolBtns}
-      <input class="draw-color" type="color" id="dc-${id}" value="#1b4332" onchange="drawWidgets['${id}'].color=this.value" title="顏色">
+      <input class="draw-color" type="color" id="dc-${id}" value="#000000" onchange="drawWidgets['${id}'].color=this.value" title="顏色">
     </div>
     <div class="draw-size-row" style="margin-bottom:8px">
       <span>粗細</span>
@@ -682,11 +682,11 @@ function initDrawWidget(id){
     const img=new Image();img.onload=()=>state.ctx.drawImage(img,0,0,c.width,c.height);img.src=state.lastData;
   }
   const getPos=(clientX,clientY)=>{const r=c.getBoundingClientRect();const sx=c.width/r.width;const sy=c.height/r.height;return{x:(clientX-r.left)*sx,y:(clientY-r.top)*sy};};
-  c.addEventListener('mousedown',e=>{state.drawing=true;state.points=[];const p=getPos(e.clientX,e.clientY);state.points.push(p);state.lastX=p.x;state.lastY=p.y;const needsSnap=['pen','highlighter','eraser'];if(needsSnap.includes(state.tool))state.strokeSnapshot=c.toDataURL();else state.strokeSnapshot=null;});
+  c.addEventListener('mousedown',e=>{state.drawing=true;state.points=[];const p=getPos(e.clientX,e.clientY);state.points.push(p);state.strokeSnapshot=c.toDataURL();});
   c.addEventListener('mousemove',e=>{if(!state.drawing)return;const p=getPos(e.clientX,e.clientY);smoothDraw(id,p);});
   c.addEventListener('mouseup',()=>{state.drawing=false;state.points=[];});
   c.addEventListener('mouseleave',()=>{state.drawing=false;state.points=[];});
-  c.addEventListener('touchstart',e=>{e.preventDefault();state.drawing=true;state.points=[];const t=e.touches[0];const p=getPos(t.clientX,t.clientY);state.points.push(p);state.lastX=p.x;state.lastY=p.y;const needsSnap=['pen','highlighter','eraser'];if(needsSnap.includes(state.tool))state.strokeSnapshot=c.toDataURL();else state.strokeSnapshot=null;},{passive:false});
+  c.addEventListener('touchstart',e=>{e.preventDefault();state.drawing=true;state.points=[];const t=e.touches[0];const p=getPos(t.clientX,t.clientY);state.points.push(p);state.strokeSnapshot=c.toDataURL();},{passive:false});
   c.addEventListener('touchmove',e=>{e.preventDefault();if(!state.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);smoothDraw(id,p);},{passive:false});
   c.addEventListener('touchend',()=>{state.drawing=false;state.points=[];});
 }
@@ -695,60 +695,115 @@ function smoothDraw(id, newPoint){
   const state=drawWidgets[id];if(!state||!state.ctx)return;
   state.points.push(newPoint);
   if(state.points.length<2)return;
-
-  if(state.tool==='highlighter'||state.tool==='pen'||state.tool==='eraser'){
-    // Restore snapshot then redraw entire stroke — no segment overlap
-    if(state.strokeSnapshot){
-      const img=new Image();
-      img.onload=()=>{
-        state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);
-        state.ctx.drawImage(img,0,0);
-        drawSmoothPath(state.ctx,state.tool,state.points,state.color,state.size);
-      };
-      img.src=state.strokeSnapshot;
-    }else{
-      drawSmoothPath(state.ctx,state.tool,state.points,state.color,state.size);
-    }
+  // All tools use snapshot+full redraw for smooth result
+  if(state.strokeSnapshot){
+    const img=new Image();
+    img.onload=()=>{
+      state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);
+      state.ctx.drawImage(img,0,0);
+      drawFullPath(state.ctx,state.tool,state.points,state.color,state.size);
+    };
+    img.src=state.strokeSnapshot;
   }else{
-    // Pencil/watercolor/crayon: incremental scatter is fine
-    const pts=state.points;const len=pts.length;
-    const p0=pts[len-2];const p1=pts[len-1];
-    const mid={x:(p0.x+p1.x)/2,y:(p0.y+p1.y)/2};
-    applyBrushSmooth(state.ctx,state.tool,state.color,state.size,p0,p1,mid);
-    if(state.points.length>200)state.points.shift();
+    drawFullPath(state.ctx,state.tool,state.points,state.color,state.size);
   }
 }
 
-function drawSmoothPath(ctx,tool,points,color,size){
+function drawFullPath(ctx,tool,points,color,size){
   if(points.length<2)return;
-  ctx.save();
-  if(tool==='eraser'){
-    ctx.globalCompositeOperation='destination-out';
-    ctx.globalAlpha=1;
-    ctx.strokeStyle='rgba(0,0,0,1)';
-    ctx.lineWidth=size*4;
+  if(tool==='pen'){
+    ctx.save();
+    ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+    ctx.strokeStyle=color;ctx.lineWidth=size;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
+    for(let i=1;i<points.length-1;i++){
+      const mid={(x:(points[i].x+points[i+1].x)/2),(y:(points[i].y+points[i+1].y)/2)};
+      ctx.quadraticCurveTo(points[i].x,points[i].y,mid.x,mid.y);
+    }
+    ctx.lineTo(points[points.length-1].x,points[points.length-1].y);
+    ctx.stroke();ctx.restore();
+
   }else if(tool==='highlighter'){
-    ctx.globalCompositeOperation='source-over';
-    ctx.globalAlpha=0.28;
-    ctx.strokeStyle=color;
-    ctx.lineWidth=size*8;
-  }else{
-    // pen
-    ctx.globalCompositeOperation='source-over';
-    ctx.globalAlpha=1;
-    ctx.strokeStyle=color;
-    ctx.lineWidth=size;
+    ctx.save();
+    ctx.globalCompositeOperation='source-over';ctx.globalAlpha=0.28;
+    ctx.strokeStyle=color;ctx.lineWidth=size*8;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
+    for(let i=1;i<points.length-1;i++){
+      const mid={(x:(points[i].x+points[i+1].x)/2),(y:(points[i].y+points[i+1].y)/2)};
+      ctx.quadraticCurveTo(points[i].x,points[i].y,mid.x,mid.y);
+    }
+    ctx.lineTo(points[points.length-1].x,points[points.length-1].y);
+    ctx.stroke();ctx.restore();
+
+  }else if(tool==='pencil'){
+    ctx.save();
+    for(let i=1;i<points.length;i++){
+      const p0=points[i-1];const p1=points[i];
+      const dist=Math.hypot(p1.x-p0.x,p1.y-p0.y);
+      const steps=Math.max(1,Math.floor(dist/2));
+      for(let s=0;s<=steps;s++){
+        const t=s/steps;const px=p0.x+(p1.x-p0.x)*t;const py=p0.y+(p1.y-p0.y)*t;
+        for(let g=0;g<Math.floor(size*2);g++){
+          ctx.globalAlpha=Math.random()*0.3+0.05;
+          ctx.fillStyle=color;
+          const ox=(Math.random()-.5)*size*2;const oy=(Math.random()-.5)*size*2;
+          ctx.beginPath();ctx.arc(px+ox,py+oy,Math.random()*1+0.3,0,Math.PI*2);ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
+
+  }else if(tool==='watercolor'){
+    ctx.save();
+    for(let i=1;i<points.length;i++){
+      const p0=points[i-1];const p1=points[i];
+      const dist=Math.hypot(p1.x-p0.x,p1.y-p0.y);
+      const steps=Math.max(1,Math.floor(dist/4));
+      for(let s=0;s<=steps;s++){
+        const t=s/steps;const px=p0.x+(p1.x-p0.x)*t;const py=p0.y+(p1.y-p0.y)*t;
+        for(let b=0;b<3;b++){
+          const spread=size*2;
+          const ox=(Math.random()-.5)*spread;const oy=(Math.random()-.5)*spread;
+          const bSize=size*(Math.random()*1.2+0.6);
+          const grad=ctx.createRadialGradient(px+ox,py+oy,0,px+ox,py+oy,bSize);
+          grad.addColorStop(0,color+'44');grad.addColorStop(1,color+'00');
+          ctx.globalAlpha=1;ctx.fillStyle=grad;
+          ctx.beginPath();ctx.arc(px+ox,py+oy,bSize,0,Math.PI*2);ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
+
+  }else if(tool==='crayon'){
+    ctx.save();
+    for(let i=1;i<points.length;i++){
+      const p0=points[i-1];const p1=points[i];
+      const dist=Math.hypot(p1.x-p0.x,p1.y-p0.y);
+      const steps=Math.max(1,Math.floor(dist/1.5));
+      for(let s=0;s<=steps;s++){
+        const t=s/steps;const px=p0.x+(p1.x-p0.x)*t;const py=p0.y+(p1.y-p0.y)*t;
+        for(let k=0;k<4;k++){
+          const ox=(Math.random()-.5)*size*1.8;const oy=(Math.random()-.5)*size*1.8;
+          ctx.globalAlpha=Math.random()*0.4+0.15;
+          ctx.strokeStyle=color;ctx.lineWidth=size*0.5+Math.random()*size*0.5;ctx.lineCap='round';
+          ctx.beginPath();ctx.moveTo(px+ox-0.5,py+oy);ctx.lineTo(px+ox+0.5,py+oy);ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+
+  }else if(tool==='eraser'){
+    ctx.save();
+    ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;
+    ctx.strokeStyle='rgba(0,0,0,1)';ctx.lineWidth=size*4;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
+    for(let i=1;i<points.length-1;i++){
+      const mid={(x:(points[i].x+points[i+1].x)/2),(y:(points[i].y+points[i+1].y)/2)};
+      ctx.quadraticCurveTo(points[i].x,points[i].y,mid.x,mid.y);
+    }
+    ctx.lineTo(points[points.length-1].x,points[points.length-1].y);
+    ctx.stroke();ctx.restore();
   }
-  ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.beginPath();
-  ctx.moveTo(points[0].x,points[0].y);
-  for(let i=1;i<points.length-1;i++){
-    const mid={x:(points[i].x+points[i+1].x)/2,y:(points[i].y+points[i+1].y)/2};
-    ctx.quadraticCurveTo(points[i].x,points[i].y,mid.x,mid.y);
-  }
-  ctx.lineTo(points[points.length-1].x,points[points.length-1].y);
-  ctx.stroke();
-  ctx.restore();
 }
 
 function applyBrushSmooth(ctx,tool,color,size,p0,p1,mid){
@@ -916,7 +971,7 @@ function setAnnotateMode(section, mode){
 }
 
 function initAnnoCanvas(section){
-  if(!annoState[section])annoState[section]={tool:'highlighter',color:'#ffff00',size:6,drawing:false,lastX:0,lastY:0,lastData:''};
+  if(!annoState[section])annoState[section]={tool:'highlighter',color:'#ffff00',size:5,drawing:false,points:[],strokeSnapshot:null,lastData:''};
   const st=annoState[section];
   const textDisplay=document.getElementById(`${section}-text-display`);
   const canvas=document.getElementById(`${section}-anno-canvas`);
@@ -947,11 +1002,11 @@ function initAnnoCanvas(section){
     return{x:(clientX-r.left)*scaleX,y:(clientY-r.top)*scaleY};
   };
 
-  newCanvas.addEventListener('mousedown',e=>{st.drawing=true;st.points=[];const p=getPos(e.clientX,e.clientY);st.points.push(p);const needsSnap=['pen','highlighter','eraser'];if(needsSnap.includes(st.tool))st.strokeSnapshot=newCanvas.toDataURL();else st.strokeSnapshot=null;});
+  newCanvas.addEventListener('mousedown',e=>{st.drawing=true;st.points=[];const p=getPos(e.clientX,e.clientY);st.points.push(p);st.strokeSnapshot=newCanvas.toDataURL();});
   newCanvas.addEventListener('mousemove',e=>{if(!st.drawing)return;const p=getPos(e.clientX,e.clientY);smoothDrawAnno(section,p);});
   newCanvas.addEventListener('mouseup',()=>{st.drawing=false;st.points=[];});
   newCanvas.addEventListener('mouseleave',()=>{st.drawing=false;st.points=[];});
-  newCanvas.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);st.points=[];st.points.push(p);st.drawing=true;const needsSnap=['pen','highlighter','eraser'];if(needsSnap.includes(st.tool))st.strokeSnapshot=newCanvas.toDataURL();else st.strokeSnapshot=null;},{passive:false});
+  newCanvas.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);st.points=[];st.points.push(p);st.drawing=true;st.strokeSnapshot=newCanvas.toDataURL();},{passive:false});
   newCanvas.addEventListener('touchmove',e=>{e.preventDefault();if(!st.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);smoothDrawAnno(section,p);},{passive:false});
   newCanvas.addEventListener('touchend',()=>{st.drawing=false;st.points=[];});
 
@@ -964,34 +1019,31 @@ function smoothDrawAnno(section,newPoint){
   if(!st.points)st.points=[];
   st.points.push(newPoint);
   if(st.points.length<2)return;
-
-  if(st.tool==='highlighter'||st.tool==='pen'||st.tool==='eraser'){
-    if(st.strokeSnapshot){
-      const img=new Image();
-      img.onload=()=>{
-        st.ctx.clearRect(0,0,st.canvas.width,st.canvas.height);
-        st.ctx.drawImage(img,0,0);
-        drawSmoothPath(st.ctx,st.tool,st.points,st.color,st.size);
-      };
-      img.src=st.strokeSnapshot;
-    }else{
-      drawSmoothPath(st.ctx,st.tool,st.points,st.color,st.size);
-    }
+  if(st.strokeSnapshot){
+    const img=new Image();
+    img.onload=()=>{
+      st.ctx.clearRect(0,0,st.canvas.width,st.canvas.height);
+      st.ctx.drawImage(img,0,0);
+      drawFullPath(st.ctx,st.tool,st.points,st.color,st.size);
+    };
+    img.src=st.strokeSnapshot;
   }else{
-    const pts=st.points;const len=pts.length;
-    const p0=pts[len-2];const p1=pts[len-1];
-    const mid={x:(p0.x+p1.x)/2,y:(p0.y+p1.y)/2};
-    applyBrushSmooth(st.ctx,st.tool,st.color,st.size,p0,p1,mid);
-    if(st.points.length>200)st.points.shift();
+    drawFullPath(st.ctx,st.tool,st.points,st.color,st.size);
   }
 }
 
 function setAnnoTool(section,tool){
   if(!annoState[section])return;
-  annoState[section].tool=tool;
-  // If switching to highlighter, default to yellow
-  if(tool==='highlighter'&&annoState[section].color==='#1b4332')annoState[section].color='#ffff00';
+  const st=annoState[section];
+  // Save current drawing before anything
+  if(st.canvas&&st.ctx){
+    st.lastData=getAnnoData(section);
+  }
+  st.tool=tool;
+  // Default colors per tool
+  if(tool==='highlighter')st.color='#ffff00';
   buildAnnoTools(section,`${section}-anno-tools`);
+  // Re-init but restore drawing
   initAnnoCanvas(section);
 }
 
@@ -1009,7 +1061,7 @@ function getAnnoData(section){
 }
 
 function loadAnnoData(section,dataUrl){
-  if(!annoState[section])annoState[section]={tool:'highlighter',color:'#ffff00',size:6,drawing:false,lastX:0,lastY:0,lastData:''};
+  if(!annoState[section])annoState[section]={tool:'highlighter',color:'#ffff00',size:5,drawing:false,points:[],strokeSnapshot:null,lastData:''};
   annoState[section].lastData=dataUrl||'';
 }
 
