@@ -91,11 +91,11 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 /* GRID LAYOUT - horizontal scroll */
 .recipe-grid{display:flex;flex-direction:row;gap:6px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;margin-bottom:8px}
 .recipe-grid::-webkit-scrollbar{display:none}
-.recipe-card{flex-shrink:0;width:110px;background:rgba(255,255,255,0.92);border-radius:10px;border:1px solid var(--border);cursor:pointer;padding:7px 8px;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;gap:2px;box-shadow:var(--shadow)}
+.recipe-card{flex-shrink:0;width:130px;background:rgba(255,255,255,0.92);border-radius:10px;border:1px solid var(--border);cursor:pointer;overflow:hidden;box-shadow:var(--shadow)}
 .recipe-card-img{display:none}
-.recipe-card-name{font-weight:700;font-size:12px;color:var(--text);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;grid-column:1;grid-row:1}
-.recipe-card-meta{font-size:10px;color:var(--tl);grid-column:1;grid-row:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.recipe-card-actions{grid-column:2;grid-row:1/3;display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;margin-left:3px}
+.recipe-card-name{font-weight:700;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recipe-card-meta{font-size:10px;color:var(--tl);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.recipe-card-actions{display:flex;gap:3px;margin-top:5px;justify-content:flex-end}
 .icon-btn{background:var(--gp);border:none;border-radius:5px;width:22px;height:22px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;color:var(--gd)}
 
 /* FOLDER ITEMS */
@@ -370,7 +370,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           </div>
           <!-- Text area (edit mode) -->
           <div id="steps-edit-area">
-            <textarea id="steps-text" placeholder="輸入做法…" style="min-height:120px;resize:vertical"></textarea>
+            <textarea id="steps-text" placeholder="輸入做法…" style="min-height:120px;resize:none;overflow:hidden" oninput="autoResize(this)"></textarea>
           </div>
           <!-- Annotation mode: text display + canvas overlay -->
           <div id="steps-annotate-area" style="display:none">
@@ -396,7 +396,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
             <button class="mode-btn" id="notes-annotate-btn" onclick="setAnnotateMode('notes','annotate')">🖊️ 在上面畫</button>
           </div>
           <div id="notes-edit-area">
-            <textarea id="recipe-notes" placeholder="小技巧、注意事項…" style="min-height:80px;resize:vertical"></textarea>
+            <textarea id="recipe-notes" placeholder="小技巧、注意事項…" style="min-height:80px;resize:none;overflow:hidden" oninput="autoResize(this)"></textarea>
           </div>
           <div id="notes-annotate-area" style="display:none">
             <div style="position:relative;border-radius:10px;overflow:hidden;border:1.5px solid var(--border)">
@@ -1270,6 +1270,7 @@ function backToSaved(){
 function editCurrentDetail(){
   if(detailRecipe)loadRecipeForEdit(detailRecipe);
 }
+function autoResize(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
 function parseFraction(s){
   if(!s)return NaN;s=String(s).trim();
   const u={'½':.5,'⅓':1/3,'⅔':2/3,'¼':.25,'¾':.75,'⅛':.125,'⅜':.375,'⅝':.625,'⅞':.875};
@@ -1503,6 +1504,7 @@ function loadRecipeForEdit(recipe){
     document.getElementById('recipe-servings').value=CR.servings;
     document.getElementById('steps-text').value=CR.steps;
     document.getElementById('recipe-notes').value=CR.notes;
+    setTimeout(()=>{autoResize(document.getElementById('steps-text'));autoResize(document.getElementById('recipe-notes'));},50);
     renderIngredients();renderCoverArea();
     // Reset all collapse sections first
     ['steps-body','notes-body','draw-body'].forEach(id=>{
@@ -1668,7 +1670,8 @@ function renderSavedList(folders,recipes){
   recipes.forEach(recipe=>{
     const card=document.createElement('div');card.className='recipe-card';
     card.dataset.id=recipe.id;card.dataset.type='recipe';
-    card.innerHTML=`<div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe('${recipe.id}'))">🗑</button></div>`;
+    const coverHtml=recipe.cover?`<img src="${recipe.cover}" style="width:100%;height:60px;object-fit:cover;border-radius:8px 8px 0 0;display:block" onerror="this.style.display='none'">`:'';
+    card.innerHTML=`${coverHtml}<div style="padding:6px 8px 7px"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe('${recipe.id}'))">🗑</button></div></div>`;
     card.onclick=(e)=>{if(!isEditOrder&&!e.target.closest('.icon-btn'))showRecipeDetail(recipe);};
     grid.appendChild(card);
   });
