@@ -1658,16 +1658,20 @@ function initCoverDraw(){
   if(!rawCoverSrc)return;
   const canvas=document.getElementById('cover-draw-canvas');
   if(!canvas)return;
-  // Use rawCoverSrc directly - guaranteed to have the data
   const img=new Image();
   img.onload=()=>{
     const modal=document.querySelector('#cover-modal .modal');
-    const w=modal?Math.floor(modal.clientWidth)-40:340;
-    const h=Math.round(w*img.naturalHeight/img.naturalWidth);
-    if(!w||!h)return;
+    const mw=modal?modal.offsetWidth:0;
+    const w=mw>40?mw-40:340;
+    const h=Math.round(w*img.naturalHeight/img.naturalWidth)||Math.round(w*0.75);
     canvas.width=w;
     canvas.height=h;
-    canvas.style.cssText='display:block;width:100%;touch-action:none;cursor:crosshair;border-radius:10px';
+    canvas.style.display='block';
+    canvas.style.width=w+'px';
+    canvas.style.height=h+'px';
+    canvas.style.maxWidth='100%';
+    canvas.style.touchAction='none';
+    canvas.style.cursor='crosshair';
     const ctx=canvas.getContext('2d');
     ctx.drawImage(img,0,0,w,h);
     coverDrawState.points=[];
