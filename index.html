@@ -1645,28 +1645,58 @@ function undoCoverDraw(){
 let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
 
 function initCoverDraw(src){
-  const container=document.getElementById('cover-draw-container');
-  const oldCanvas=document.getElementById('cover-draw-canvas');
-  const canvas=document.createElement('canvas');
-  canvas.id='cover-draw-canvas';
-  canvas.style.cssText='display:block;width:100%;border-radius:10px;touch-action:none;cursor:crosshair';
-  oldCanvas.parentNode.replaceChild(canvas,oldCanvas);
+  // Use the already-loaded cover-preview-img instead of loading again
+  const previewImg=document.getElementById('cover-preview-img');
+  const canvas=document.getElementById('cover-draw-canvas');
   coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
-  const img=new Image();
-  if(src.startsWith('http'))img.crossOrigin='anonymous';
-  img.onload=()=>{
-    // Use setTimeout to ensure cover-edit-tools display:block is laid out
-    setTimeout(()=>{
-      const w=container.offsetWidth||document.querySelector('#cover-modal .modal').offsetWidth-40||340;
-      const h=Math.round(w*img.naturalHeight/img.naturalWidth);
-      canvas.width=w;canvas.height=h;
-      const ctx=canvas.getContext('2d');
-      ctx.drawImage(img,0,0,w,h);
-      coverDrawState.strokeSnapshot=canvas.toDataURL();
-      setupCoverDrawEvents(canvas,ctx);
-    },50);
+  const modal=document.querySelector('#cover-modal .modal');
+  const w=Math.min(modal?modal.clientWidth-40:340, previewImg.naturalWidth||999);
+  const h=previewImg.naturalWidth>0?Math.round(w*previewImg.naturalHeight/previewImg.naturalWidth):Math.round(w*0.75);
+  // Reset canvas size (clears automatically)
+  canvas.width=w;
+  canvas.height=h;
+  canvas.style.width='100%';
+  canvas.style.height='auto';
+  canvas.style.display='block';
+  // Draw image into canvas
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(previewImg,0,0,w,h);
+  coverDrawState.strokeSnapshot=canvas.toDataURL();
+  // Setup events directly (no clone)
+  const getPos=(clientX,clientY)=>{
+    const r=canvas.getBoundingClientRect();
+    return{x:(clientX-r.left)*w/r.width,y:(clientY-r.top)*h/r.height};
   };
-  img.src=src;
+  // Remove old listeners by cloning
+  const newC=canvas.cloneNode(false);
+  newC.width=canvas.width;newC.height=canvas.height;
+  newC.style.cssText=canvas.style.cssText;
+  canvas.parentNode.replaceChild(newC,canvas);
+  newC.id='cover-draw-canvas';
+  // Draw image onto new canvas
+  const ctx2=newC.getContext('2d');
+  ctx2.drawImage(previewImg,0,0,w,h);
+  coverDrawState.strokeSnapshot=newC.toDataURL();
+  newC.addEventListener('mousedown',e=>{coverDrawState.drawing=true;coverDrawState.points=[];const r=newC.getBoundingClientRect();const p={x:(e.clientX-r.left)*w/r.width,y:(e.clientY-r.top)*h/r.height};coverDrawState.points.push(p);coverDrawState.strokeSnapshot=newC.toDataURL();});
+  newC.addEventListener('mousemove',e=>{if(!coverDrawState.drawing)return;const r=newC.getBoundingClientRect();const p={x:(e.clientX-r.left)*w/r.width,y:(e.clientY-r.top)*h/r.height};coverDrawState.points.push(p);coverRedraw(newC,ctx2);});
+  newC.addEventListener('mouseup',()=>{coverDrawState.drawing=false;saveCoverDrawHistory();});
+  newC.addEventListener('mouseleave',()=>coverDrawState.drawing=false);
+  newC.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const r=newC.getBoundingClientRect();coverDrawState.drawing=true;coverDrawState.points=[];const p={x:(t.clientX-r.left)*w/r.width,y:(t.clientY-r.top)*h/r.height};coverDrawState.points.push(p);coverDrawState.strokeSnapshot=newC.toDataURL();},{passive:false});
+  newC.addEventListener('touchmove',e=>{e.preventDefault();if(!coverDrawState.drawing)return;const t=e.touches[0];const r=newC.getBoundingClientRect();const p={x:(t.clientX-r.left)*w/r.width,y:(t.clientY-r.top)*h/r.height};coverDrawState.points.push(p);coverRedraw(newC,ctx2);},{passive:false});
+  newC.addEventListener('touchend',()=>{coverDrawState.drawing=false;saveCoverDrawHistory();});
+}
+
+function coverRedraw(canvas,ctx){
+  if(!coverDrawState.strokeSnapshot||coverDrawState.points.length<2)return;
+  const img=new Image();
+  img.onload=()=>{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0);
+    drawFullPath(ctx,coverDrawState.tool,coverDrawState.points,
+      document.getElementById('cover-draw-color').value,
+      parseInt(document.getElementById('cover-draw-size').value)||5);
+  };
+  img.src=coverDrawState.strokeSnapshot;
 }
 
 function setupCoverDrawEvents(canvas,ctx){
