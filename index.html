@@ -1536,10 +1536,15 @@ function renderCoverArea(){
 
 function showCoverModal(){
   document.getElementById('cover-url').value='';
+  // Always hide shield first
+  const shield=document.getElementById('crop-shield');
+  if(shield)shield.style.display='none';
+  cropActive=false;
   rawCoverSrc=coverDataUrl||CR.cover||'';
-  if(rawCoverSrc){showCoverPreview(rawCoverSrc);}
-  else{hideCoverPreview();}
-  openModal('cover-modal');
+  openModal('cover-modal'); // open first so modal has width
+  if(rawCoverSrc){
+    setTimeout(()=>showCoverPreview(rawCoverSrc),50);
+  }else{hideCoverPreview();}
 }
 
 function hideCoverPreview(){
@@ -1876,6 +1881,9 @@ function setupCropDrag(container){
 }
 
 function applyCover(){
+  const shield=document.getElementById('crop-shield');
+  if(shield)shield.style.display='none';
+  cropActive=false;
   const canvas=document.getElementById('cover-draw-canvas');
   if(!canvas||!canvas.width){showToast('請先選取照片');return;}
   // Add text overlay if any
@@ -1964,6 +1972,9 @@ function applyAnnoFilter(section,filter){
 
 function clearCover(){
   CR.cover='';coverDataUrl='';rawCoverSrc='';activeFilter='none';
+  const shield=document.getElementById('crop-shield');
+  if(shield)shield.style.display='none';
+  cropActive=false;
   document.getElementById('cover-file').value='';
   document.getElementById('cover-url').value='';
   hideCoverPreview();
