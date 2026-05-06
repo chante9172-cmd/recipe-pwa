@@ -564,10 +564,9 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <!-- Drawing directly on photo -->
         <div style="margin-bottom:10px">
           <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✏️ 直接在照片上畫</div>
-          <!-- padding-bottom trick for correct aspect ratio -->
-          <div id="cover-draw-container" style="position:relative;width:100%;background:#f0f0f0;border-radius:10px;overflow:hidden">
-            <img id="cover-draw-img" style="width:100%;display:block;visibility:hidden">
-            <canvas id="cover-draw-canvas" style="position:absolute;top:0;left:0;touch-action:none;cursor:crosshair;display:none"></canvas>
+          <!-- Canvas draws image as background, user draws on top -->
+          <div id="cover-draw-container" style="width:100%;border-radius:10px;overflow:hidden">
+            <canvas id="cover-draw-canvas" style="display:block;width:100%;border-radius:10px;touch-action:none;cursor:crosshair"></canvas>
           </div>
           <div style="margin-top:8px">
             <div class="draw-toolbar" style="flex-wrap:wrap">
@@ -1646,35 +1645,39 @@ function undoCoverDraw(){
 let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
 
 function initCoverDraw(src){
-  const img=document.getElementById('cover-draw-img');
   const container=document.getElementById('cover-draw-container');
-  img.src=src;
+  const oldCanvas=document.getElementById('cover-draw-canvas');
+  // Fresh canvas
+  const canvas=document.createElement('canvas');
+  canvas.id='cover-draw-canvas';
+  canvas.style.cssText='display:block;width:100%;border-radius:10px;touch-action:none;cursor:crosshair';
+  oldCanvas.parentNode.replaceChild(canvas,oldCanvas);
+  coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
+  const img=new Image();
+  img.crossOrigin='anonymous';
   img.onload=()=>{
-    // rAF ensures cover-edit-tools layout is computed after display:block
-    requestAnimationFrame(()=>{
-      const natW=img.naturalWidth,natH=img.naturalHeight;
-      const ratio=natH/natW;
-      // Fallback: use modal width if container not yet laid out
-      let w=container.offsetWidth;
-      if(!w){
-        const modal=document.querySelector('#cover-modal .modal');
-        w=modal?modal.offsetWidth-48:300;
-      }
-      const h=Math.round(w*ratio);
-      img.style.visibility='visible';
-      // Create fresh canvas to avoid stale listeners
-      const oldCanvas=document.getElementById('cover-draw-canvas');
-      const canvas=document.createElement('canvas');
-      canvas.id='cover-draw-canvas';
-      canvas.width=w;canvas.height=h;
-      canvas.style.cssText=`position:absolute;top:0;left:0;width:${w}px;height:${h}px;touch-action:none;cursor:crosshair;display:block`;
-      oldCanvas.parentNode.replaceChild(canvas,oldCanvas);
-      coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
-      const ctx=canvas.getContext('2d');
-      ctx.clearRect(0,0,w,h);
-      setupCoverDrawEvents(canvas,ctx);
-    });
+    // Set canvas pixel size to natural image size (crisp)
+    const maxW=container.offsetWidth||document.querySelector('#cover-modal .modal')?.offsetWidth-48||340;
+    const scale=maxW/img.naturalWidth;
+    const w=Math.round(img.naturalWidth*scale);
+    const h=Math.round(img.naturalHeight*scale);
+    canvas.width=w;canvas.height=h;
+    // Draw image as background
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0,w,h);
+    coverDrawState.strokeSnapshot=canvas.toDataURL();
+    setupCoverDrawEvents(canvas,ctx);
   };
+  img.onerror=()=>{
+    // If cross-origin fails, just set up blank canvas
+    const w=container.offsetWidth||340;
+    canvas.width=w;canvas.height=Math.round(w*0.75);
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#f0f0f0';ctx.fillRect(0,0,canvas.width,canvas.height);
+    coverDrawState.strokeSnapshot=canvas.toDataURL();
+    setupCoverDrawEvents(canvas,ctx);
+  };
+  img.src=src;
 }
 
 function setupCoverDrawEvents(canvas,ctx){
@@ -1850,48 +1853,23 @@ function setupCropDrag(container){
 }
 
 function applyCover(){
-  const cropImg=document.getElementById('crop-img');
-  if(!cropImg.src||cropImg.src===window.location.href){showToast('請先選取照片');return;}
-  const container=document.getElementById('crop-container');
-  const dispW=container.offsetWidth;const dispH=cropImg.offsetHeight;
-  const natW=cropImg.naturalWidth;const natH=cropImg.naturalHeight;
-  const scaleX=natW/dispW;const scaleY=natH/dispH;
-  const cx=cropState.x*scaleX;const cy=cropState.y*scaleY;
-  const cw=cropState.w*scaleX;const ch=cropState.h*scaleY;
-  const canvas=document.createElement('canvas');
-  canvas.width=Math.round(cw);canvas.height=Math.round(ch);
-  const ctx=canvas.getContext('2d');
-  const img=new Image();img.crossOrigin='anonymous';
-  img.onload=()=>{
-    // Apply filter + crop
-    applyFilterToCtx(ctx,img,cx,cy,cw,ch,0,0,canvas.width,canvas.height,activeFilter);
-    // Text overlay
-    const text=document.getElementById('cover-text-input').value.trim();
-    if(text){
-      const fontSize=Math.max(20,canvas.width/15);
-      ctx.font=`bold ${fontSize}px sans-serif`;
-      ctx.fillStyle=document.getElementById('cover-text-color').value;
-      ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=8;
-      ctx.textAlign='center';
-      ctx.fillText(text,canvas.width/2,canvas.height-fontSize);
-    }
-    // Drawing overlay from canvas drawn on photo
-    const drawData=getCoverDrawData();
-    if(drawData){
-      const drawImg=new Image();
-      drawImg.onload=()=>{
-        ctx.drawImage(drawImg,0,0,canvas.width,canvas.height);
-        coverDataUrl=canvas.toDataURL('image/jpeg',0.85);
-        CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');
-      };
-      drawImg.src=drawData;
-    }else{
-      coverDataUrl=canvas.toDataURL('image/jpeg',0.85);
-      CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');
-    }
-  };
-  img.onerror=()=>{CR.cover=rawCoverSrc;coverDataUrl='';renderCoverArea();closeModal('cover-modal');};
-  img.src=rawCoverSrc;
+  const canvas=document.getElementById('cover-draw-canvas');
+  if(!canvas||!canvas.width){showToast('請先選取照片');return;}
+  // Add text overlay if any
+  const text=document.getElementById('cover-text-input').value.trim();
+  if(text){
+    const ctx=canvas.getContext('2d');
+    const fontSize=Math.max(20,canvas.width/15);
+    ctx.font=`bold ${fontSize}px sans-serif`;
+    ctx.fillStyle=document.getElementById('cover-text-color').value;
+    ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=8;
+    ctx.textAlign='center';
+    ctx.fillText(text,canvas.width/2,canvas.height-fontSize);
+    ctx.shadowBlur=0;
+  }
+  coverDataUrl=canvas.toDataURL('image/jpeg',0.85);
+  CR.cover=coverDataUrl;
+  renderCoverArea();closeModal('cover-modal');
 }
 
 function setCoverFilter(filter){
