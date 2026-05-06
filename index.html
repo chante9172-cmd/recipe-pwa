@@ -507,8 +507,8 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 <div class="modal-overlay" id="cover-modal">
   <div class="modal" style="padding-bottom:30px">
     <div class="modal-title">設定封面照片</div>
-    <!-- Shield: click anywhere outside crop-box to hide it -->
-    <div id="crop-shield" style="position:fixed;inset:0;z-index:450;display:none" onclick="hideCropBox()"></div>
+    <div id="crop-shield" style="position:fixed;inset:0;z-index:550;display:none" onclick="hideCropBox()"></div>
+
 
     <!-- Step 1: Select image -->
     <div id="cover-step1">
@@ -530,7 +530,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <div style="position:relative;user-select:none" id="crop-container">
             <img id="crop-img" style="width:100%;border-radius:8px;display:block;max-height:240px;object-fit:contain">
             <div id="crop-overlay" style="position:absolute;inset:0;border-radius:8px"></div>
-            <div id="crop-box" style="position:absolute;border:2px solid white;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);cursor:move;border-radius:4px;display:none;z-index:460">
+            <div id="crop-box" style="position:absolute;border:2px solid white;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);cursor:move;border-radius:4px;display:none;z-index:560">
               <div class="crop-handle" id="ch-nw" style="position:absolute;top:-6px;left:-6px;cursor:nw-resize"></div>
               <div class="crop-handle" id="ch-ne" style="position:absolute;top:-6px;right:-6px;cursor:ne-resize"></div>
               <div class="crop-handle" id="ch-sw" style="position:absolute;bottom:-6px;left:-6px;cursor:sw-resize"></div>
@@ -1647,35 +1647,24 @@ let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:nul
 function initCoverDraw(src){
   const container=document.getElementById('cover-draw-container');
   const oldCanvas=document.getElementById('cover-draw-canvas');
-  // Fresh canvas
   const canvas=document.createElement('canvas');
   canvas.id='cover-draw-canvas';
   canvas.style.cssText='display:block;width:100%;border-radius:10px;touch-action:none;cursor:crosshair';
   oldCanvas.parentNode.replaceChild(canvas,oldCanvas);
   coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
   const img=new Image();
-  img.crossOrigin='anonymous';
+  if(src.startsWith('http'))img.crossOrigin='anonymous';
   img.onload=()=>{
-    // Set canvas pixel size to natural image size (crisp)
-    const maxW=container.offsetWidth||document.querySelector('#cover-modal .modal')?.offsetWidth-48||340;
-    const scale=maxW/img.naturalWidth;
-    const w=Math.round(img.naturalWidth*scale);
-    const h=Math.round(img.naturalHeight*scale);
-    canvas.width=w;canvas.height=h;
-    // Draw image as background
-    const ctx=canvas.getContext('2d');
-    ctx.drawImage(img,0,0,w,h);
-    coverDrawState.strokeSnapshot=canvas.toDataURL();
-    setupCoverDrawEvents(canvas,ctx);
-  };
-  img.onerror=()=>{
-    // If cross-origin fails, just set up blank canvas
-    const w=container.offsetWidth||340;
-    canvas.width=w;canvas.height=Math.round(w*0.75);
-    const ctx=canvas.getContext('2d');
-    ctx.fillStyle='#f0f0f0';ctx.fillRect(0,0,canvas.width,canvas.height);
-    coverDrawState.strokeSnapshot=canvas.toDataURL();
-    setupCoverDrawEvents(canvas,ctx);
+    // Use setTimeout to ensure cover-edit-tools display:block is laid out
+    setTimeout(()=>{
+      const w=container.offsetWidth||document.querySelector('#cover-modal .modal').offsetWidth-40||340;
+      const h=Math.round(w*img.naturalHeight/img.naturalWidth);
+      canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      coverDrawState.strokeSnapshot=canvas.toDataURL();
+      setupCoverDrawEvents(canvas,ctx);
+    },50);
   };
   img.src=src;
 }
