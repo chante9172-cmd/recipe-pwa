@@ -507,7 +507,6 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 <div class="modal-overlay" id="cover-modal">
   <div class="modal" style="padding-bottom:30px">
     <div class="modal-title">設定封面照片</div>
-    <div id="crop-shield" style="position:fixed;inset:0;z-index:550;display:none" onclick="hideCropBox()"></div>
 
 
     <!-- Step 1: Select image -->
@@ -564,9 +563,10 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <!-- Drawing directly on photo -->
         <div style="margin-bottom:10px">
           <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✏️ 直接在照片上畫</div>
-          <!-- Canvas draws image as background, user draws on top -->
-          <div id="cover-draw-container" style="width:100%;border-radius:10px;overflow:hidden">
-            <canvas id="cover-draw-canvas" style="display:block;width:100%;border-radius:10px;touch-action:none;cursor:crosshair"></canvas>
+          <!-- IMG shows image, transparent canvas captures drawing on top -->
+          <div id="cover-draw-container" style="position:relative;width:100%;border-radius:10px;overflow:hidden;line-height:0">
+            <img id="cover-draw-img" style="display:block;width:100%;border-radius:10px">
+            <canvas id="cover-draw-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;border-radius:10px"></canvas>
           </div>
           <div style="margin-top:8px">
             <div class="draw-toolbar" style="flex-wrap:wrap">
@@ -1536,9 +1536,6 @@ function renderCoverArea(){
 
 function showCoverModal(){
   document.getElementById('cover-url').value='';
-  // Always hide shield first
-  const shield=document.getElementById('crop-shield');
-  if(shield)shield.style.display='none';
   cropActive=false;
   rawCoverSrc=coverDataUrl||CR.cover||'';
   openModal('cover-modal'); // open first so modal has width
@@ -1656,24 +1653,22 @@ let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:nul
 
 function initCoverDraw(){
   if(!rawCoverSrc)return;
+  const drawImg=document.getElementById('cover-draw-img');
   const canvas=document.getElementById('cover-draw-canvas');
-  if(!canvas)return;
-  const img=new Image();
-  img.onload=()=>{
-    const modal=document.querySelector('#cover-modal .modal');
-    const mw=modal?modal.offsetWidth:0;
-    const w=mw>40?mw-40:340;
-    const h=Math.round(w*img.naturalHeight/img.naturalWidth)||Math.round(w*0.75);
+  if(!drawImg||!canvas)return;
+  // Show image via IMG element (reliable cross-browser)
+  drawImg.onload=()=>{
+    // Size canvas to match displayed image pixels
+    const w=drawImg.offsetWidth||drawImg.parentElement.offsetWidth||340;
+    const h=drawImg.offsetHeight||Math.round(w*drawImg.naturalHeight/drawImg.naturalWidth)||200;
     canvas.width=w;
     canvas.height=h;
-    canvas.style.display='block';
-    canvas.style.width=w+'px';
-    canvas.style.height=h+'px';
-    canvas.style.maxWidth='100%';
     canvas.style.touchAction='none';
     canvas.style.cursor='crosshair';
     const ctx=canvas.getContext('2d');
-    ctx.drawImage(img,0,0,w,h);
+    ctx.clearRect(0,0,w,h);
+    coverDrawState.points=[];
+    coverDrawState.strokeSnapshot=''; // empty = transparent canvas
     coverDrawState.points=[];
     coverDrawState.strokeSnapshot=canvas.toDataURL();
     // Bind events - inline to avoid stale references
@@ -1705,21 +1700,31 @@ function initCoverDraw(){
     };
     canvas.ontouchend=()=>{if(coverDrawState.drawing){coverDrawState.drawing=false;saveCoverDrawHistory();}};
   };
-  img.src=rawCoverSrc;
+  drawImg.src=rawCoverSrc;
+  // If already loaded, fire manually
+  if(drawImg.complete&&drawImg.naturalWidth>0)drawImg.onload();
 }
 
 
 function coverRedraw(canvas,ctx,w,h){
-  if(!coverDrawState.strokeSnapshot||coverDrawState.points.length<2)return;
-  const img=new Image();
-  img.onload=()=>{
+  if(coverDrawState.points.length<2)return;
+  // Restore previous drawing strokes then add new stroke
+  if(coverDrawState.strokeSnapshot){
+    const img=new Image();
+    img.onload=()=>{
+      ctx.clearRect(0,0,w,h);
+      ctx.drawImage(img,0,0);
+      drawFullPath(ctx,coverDrawState.tool,coverDrawState.points,
+        document.getElementById('cover-draw-color').value,
+        parseInt(document.getElementById('cover-draw-size').value)||5);
+    };
+    img.src=coverDrawState.strokeSnapshot;
+  }else{
     ctx.clearRect(0,0,w,h);
-    ctx.drawImage(img,0,0);
     drawFullPath(ctx,coverDrawState.tool,coverDrawState.points,
       document.getElementById('cover-draw-color').value,
       parseInt(document.getElementById('cover-draw-size').value)||5);
-  };
-  img.src=coverDrawState.strokeSnapshot;
+  }
 }
 
 function setupCoverDrawEvents(canvas,ctx){
@@ -1776,24 +1781,25 @@ function initCropBox(){
   const cropImg=document.getElementById('crop-img');
   const cropBox=document.getElementById('crop-box');
   cropImg.src=rawCoverSrc;
-  if(cropHideListener){document.removeEventListener('click',cropHideListener);cropHideListener=null;}
-  cropActive=false;cropImg.onclick=null;
-  cropImg.onload=()=>{
-    cropBox.style.display='none';
-    setupCropDrag(container);
-    cropImg.onclick=()=>{
-      if(!cropActive){
-        const cw=container.offsetWidth;const ch=cropImg.offsetHeight||200;
-        cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
-      }
-      cropActive=true;
-      cropBox.style.display='block';
-      updateCropBox();
-      // Show shield - clicking anywhere outside crop-box triggers hideCropBox()
-      // Shield has lower z-index than crop-box (400 vs 2+modal z-index)
-      const shield=document.getElementById('crop-shield');
-      if(shield)shield.style.display='block';
-    };
+  cropActive=false;
+  if(cropImg.complete&&cropImg.naturalWidth>0){
+    setupCropBox(container,cropImg,cropBox);
+  }else{
+    cropImg.onload=()=>setupCropBox(container,cropImg,cropBox);
+  }
+}
+
+function setupCropBox(container,cropImg,cropBox){
+  cropBox.style.display='none';
+  setupCropDrag(container);
+  cropImg.onclick=()=>{
+    if(cropActive){
+      cropBox.style.display='none';cropActive=false;
+    }else{
+      const cw=container.offsetWidth;const ch=cropImg.offsetHeight||200;
+      cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
+      cropActive=true;cropBox.style.display='block';updateCropBox();
+    }
   };
 }
 
@@ -1810,9 +1816,7 @@ function updateCropBox(){
 
 function hideCropBox(){
   const box=document.getElementById('crop-box');
-  const shield=document.getElementById('crop-shield');
   if(box)box.style.display='none';
-  if(shield)shield.style.display='none';
   cropActive=false;
 }
 
@@ -1845,7 +1849,6 @@ function setCropAspect(aw,ah){
   }
   document.getElementById('crop-box').style.display='block';
   cropActive=true;
-  const _sh=document.getElementById('crop-shield');if(_sh)_sh.style.display='block';
   updateCropBox();
 }
 
@@ -1895,9 +1898,19 @@ function setupCropDrag(container){
 }
 
 function applyCover(){
-  const shield=document.getElementById('crop-shield');
-  if(shield)shield.style.display='none';
   cropActive=false;
+  // If using draw overlay, merge img+canvas first
+  const drawImg=document.getElementById('cover-draw-img');
+  const drawCanvas=document.getElementById('cover-draw-canvas');
+  if(drawImg&&drawImg.src&&drawCanvas&&drawCanvas.width>0){
+    const merge=document.createElement('canvas');
+    merge.width=drawCanvas.width;merge.height=drawCanvas.height;
+    const mctx=merge.getContext('2d');
+    mctx.drawImage(drawImg,0,0,merge.width,merge.height);
+    mctx.drawImage(drawCanvas,0,0);
+    coverDataUrl=merge.toDataURL('image/jpeg',0.85);
+    CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');return;
+  }
   const canvas=document.getElementById('cover-draw-canvas');
   if(!canvas||!canvas.width){showToast('請先選取照片');return;}
   // Add text overlay if any
@@ -1986,8 +1999,6 @@ function applyAnnoFilter(section,filter){
 
 function clearCover(){
   CR.cover='';coverDataUrl='';rawCoverSrc='';activeFilter='none';
-  const shield=document.getElementById('crop-shield');
-  if(shield)shield.style.display='none';
   cropActive=false;
   document.getElementById('cover-file').value='';
   document.getElementById('cover-url').value='';
