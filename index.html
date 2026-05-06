@@ -1655,51 +1655,61 @@ function undoCoverDraw(){
 let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
 
 function initCoverDraw(){
-  const previewImg=document.getElementById('cover-preview-img');
+  if(!rawCoverSrc)return;
   const canvas=document.getElementById('cover-draw-canvas');
-  coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
-  const modal=document.querySelector('#cover-modal .modal');
-  const w=Math.min(modal?modal.clientWidth-40:340, previewImg.naturalWidth||999);
-  const h=previewImg.naturalWidth>0?Math.round(w*previewImg.naturalHeight/previewImg.naturalWidth):Math.round(w*0.75);
-  // Reset canvas size (clears automatically)
-  canvas.width=w;
-  canvas.height=h;
-  canvas.style.width='100%';
-  canvas.style.height='auto';
-  canvas.style.display='block';
-  // Draw image into canvas
-  const ctx=canvas.getContext('2d');
-  ctx.drawImage(previewImg,0,0,w,h);
-  coverDrawState.strokeSnapshot=canvas.toDataURL();
-  // Setup events directly (no clone)
-  const getPos=(clientX,clientY)=>{
-    const r=canvas.getBoundingClientRect();
-    return{x:(clientX-r.left)*w/r.width,y:(clientY-r.top)*h/r.height};
+  if(!canvas)return;
+  // Use rawCoverSrc directly - guaranteed to have the data
+  const img=new Image();
+  img.onload=()=>{
+    const modal=document.querySelector('#cover-modal .modal');
+    const w=modal?Math.floor(modal.clientWidth)-40:340;
+    const h=Math.round(w*img.naturalHeight/img.naturalWidth);
+    if(!w||!h)return;
+    canvas.width=w;
+    canvas.height=h;
+    canvas.style.cssText='display:block;width:100%;touch-action:none;cursor:crosshair;border-radius:10px';
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0,w,h);
+    coverDrawState.points=[];
+    coverDrawState.strokeSnapshot=canvas.toDataURL();
+    // Bind events - inline to avoid stale references
+    canvas.onmousedown=e=>{
+      const r=canvas.getBoundingClientRect();
+      coverDrawState.drawing=true;coverDrawState.points=[];
+      coverDrawState.points.push({x:(e.clientX-r.left)*w/r.width,y:(e.clientY-r.top)*h/r.height});
+      coverDrawState.strokeSnapshot=canvas.toDataURL();
+    };
+    canvas.onmousemove=e=>{
+      if(!coverDrawState.drawing)return;
+      const r=canvas.getBoundingClientRect();
+      coverDrawState.points.push({x:(e.clientX-r.left)*w/r.width,y:(e.clientY-r.top)*h/r.height});
+      coverRedraw(canvas,ctx,w,h);
+    };
+    canvas.onmouseup=canvas.onmouseleave=()=>{if(coverDrawState.drawing){coverDrawState.drawing=false;saveCoverDrawHistory();}};
+    canvas.ontouchstart=e=>{
+      e.preventDefault();
+      const r=canvas.getBoundingClientRect();const t=e.touches[0];
+      coverDrawState.drawing=true;coverDrawState.points=[];
+      coverDrawState.points.push({x:(t.clientX-r.left)*w/r.width,y:(t.clientY-r.top)*h/r.height});
+      coverDrawState.strokeSnapshot=canvas.toDataURL();
+    };
+    canvas.ontouchmove=e=>{
+      e.preventDefault();if(!coverDrawState.drawing)return;
+      const r=canvas.getBoundingClientRect();const t=e.touches[0];
+      coverDrawState.points.push({x:(t.clientX-r.left)*w/r.width,y:(t.clientY-r.top)*h/r.height});
+      coverRedraw(canvas,ctx,w,h);
+    };
+    canvas.ontouchend=()=>{if(coverDrawState.drawing){coverDrawState.drawing=false;saveCoverDrawHistory();}};
   };
-  // Remove old listeners by cloning
-  const newC=canvas.cloneNode(false);
-  newC.width=canvas.width;newC.height=canvas.height;
-  newC.style.cssText=canvas.style.cssText;
-  canvas.parentNode.replaceChild(newC,canvas);
-  newC.id='cover-draw-canvas';
-  // Draw image onto new canvas
-  const ctx2=newC.getContext('2d');
-  ctx2.drawImage(previewImg,0,0,w,h);
-  coverDrawState.strokeSnapshot=newC.toDataURL();
-  newC.addEventListener('mousedown',e=>{coverDrawState.drawing=true;coverDrawState.points=[];const r=newC.getBoundingClientRect();const p={x:(e.clientX-r.left)*w/r.width,y:(e.clientY-r.top)*h/r.height};coverDrawState.points.push(p);coverDrawState.strokeSnapshot=newC.toDataURL();});
-  newC.addEventListener('mousemove',e=>{if(!coverDrawState.drawing)return;const r=newC.getBoundingClientRect();const p={x:(e.clientX-r.left)*w/r.width,y:(e.clientY-r.top)*h/r.height};coverDrawState.points.push(p);coverRedraw(newC,ctx2);});
-  newC.addEventListener('mouseup',()=>{coverDrawState.drawing=false;saveCoverDrawHistory();});
-  newC.addEventListener('mouseleave',()=>coverDrawState.drawing=false);
-  newC.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const r=newC.getBoundingClientRect();coverDrawState.drawing=true;coverDrawState.points=[];const p={x:(t.clientX-r.left)*w/r.width,y:(t.clientY-r.top)*h/r.height};coverDrawState.points.push(p);coverDrawState.strokeSnapshot=newC.toDataURL();},{passive:false});
-  newC.addEventListener('touchmove',e=>{e.preventDefault();if(!coverDrawState.drawing)return;const t=e.touches[0];const r=newC.getBoundingClientRect();const p={x:(t.clientX-r.left)*w/r.width,y:(t.clientY-r.top)*h/r.height};coverDrawState.points.push(p);coverRedraw(newC,ctx2);},{passive:false});
-  newC.addEventListener('touchend',()=>{coverDrawState.drawing=false;saveCoverDrawHistory();});
+  img.src=rawCoverSrc;
 }
 
-function coverRedraw(canvas,ctx){
+
+function coverRedraw(canvas,ctx,w,h){
   if(!coverDrawState.strokeSnapshot||coverDrawState.points.length<2)return;
   const img=new Image();
   img.onload=()=>{
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0,0,w,h);
     ctx.drawImage(img,0,0);
     drawFullPath(ctx,coverDrawState.tool,coverDrawState.points,
       document.getElementById('cover-draw-color').value,
