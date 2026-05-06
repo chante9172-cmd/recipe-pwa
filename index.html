@@ -1558,13 +1558,18 @@ function showCoverPreview(src){
   const wrap=document.getElementById('cover-preview-wrap');
   const img=document.getElementById('cover-preview-img');
   wrap.style.display='block';
-  img.src=src;
+  // Set onload BEFORE src to avoid missing cached image
   img.onload=()=>{
     document.getElementById('cover-edit-tools').style.display='block';
     document.getElementById('cover-apply-btn').style.display='';
     initCropBox();
-    initCoverDraw(src);
+    initCoverDraw();
   };
+  img.src=src;
+  // If already loaded (cached), fire manually
+  if(img.complete&&img.naturalWidth>0){
+    img.onload();
+  }
 }
 
 function loadCoverUrl(){
@@ -1644,8 +1649,7 @@ function undoCoverDraw(){
 }
 let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
 
-function initCoverDraw(src){
-  // Use the already-loaded cover-preview-img instead of loading again
+function initCoverDraw(){
   const previewImg=document.getElementById('cover-preview-img');
   const canvas=document.getElementById('cover-draw-canvas');
   coverDrawState.points=[];coverDrawState.strokeSnapshot=null;
