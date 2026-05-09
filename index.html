@@ -568,6 +568,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <div id="cover-draw-container" style="position:relative;width:100%;border-radius:10px;overflow:hidden;line-height:0">
             <img id="cover-draw-img" style="display:block;width:100%;border-radius:10px">
             <canvas id="cover-draw-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;border-radius:10px"></canvas>
+            <div id="cover-text-overlay" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;cursor:move;user-select:none;padding:4px 8px;border:2px dashed rgba(255,255,255,0.7);border-radius:6px;white-space:nowrap;touch-action:none"></div>
           </div>
           <div style="margin-top:8px">
             <div class="draw-toolbar" style="flex-wrap:wrap">
@@ -585,10 +586,16 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
             </div>
           </div>
         </div>
-          <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✍️ 加上文字</div>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="cover-text-input" placeholder="輸入文字…" style="flex:1">
-            <input type="color" id="cover-text-color" value="#ffffff" style="width:40px;padding:2px;height:42px">
+          <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✍️ 加上文字（可拖曳移動位置）</div>
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <input type="text" id="cover-text-input" placeholder="輸入文字…" style="flex:1" oninput="refreshCoverTextOverlay()">
+            <input type="color" id="cover-text-color" value="#ffffff" style="width:40px;padding:2px;height:42px" onchange="refreshCoverTextOverlay()">
+            <select id="cover-text-size" onchange="refreshCoverTextOverlay()" style="width:70px;border-radius:8px;border:1px solid var(--border);padding:4px">
+              <option value="16">小</option>
+              <option value="24" selected>中</option>
+              <option value="36">大</option>
+              <option value="48">特大</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1651,55 +1658,76 @@ function undoCoverDraw(){
   const img=new Image();img.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0);};img.src=prev;
 }
 let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
+// coverTextPos declared above
+let coverTextDragging=false;let coverTextDragStart=null;
 
 function initCoverDraw(){
   if(!rawCoverSrc)return;
   const drawImg=document.getElementById('cover-draw-img');
   const canvas=document.getElementById('cover-draw-canvas');
   if(!drawImg||!canvas)return;
-  // Show image via IMG element (reliable cross-browser)
   drawImg.onload=()=>{
-    // Size canvas to match displayed image pixels
     const w=drawImg.offsetWidth||drawImg.parentElement.offsetWidth||340;
-    const h=drawImg.offsetHeight||Math.round(w*drawImg.naturalHeight/drawImg.naturalWidth)||200;
+    const h=Math.round(w*drawImg.naturalHeight/drawImg.naturalWidth)||200;
     canvas.width=w;
     canvas.height=h;
     canvas.style.touchAction='none';
     canvas.style.cursor='crosshair';
     const ctx=canvas.getContext('2d');
-    ctx.clearRect(0,0,w,h);
+    // Draw existing image INTO canvas as base layer so eraser works on it
+    ctx.drawImage(drawImg,0,0,w,h);
     coverDrawState.points=[];
-    coverDrawState.strokeSnapshot=''; // empty = transparent canvas
+    coverDrawState.strokeSnapshot=canvas.toDataURL(); // base = image
     coverDrawState.points=[];
     coverDrawState.strokeSnapshot=canvas.toDataURL();
     // Bind events - inline to avoid stale references
+    const getPos=(clientX,clientY)=>{const r=canvas.getBoundingClientRect();return{x:(clientX-r.left)*w/r.width,y:(clientY-r.top)*h/r.height};};
     canvas.onmousedown=e=>{
-      const r=canvas.getBoundingClientRect();
-      coverDrawState.drawing=true;coverDrawState.points=[];
-      coverDrawState.points.push({x:(e.clientX-r.left)*w/r.width,y:(e.clientY-r.top)*h/r.height});
-      coverDrawState.strokeSnapshot=canvas.toDataURL();
+      const p=getPos(e.clientX,e.clientY);
+      if(isTouchOnText(p.x,p.y,canvas)){
+        coverTextDragging=true;coverTextDragStart={mx:p.x,my:p.y,tx:coverTextPos.x,ty:coverTextPos.y};
+      }else{
+        coverDrawState.drawing=true;coverDrawState.points=[p];
+        coverDrawState.strokeSnapshot=canvas.toDataURL();
+      }
     };
     canvas.onmousemove=e=>{
-      if(!coverDrawState.drawing)return;
-      const r=canvas.getBoundingClientRect();
-      coverDrawState.points.push({x:(e.clientX-r.left)*w/r.width,y:(e.clientY-r.top)*h/r.height});
-      coverRedraw(canvas,ctx,w,h);
+      const p=getPos(e.clientX,e.clientY);
+      if(coverTextDragging){
+        coverTextPos.x=Math.max(0.05,Math.min(0.95,coverTextDragStart.tx+(p.x-coverTextDragStart.mx)/w));
+        coverTextPos.y=Math.max(0.05,Math.min(0.95,coverTextDragStart.ty+(p.y-coverTextDragStart.my)/h));
+        refreshCoverText();
+      }else if(coverDrawState.drawing){
+        coverDrawState.points.push(p);coverRedraw(canvas,ctx,w,h);
+      }
     };
-    canvas.onmouseup=canvas.onmouseleave=()=>{if(coverDrawState.drawing){coverDrawState.drawing=false;saveCoverDrawHistory();}};
+    canvas.onmouseup=canvas.onmouseleave=()=>{
+      if(coverTextDragging){coverTextDragging=false;coverDrawState.strokeSnapshot=canvas.toDataURL();}
+      if(coverDrawState.drawing){coverDrawState.drawing=false;saveCoverDrawHistory();}
+    };
     canvas.ontouchstart=e=>{
-      e.preventDefault();
-      const r=canvas.getBoundingClientRect();const t=e.touches[0];
-      coverDrawState.drawing=true;coverDrawState.points=[];
-      coverDrawState.points.push({x:(t.clientX-r.left)*w/r.width,y:(t.clientY-r.top)*h/r.height});
-      coverDrawState.strokeSnapshot=canvas.toDataURL();
+      e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);
+      if(isTouchOnText(p.x,p.y,canvas)){
+        coverTextDragging=true;coverTextDragStart={mx:p.x,my:p.y,tx:coverTextPos.x,ty:coverTextPos.y};
+      }else{
+        coverDrawState.drawing=true;coverDrawState.points=[p];
+        coverDrawState.strokeSnapshot=canvas.toDataURL();
+      }
     };
     canvas.ontouchmove=e=>{
-      e.preventDefault();if(!coverDrawState.drawing)return;
-      const r=canvas.getBoundingClientRect();const t=e.touches[0];
-      coverDrawState.points.push({x:(t.clientX-r.left)*w/r.width,y:(t.clientY-r.top)*h/r.height});
-      coverRedraw(canvas,ctx,w,h);
+      e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);
+      if(coverTextDragging){
+        coverTextPos.x=Math.max(0.05,Math.min(0.95,coverTextDragStart.tx+(p.x-coverTextDragStart.mx)/w));
+        coverTextPos.y=Math.max(0.05,Math.min(0.95,coverTextDragStart.ty+(p.y-coverTextDragStart.my)/h));
+        refreshCoverText();
+      }else if(coverDrawState.drawing){
+        coverDrawState.points.push(p);coverRedraw(canvas,ctx,w,h);
+      }
     };
-    canvas.ontouchend=()=>{if(coverDrawState.drawing){coverDrawState.drawing=false;saveCoverDrawHistory();}};
+    canvas.ontouchend=()=>{
+      if(coverTextDragging){coverTextDragging=false;coverDrawState.strokeSnapshot=canvas.toDataURL();}
+      if(coverDrawState.drawing){coverDrawState.drawing=false;saveCoverDrawHistory();}
+    };
   };
   drawImg.src=rawCoverSrc;
   // If already loaded, fire manually
@@ -1709,25 +1737,58 @@ function initCoverDraw(){
 
 function coverRedraw(canvas,ctx,w,h){
   if(coverDrawState.points.length<2)return;
-  // Restore previous drawing strokes then add new stroke
   if(coverDrawState.strokeSnapshot){
     const img=new Image();
     img.onload=()=>{
-      ctx.clearRect(0,0,w,h);
-      ctx.drawImage(img,0,0);
+      ctx.clearRect(0,0,w,h);ctx.drawImage(img,0,0);
       drawFullPath(ctx,coverDrawState.tool,coverDrawState.points,
         document.getElementById('cover-draw-color').value,
         parseInt(document.getElementById('cover-draw-size').value)||5);
+      drawCoverText(ctx,w,h);
     };
     img.src=coverDrawState.strokeSnapshot;
   }else{
-    ctx.clearRect(0,0,w,h);
     drawFullPath(ctx,coverDrawState.tool,coverDrawState.points,
       document.getElementById('cover-draw-color').value,
       parseInt(document.getElementById('cover-draw-size').value)||5);
+    drawCoverText(ctx,w,h);
   }
 }
 
+function drawCoverText(ctx,w,h){
+  const txt=document.getElementById('cover-text-input')?.value.trim();
+  if(!txt)return;
+  const size=parseInt(document.getElementById('cover-text-size')?.value)||24;
+  const scale=w/(document.getElementById('cover-draw-container')?.offsetWidth||w);
+  const fs=Math.round(size*scale);
+  ctx.font=`bold ${fs}px sans-serif`;
+  ctx.fillStyle=document.getElementById('cover-text-color')?.value||'#fff';
+  ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=6;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(txt,w*coverTextPos.x,h*coverTextPos.y);
+  ctx.shadowBlur=0;ctx.textBaseline='alphabetic';
+}
+
+function refreshCoverText(){
+  const canvas=document.getElementById('cover-draw-canvas');
+  if(!canvas||!canvas.width||!coverDrawState.strokeSnapshot)return;
+  const ctx=canvas.getContext('2d');
+  const w=canvas.width,h=canvas.height;
+  // Restore drawing layer
+  const img=new Image();
+  img.onload=()=>{ctx.clearRect(0,0,w,h);ctx.drawImage(img,0,0);drawCoverText(ctx,w,h);};
+  img.src=coverDrawState.strokeSnapshot;
+}
+
+function isTouchOnText(tx,ty,canvas){
+  const txt=document.getElementById('cover-text-input')?.value.trim();
+  if(!txt)return false;
+  const w=canvas.width,h=canvas.height;
+  const fs=Math.max(16,w/12);
+  const px=w*coverTextPos.x,py=h*coverTextPos.y;
+  const hitW=Math.min(w*0.8,txt.length*fs*0.6+40),hitH=fs+20;
+  return tx>=px-hitW/2&&tx<=px+hitW/2&&ty>=py-hitH/2&&ty<=py+hitH/2;
+}
 function setupCoverDrawEvents(canvas,ctx){
   // Don't clone - just add listeners directly
   const c=canvas;
@@ -1886,45 +1947,40 @@ function setupCropDrag(container){
     const p=getXY(e);
     startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};
   };
-  // Attach move/end to container (wider target)
+  // Mouse: attach to container
   container.onmousemove=doMove;
   container.onmouseup=doEnd;
-  container.ontouchmove=doMove;
-  container.ontouchend=doEnd;
+  // Touch: must use document so touchmove fires even when finger moves outside box
+  const touchMove=(e)=>{if(cropState.dragging){e.preventDefault();doMove(e);}};
+  const touchEnd=()=>{if(cropState.dragging)doEnd();};
   // Attach start to box and handles
   box.onmousedown=(e)=>{if(!e.target.classList.contains('crop-handle'))doStart(e,null);};
-  box.ontouchstart=(e)=>{if(!e.target.classList.contains('crop-handle'))doStart(e,null);};
+  box.ontouchstart=(e)=>{
+    if(e.target.classList.contains('crop-handle'))return;
+    doStart(e,null);
+    document.addEventListener('touchmove',touchMove,{passive:false});
+    document.addEventListener('touchend',touchEnd,{once:true});
+  };
   ['nw','ne','sw','se'].forEach(dir=>{
     const h=document.getElementById('ch-'+dir);
     if(!h)return;
     h.onmousedown=(e)=>doStart(e,dir);
-    h.ontouchstart=(e)=>doStart(e,dir);
+    h.ontouchstart=(e)=>{
+      doStart(e,dir);
+      document.addEventListener('touchmove',touchMove,{passive:false});
+      document.addEventListener('touchend',touchEnd,{once:true});
+    };
   });
 }
 
 function applyCover(){
   cropActive=false;
-  // If using draw overlay, merge img+canvas first
-  const drawImg=document.getElementById('cover-draw-img');
+  // Canvas already has image baked in, just use it directly
   const drawCanvas=document.getElementById('cover-draw-canvas');
-  if(drawImg&&drawImg.src&&drawCanvas&&drawCanvas.width>0){
-    const merge=document.createElement('canvas');
-    merge.width=drawCanvas.width;merge.height=drawCanvas.height;
-    const mctx=merge.getContext('2d');
-    mctx.drawImage(drawImg,0,0,merge.width,merge.height);
-    mctx.drawImage(drawCanvas,0,0);
-    // Add text overlay
-    const txt=document.getElementById('cover-text-input').value.trim();
-    if(txt){
-      const fs=Math.max(20,merge.width/15);
-      mctx.font=`bold ${fs}px sans-serif`;
-      mctx.fillStyle=document.getElementById('cover-text-color').value;
-      mctx.shadowColor='rgba(0,0,0,0.6)';mctx.shadowBlur=8;
-      mctx.textAlign='center';
-      mctx.fillText(txt,merge.width/2,merge.height-fs);
-      mctx.shadowBlur=0;
-    }
-    coverDataUrl=merge.toDataURL('image/jpeg',0.85);
+  if(drawCanvas&&drawCanvas.width>0){
+    const mctx=drawCanvas.getContext('2d');
+    drawCoverText(mctx,drawCanvas.width,drawCanvas.height);
+    coverDataUrl=drawCanvas.toDataURL('image/jpeg',0.85);
     CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');return;
   }
   const canvas=document.getElementById('cover-draw-canvas');
