@@ -1855,7 +1855,10 @@ function setCropAspect(aw,ah){
 }
 
 function setupCropDrag(container){
-  const newBox=document.getElementById('crop-box');
+  // Clone to remove old listeners, keep same id
+  const oldBox=document.getElementById('crop-box');
+  const newBox=oldBox.cloneNode(true);
+  oldBox.parentNode.replaceChild(newBox,oldBox);
   const getXY=(e)=>{const r=container.getBoundingClientRect();const cl=e.touches?e.touches[0]:e;return{x:cl.clientX-r.left,y:cl.clientY-r.top};};
   let startState={};let resizeDir=null;
   // Single move handler for both drag and resize
@@ -1888,10 +1891,17 @@ function setupCropDrag(container){
   },{passive:false});
   // Resize handles
   ['nw','ne','sw','se'].forEach(dir=>{
-    const handle=newBox.querySelector('[id="ch-'+dir+'"]');if(!handle)return;
+    const handle=newBox.querySelector('#ch-'+dir);if(!handle)return;
     handle.addEventListener('mousedown',(e)=>{e.preventDefault();e.stopPropagation();resizeDir=dir;cropState.dragging=true;const p=getXY(e);startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};});
     handle.addEventListener('touchstart',(e)=>{e.preventDefault();e.stopPropagation();resizeDir=dir;cropState.dragging=true;const p=getXY(e);startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};},{passive:false});
   });
+  // Remove old doc listeners then add new ones
+  if(window._cropMoveListener)document.removeEventListener('mousemove',window._cropMoveListener);
+  if(window._cropEndListener){document.removeEventListener('mouseup',window._cropEndListener);document.removeEventListener('touchend',window._cropEndListener);}
+  if(window._cropTouchMove)document.removeEventListener('touchmove',window._cropTouchMove);
+  window._cropMoveListener=onMove;
+  window._cropEndListener=onEnd;
+  window._cropTouchMove=onMove;
   document.addEventListener('mousemove',onMove);
   document.addEventListener('mouseup',onEnd);
   document.addEventListener('touchmove',onMove,{passive:false});
