@@ -536,11 +536,12 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
               <div class="crop-handle" id="ch-se" style="position:absolute;bottom:-6px;right:-6px;cursor:se-resize"></div>
             </div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
             <button class="btn btn-ghost btn-sm" onclick="setCropAspect(1,1)">1:1</button>
             <button class="btn btn-ghost btn-sm" onclick="setCropAspect(16,9)">16:9</button>
             <button class="btn btn-ghost btn-sm" onclick="setCropAspect(4,3)">4:3</button>
             <button class="btn btn-ghost btn-sm" onclick="setCropAspect(0,0)">自由</button>
+            <button class="btn btn-ghost btn-sm" onclick="hideCropBox()" style="margin-left:auto">✕ 取消裁切</button>
           </div>
         </div>
         <!-- Filters -->
@@ -1792,16 +1793,14 @@ function initCropBox(){
 function setupCropBox(container,cropImg,cropBox){
   cropBox.style.display='none';
   setupCropDrag(container);
-  // Use getElementById to always get current box (setupCropDrag clones it)
   cropImg.onclick=()=>{
-    const box=document.getElementById('crop-box');
-    if(cropActive){
-      box.style.display='none';cropActive=false;
-    }else{
-      const cw=container.offsetWidth;const ch=cropImg.offsetHeight||200;
+    const cw=container.offsetWidth;const ch=cropImg.offsetHeight||200;
+    if(!cropActive){
       cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
-      cropActive=true;box.style.display='block';updateCropBox();
     }
+    cropActive=true;
+    document.getElementById('crop-box').style.display='block';
+    updateCropBox();
   };
 }
 
