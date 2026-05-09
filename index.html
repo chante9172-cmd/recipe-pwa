@@ -1792,13 +1792,15 @@ function initCropBox(){
 function setupCropBox(container,cropImg,cropBox){
   cropBox.style.display='none';
   setupCropDrag(container);
+  // Use getElementById to always get current box (setupCropDrag clones it)
   cropImg.onclick=()=>{
+    const box=document.getElementById('crop-box');
     if(cropActive){
-      cropBox.style.display='none';cropActive=false;
+      box.style.display='none';cropActive=false;
     }else{
       const cw=container.offsetWidth;const ch=cropImg.offsetHeight||200;
       cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
-      cropActive=true;cropBox.style.display='block';updateCropBox();
+      cropActive=true;box.style.display='block';updateCropBox();
     }
   };
 }
