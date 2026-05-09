@@ -1855,8 +1855,7 @@ function setCropAspect(aw,ah){
 }
 
 function setupCropDrag(container){
-  const box=document.getElementById('crop-box');
-  const newBox=box.cloneNode(true);box.parentNode.replaceChild(newBox,box);
+  const newBox=document.getElementById('crop-box');
   const getXY=(e)=>{const r=container.getBoundingClientRect();const cl=e.touches?e.touches[0]:e;return{x:cl.clientX-r.left,y:cl.clientY-r.top};};
   let startState={};let resizeDir=null;
   // Single move handler for both drag and resize
@@ -1910,6 +1909,17 @@ function applyCover(){
     const mctx=merge.getContext('2d');
     mctx.drawImage(drawImg,0,0,merge.width,merge.height);
     mctx.drawImage(drawCanvas,0,0);
+    // Add text overlay
+    const txt=document.getElementById('cover-text-input').value.trim();
+    if(txt){
+      const fs=Math.max(20,merge.width/15);
+      mctx.font=`bold ${fs}px sans-serif`;
+      mctx.fillStyle=document.getElementById('cover-text-color').value;
+      mctx.shadowColor='rgba(0,0,0,0.6)';mctx.shadowBlur=8;
+      mctx.textAlign='center';
+      mctx.fillText(txt,merge.width/2,merge.height-fs);
+      mctx.shadowBlur=0;
+    }
     coverDataUrl=merge.toDataURL('image/jpeg',0.85);
     CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');return;
   }
