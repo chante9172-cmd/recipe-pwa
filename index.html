@@ -568,7 +568,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <div id="cover-draw-container" style="position:relative;width:100%;border-radius:10px;overflow:hidden;line-height:0">
             <img id="cover-draw-img" style="display:block;width:100%;border-radius:10px">
             <canvas id="cover-draw-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;border-radius:10px"></canvas>
-            <div id="cover-text-overlay" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;cursor:move;user-select:none;padding:4px 8px;border:2px dashed rgba(255,255,255,0.7);border-radius:6px;white-space:nowrap;touch-action:none"></div>
+            <div id="cover-text-overlay" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;pointer-events:none;user-select:none;padding:4px 8px;border:2px dashed rgba(255,255,255,0.7);border-radius:6px;white-space:nowrap"></div>
           </div>
           <div style="margin-top:8px">
             <div class="draw-toolbar" style="flex-wrap:wrap">
@@ -588,9 +588,9 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         </div>
           <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✍️ 加上文字（可拖曳移動位置）</div>
           <div style="display:flex;gap:8px;margin-bottom:6px">
-            <input type="text" id="cover-text-input" placeholder="輸入文字…" style="flex:1" oninput="refreshCoverTextOverlay()">
-            <input type="color" id="cover-text-color" value="#ffffff" style="width:40px;padding:2px;height:42px" onchange="refreshCoverTextOverlay()">
-            <select id="cover-text-size" onchange="refreshCoverTextOverlay()" style="width:70px;border-radius:8px;border:1px solid var(--border);padding:4px">
+            <input type="text" id="cover-text-input" placeholder="輸入文字…" style="flex:1" oninput="refreshCoverText()">
+            <input type="color" id="cover-text-color" value="#ffffff" style="width:40px;padding:2px;height:42px" onchange="refreshCoverText()">
+            <select id="cover-text-size" onchange="refreshCoverText()" style="width:70px;border-radius:8px;border:1px solid var(--border);padding:4px">
               <option value="16">小</option>
               <option value="24" selected>中</option>
               <option value="36">大</option>
@@ -1667,13 +1667,13 @@ function initCoverDraw(){
   const canvas=document.getElementById('cover-draw-canvas');
   if(!drawImg||!canvas)return;
   drawImg.onload=()=>{
-    const w=drawImg.offsetWidth||drawImg.parentElement.offsetWidth||340;
-    const h=Math.round(w*drawImg.naturalHeight/drawImg.naturalWidth)||200;
+    // Use modal width as reference - always available since modal is open
+    const modal=document.querySelector('#cover-modal .modal');
+    const w=modal?modal.clientWidth-40:340;
+    const h=drawImg.naturalWidth>0?Math.round(w*drawImg.naturalHeight/drawImg.naturalWidth):Math.round(w*0.75);
     canvas.width=w;
     canvas.height=h;
-    // Set explicit CSS size - must match pixel buffer for correct coordinates
     canvas.style.cssText='position:absolute;top:0;left:0;width:'+w+'px;height:'+h+'px;touch-action:none;cursor:crosshair';
-    // Set container explicit height so canvas is visible
     canvas.parentElement.style.height=h+'px';
     const ctx=canvas.getContext('2d');
     // Draw image as base layer so eraser works
@@ -1774,9 +1774,29 @@ function refreshCoverText(){
   if(!canvas||!canvas.width||!coverDrawState.strokeSnapshot)return;
   const ctx=canvas.getContext('2d');
   const w=canvas.width,h=canvas.height;
-  // Restore drawing layer
   const img=new Image();
-  img.onload=()=>{ctx.clearRect(0,0,w,h);ctx.drawImage(img,0,0);drawCoverText(ctx,w,h);};
+  img.onload=()=>{
+    ctx.clearRect(0,0,w,h);
+    ctx.drawImage(img,0,0);
+    drawCoverText(ctx,w,h);
+    // Update overlay div position for visual hint
+    const txt=document.getElementById('cover-text-input')?.value.trim();
+    const overlay=document.getElementById('cover-text-overlay');
+    if(overlay){
+      if(txt){
+        const color=document.getElementById('cover-text-color')?.value||'#fff';
+        const size=document.getElementById('cover-text-size')?.value||24;
+        overlay.style.display='block';
+        overlay.style.color=color;
+        overlay.style.fontSize=size+'px';
+        overlay.style.fontWeight='bold';
+        overlay.style.textShadow='0 0 6px rgba(0,0,0,0.7)';
+        overlay.textContent=txt;
+        overlay.style.left=(coverTextPos.x*100)+'%';
+        overlay.style.top=(coverTextPos.y*100)+'%';
+      }else{overlay.style.display='none';}
+    }
+  };
   img.src=coverDrawState.strokeSnapshot;
 }
 
@@ -1980,7 +2000,11 @@ function applyCover(){
   if(drawCanvas&&drawCanvas.width>0){
     const mctx=drawCanvas.getContext('2d');
     drawCoverText(mctx,drawCanvas.width,drawCanvas.height);
-    coverDataUrl=drawCanvas.toDataURL('image/jpeg',0.85);
+    try{
+      coverDataUrl=drawCanvas.toDataURL('image/jpeg',0.85);
+    }catch(e){
+      showToast('無法儲存（跨網域圖片限制），請改用從相簿上傳');return;
+    }
     CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');return;
   }
   const canvas=document.getElementById('cover-draw-canvas');
