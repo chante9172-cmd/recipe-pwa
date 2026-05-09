@@ -1671,17 +1671,17 @@ function initCoverDraw(){
     const h=Math.round(w*drawImg.naturalHeight/drawImg.naturalWidth)||200;
     canvas.width=w;
     canvas.height=h;
-    canvas.style.touchAction='none';
-    canvas.style.cursor='crosshair';
+    // Set explicit CSS size - must match pixel buffer for correct coordinates
+    canvas.style.cssText='position:absolute;top:0;left:0;width:'+w+'px;height:'+h+'px;touch-action:none;cursor:crosshair';
+    // Set container explicit height so canvas is visible
+    canvas.parentElement.style.height=h+'px';
     const ctx=canvas.getContext('2d');
-    // Draw existing image INTO canvas as base layer so eraser works on it
+    // Draw image as base layer so eraser works
     ctx.drawImage(drawImg,0,0,w,h);
-    coverDrawState.points=[];
-    coverDrawState.strokeSnapshot=canvas.toDataURL(); // base = image
     coverDrawState.points=[];
     coverDrawState.strokeSnapshot=canvas.toDataURL();
     // Bind events - inline to avoid stale references
-    const getPos=(clientX,clientY)=>{const r=canvas.getBoundingClientRect();return{x:(clientX-r.left)*w/r.width,y:(clientY-r.top)*h/r.height};};
+    const getPos=(clientX,clientY)=>{const r=canvas.getBoundingClientRect();return{x:clientX-r.left,y:clientY-r.top};};
     canvas.onmousedown=e=>{
       const p=getPos(e.clientX,e.clientY);
       if(isTouchOnText(p.x,p.y,canvas)){
