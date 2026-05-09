@@ -1855,29 +1855,20 @@ function setCropAspect(aw,ah){
 }
 
 function setupCropDrag(container){
-  // Use pointer events on container - no document listeners needed
-  // Remove old listeners by replacing container's handler
-  container.onpointermove=null;
-  container.onpointerup=null;
-  container.onpointercancel=null;
+  // Reset all handlers (replaces old ones automatically)
+  container.onmousemove=null;container.onmouseup=null;
+  container.ontouchmove=null;container.ontouchend=null;
+  const box=document.getElementById('crop-box');
+  let startState={};let resizeDir=null;
 
   const getXY=(e)=>{
     const r=container.getBoundingClientRect();
-    return{x:e.clientX-r.left,y:e.clientY-r.top};
+    const src=e.touches?e.touches[0]:e;
+    return{x:src.clientX-r.left,y:src.clientY-r.top};
   };
-  let startState={};let resizeDir=null;
-
-  const startDrag=(e,dir)=>{
-    e.preventDefault();e.stopPropagation();
-    resizeDir=dir;cropState.dragging=true;
-    const p=getXY(e);
-    startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};
-    container.setPointerCapture(e.pointerId);
-  };
-
-  container.onpointermove=(e)=>{
+  const doMove=(e)=>{
     if(!cropState.dragging)return;
-    e.preventDefault();
+    if(e.cancelable)e.preventDefault();
     const p=getXY(e);const dx=p.x-startState.x;const dy=p.y-startState.y;
     const min=30;let{cx,cy,cw,ch}=startState;
     if(!resizeDir){cx+=dx;cy+=dy;}
@@ -1888,18 +1879,27 @@ function setupCropDrag(container){
     if(resizeDir&&cropState.aspectW>0&&cropState.aspectH>0)ch=cw/cropState.aspectW*cropState.aspectH;
     cropState.x=cx;cropState.y=cy;cropState.w=cw;cropState.h=ch;updateCropBox();
   };
-  container.onpointerup=container.onpointercancel=()=>{
-    cropState.dragging=false;resizeDir=null;
+  const doEnd=()=>{cropState.dragging=false;resizeDir=null;};
+  const doStart=(e,dir)=>{
+    e.stopPropagation();
+    if(e.cancelable)e.preventDefault();
+    resizeDir=dir;cropState.dragging=true;
+    const p=getXY(e);
+    startState={x:p.x,y:p.y,cx:cropState.x,cy:cropState.y,cw:cropState.w,ch:cropState.h};
   };
-
-  const box=document.getElementById('crop-box');
-  box.onpointerdown=(e)=>{
-    if(e.target.classList.contains('crop-handle'))return;
-    startDrag(e,null);
-  };
+  // Attach move/end to container (wider target)
+  container.onmousemove=doMove;
+  container.onmouseup=doEnd;
+  container.ontouchmove=doMove;
+  container.ontouchend=doEnd;
+  // Attach start to box and handles
+  box.onmousedown=(e)=>{if(!e.target.classList.contains('crop-handle'))doStart(e,null);};
+  box.ontouchstart=(e)=>{if(!e.target.classList.contains('crop-handle'))doStart(e,null);};
   ['nw','ne','sw','se'].forEach(dir=>{
     const h=document.getElementById('ch-'+dir);
-    if(h)h.onpointerdown=(e)=>startDrag(e,dir);
+    if(!h)return;
+    h.onmousedown=(e)=>doStart(e,dir);
+    h.ontouchstart=(e)=>doStart(e,dir);
   });
 }
 
