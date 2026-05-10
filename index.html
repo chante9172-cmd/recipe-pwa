@@ -666,6 +666,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 <div class="toast" id="toast"></div>
 
 <script>
+
 const sb=supabase.createClient(
   'https://foipkuuuzytzntcjctdf.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvaXBrdXV1enl0em50Y2pjdGRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MTYwNzgsImV4cCI6MjA5MzI5MjA3OH0.82Y6XM6izErY5MvbUeYl-8MlzBnBWuz_NVs-pQZUTJU'
@@ -1642,11 +1643,7 @@ function undoAnno(section){
   img.src=prev;
 }
 
-// Cover draw undo
-const coverDrawHistory=[];
-let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
-// coverTextPos declared above
-let coverTextDragging=false;let coverTextDragStart=null;
+// (cover draw vars moved below)
 
 
 
@@ -1812,13 +1809,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadAuthScreen();
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});});
 });
-</script>
-</body>
-</html>
 // ── COVER DRAW (two-layer: img + transparent stroke canvas) ──
 let coverTextPos={x:0.5,y:0.5};
-let coverTextDragging=false,coverTextDragStart=null;
-let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
 let coverDrawHistory=[];
 
 function initCoverDraw(){
@@ -1956,7 +1948,6 @@ function undoCoverDraw(){
 }
 
 
-function saveCoverDrawHistory(){} // handled inline now
 
 
 function setCoverDrawTool(tool){
@@ -1981,7 +1972,6 @@ function getCoverDrawData(){
   if(!Array.from(data).some((v,i)=>i%4===3&&v>0))return'';
   return canvas.toDataURL('image/png');
 }
-let cropActive=false;
 function initCropBox(){
   const container=document.getElementById('crop-container');
   const cropImg=document.getElementById('crop-img');
@@ -2291,9 +2281,6 @@ function loadRecipeForEdit(recipe){
 }
 
 // ── EDIT ORDER ──
-let isEditOrder=false;
-let dragSrcIdx=null;
-let orderItems=[]; // [{type:'folder'|'recipe', id, el}]
 
 function toggleEditOrder(){
   isEditOrder=!isEditOrder;
@@ -2629,6 +2616,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadAuthScreen();
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});});
 });
+
 </script>
 </body>
 </html>
