@@ -564,11 +564,11 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <!-- Drawing directly on photo -->
         <div style="margin-bottom:10px">
           <div style="font-size:12px;font-weight:600;color:var(--tl);margin-bottom:6px">✏️ 直接在照片上畫</div>
-          <!-- IMG shows image, transparent canvas captures drawing on top -->
+          <!-- Layer stack: img (base) + transparent stroke canvas + draggable text label -->
           <div id="cover-draw-container" style="position:relative;width:100%;border-radius:10px;overflow:hidden;line-height:0">
             <img id="cover-draw-img" style="display:block;width:100%;border-radius:10px">
-            <canvas id="cover-draw-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;border-radius:10px"></canvas>
-            <div id="cover-text-overlay" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;pointer-events:none;user-select:none;padding:4px 8px;border:2px dashed rgba(255,255,255,0.7);border-radius:6px;white-space:nowrap"></div>
+            <canvas id="cover-draw-canvas" style="position:absolute;top:0;left:0;touch-action:none;cursor:crosshair;border-radius:10px"></canvas>
+            <div id="cover-text-overlay" style="position:absolute;display:none;cursor:move;user-select:none;padding:4px 10px;background:rgba(0,0,0,0.35);border:2px dashed rgba(255,255,255,0.8);border-radius:6px;white-space:nowrap;font-weight:bold;text-shadow:0 0 6px rgba(0,0,0,0.8)"></div>
           </div>
           <div style="margin-top:8px">
             <div class="draw-toolbar" style="flex-wrap:wrap">
@@ -1644,95 +1644,10 @@ function undoAnno(section){
 
 // Cover draw undo
 const coverDrawHistory=[];
-function saveCoverDrawHistory(){
-  const canvas=document.getElementById('cover-draw-canvas');if(!canvas)return;
-  coverDrawHistory.push(canvas.toDataURL());
-  if(coverDrawHistory.length>20)coverDrawHistory.shift();
-}
-function undoCoverDraw(){
-  const canvas=document.getElementById('cover-draw-canvas');if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  if(coverDrawHistory.length<2){ctx.clearRect(0,0,canvas.width,canvas.height);coverDrawHistory.length=0;return;}
-  coverDrawHistory.pop();
-  const prev=coverDrawHistory[coverDrawHistory.length-1];
-  const img=new Image();img.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0);};img.src=prev;
-}
 let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
 // coverTextPos declared above
 let coverTextDragging=false;let coverTextDragStart=null;
 
-function initCoverDraw(){
-  if(!rawCoverSrc)return;
-  const drawImg=document.getElementById('cover-draw-img');
-  const canvas=document.getElementById('cover-draw-canvas');
-  if(!drawImg||!canvas)return;
-  drawImg.onload=()=>{
-    // Use modal width as reference - always available since modal is open
-    const modal=document.querySelector('#cover-modal .modal');
-    const w=modal?modal.clientWidth-40:340;
-    const h=drawImg.naturalWidth>0?Math.round(w*drawImg.naturalHeight/drawImg.naturalWidth):Math.round(w*0.75);
-    canvas.width=w;
-    canvas.height=h;
-    canvas.style.cssText='position:absolute;top:0;left:0;width:'+w+'px;height:'+h+'px;touch-action:none;cursor:crosshair';
-    canvas.parentElement.style.height=h+'px';
-    const ctx=canvas.getContext('2d');
-    // Draw image as base layer so eraser works
-    ctx.drawImage(drawImg,0,0,w,h);
-    coverDrawState.points=[];
-    coverDrawState.strokeSnapshot=canvas.toDataURL();
-    // Bind events - inline to avoid stale references
-    const getPos=(clientX,clientY)=>{const r=canvas.getBoundingClientRect();return{x:clientX-r.left,y:clientY-r.top};};
-    canvas.onmousedown=e=>{
-      const p=getPos(e.clientX,e.clientY);
-      if(isTouchOnText(p.x,p.y,canvas)){
-        coverTextDragging=true;coverTextDragStart={mx:p.x,my:p.y,tx:coverTextPos.x,ty:coverTextPos.y};
-      }else{
-        coverDrawState.drawing=true;coverDrawState.points=[p];
-        coverDrawState.strokeSnapshot=canvas.toDataURL();
-      }
-    };
-    canvas.onmousemove=e=>{
-      const p=getPos(e.clientX,e.clientY);
-      if(coverTextDragging){
-        coverTextPos.x=Math.max(0.05,Math.min(0.95,coverTextDragStart.tx+(p.x-coverTextDragStart.mx)/w));
-        coverTextPos.y=Math.max(0.05,Math.min(0.95,coverTextDragStart.ty+(p.y-coverTextDragStart.my)/h));
-        refreshCoverText();
-      }else if(coverDrawState.drawing){
-        coverDrawState.points.push(p);coverRedraw(canvas,ctx,w,h);
-      }
-    };
-    canvas.onmouseup=canvas.onmouseleave=()=>{
-      if(coverTextDragging){coverTextDragging=false;coverDrawState.strokeSnapshot=canvas.toDataURL();}
-      if(coverDrawState.drawing){coverDrawState.drawing=false;saveCoverDrawHistory();}
-    };
-    canvas.ontouchstart=e=>{
-      e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);
-      if(isTouchOnText(p.x,p.y,canvas)){
-        coverTextDragging=true;coverTextDragStart={mx:p.x,my:p.y,tx:coverTextPos.x,ty:coverTextPos.y};
-      }else{
-        coverDrawState.drawing=true;coverDrawState.points=[p];
-        coverDrawState.strokeSnapshot=canvas.toDataURL();
-      }
-    };
-    canvas.ontouchmove=e=>{
-      e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);
-      if(coverTextDragging){
-        coverTextPos.x=Math.max(0.05,Math.min(0.95,coverTextDragStart.tx+(p.x-coverTextDragStart.mx)/w));
-        coverTextPos.y=Math.max(0.05,Math.min(0.95,coverTextDragStart.ty+(p.y-coverTextDragStart.my)/h));
-        refreshCoverText();
-      }else if(coverDrawState.drawing){
-        coverDrawState.points.push(p);coverRedraw(canvas,ctx,w,h);
-      }
-    };
-    canvas.ontouchend=()=>{
-      if(coverTextDragging){coverTextDragging=false;coverDrawState.strokeSnapshot=canvas.toDataURL();}
-      if(coverDrawState.drawing){coverDrawState.drawing=false;saveCoverDrawHistory();}
-    };
-  };
-  drawImg.src=rawCoverSrc;
-  // If already loaded, fire manually
-  if(drawImg.complete&&drawImg.naturalWidth>0)drawImg.onload();
-}
 
 
 function coverRedraw(canvas,ctx,w,h){
@@ -1769,36 +1684,6 @@ function drawCoverText(ctx,w,h){
   ctx.shadowBlur=0;ctx.textBaseline='alphabetic';
 }
 
-function refreshCoverText(){
-  const canvas=document.getElementById('cover-draw-canvas');
-  if(!canvas||!canvas.width||!coverDrawState.strokeSnapshot)return;
-  const ctx=canvas.getContext('2d');
-  const w=canvas.width,h=canvas.height;
-  const img=new Image();
-  img.onload=()=>{
-    ctx.clearRect(0,0,w,h);
-    ctx.drawImage(img,0,0);
-    drawCoverText(ctx,w,h);
-    // Update overlay div position for visual hint
-    const txt=document.getElementById('cover-text-input')?.value.trim();
-    const overlay=document.getElementById('cover-text-overlay');
-    if(overlay){
-      if(txt){
-        const color=document.getElementById('cover-text-color')?.value||'#fff';
-        const size=document.getElementById('cover-text-size')?.value||24;
-        overlay.style.display='block';
-        overlay.style.color=color;
-        overlay.style.fontSize=size+'px';
-        overlay.style.fontWeight='bold';
-        overlay.style.textShadow='0 0 6px rgba(0,0,0,0.7)';
-        overlay.textContent=txt;
-        overlay.style.left=(coverTextPos.x*100)+'%';
-        overlay.style.top=(coverTextPos.y*100)+'%';
-      }else{overlay.style.display='none';}
-    }
-  };
-  img.src=coverDrawState.strokeSnapshot;
-}
 
 function isTouchOnText(tx,ty,canvas){
   const txt=document.getElementById('cover-text-input')?.value.trim();
@@ -1834,6 +1719,245 @@ function redrawCoverStroke(ctx,canvas){
   };
   img.src=coverDrawState.strokeSnapshot;
 }
+
+
+
+let cropActive=false;
+
+
+
+
+
+
+function applyCover(){
+  cropActive=false;
+  const drawImg=document.getElementById('cover-draw-img');
+  const strokeCanvas=document.getElementById('cover-draw-canvas');
+  if(!rawCoverSrc){showToast('請先選取照片');return;}
+  const baseImg=new Image();
+  baseImg.onload=()=>{
+    // Step 1: determine crop region in natural image pixels
+    let sx=0,sy=0,sw=baseImg.naturalWidth,sh=baseImg.naturalHeight;
+    if(cropActive||coverUseCrop){
+      const cropImgEl=document.getElementById('crop-img');
+      const dispW=cropImgEl.offsetWidth||1,dispH=cropImgEl.offsetHeight||1;
+      const scaleX=baseImg.naturalWidth/dispW,scaleY=baseImg.naturalHeight/dispH;
+      sx=Math.round(cropState.x*scaleX);sy=Math.round(cropState.y*scaleY);
+      sw=Math.round(cropState.w*scaleX);sh=Math.round(cropState.h*scaleY);
+      sw=Math.min(sw,baseImg.naturalWidth-sx);sh=Math.min(sh,baseImg.naturalHeight-sy);
+    }
+    // Step 2: build output canvas
+    const out=document.createElement('canvas');
+    const maxW=800;const scale=Math.min(1,maxW/sw);
+    out.width=Math.round(sw*scale);out.height=Math.round(sh*scale);
+    const ctx=out.getContext('2d');
+    // Draw cropped+filtered image
+    applyFilterToCtx(ctx,baseImg,sx,sy,sw,sh,0,0,out.width,out.height,activeFilter);
+    // Draw strokes from transparent stroke canvas
+    if(strokeCanvas&&strokeCanvas.width>0){
+      ctx.drawImage(strokeCanvas,0,0,out.width,out.height);
+    }
+    // Draw text
+    const txt=document.getElementById('cover-text-input')?.value.trim();
+    if(txt){
+      const size=parseInt(document.getElementById('cover-text-size')?.value)||24;
+      const fs=Math.round(size*out.width/(strokeCanvas?.width||out.width));
+      ctx.font=`bold ${fs}px sans-serif`;
+      ctx.fillStyle=document.getElementById('cover-text-color')?.value||'#fff';
+      ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=6;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(txt,coverTextPos.x*out.width,coverTextPos.y*out.height);
+      ctx.shadowBlur=0;ctx.textBaseline='alphabetic';
+    }
+    try{
+      coverDataUrl=out.toDataURL('image/jpeg',0.88);
+      CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');
+    }catch(e){showToast('無法儲存，請從相簿上傳照片');}
+  };
+  baseImg.onerror=()=>showToast('圖片載入失敗');
+  baseImg.src=rawCoverSrc;
+}
+let coverUseCrop=false;
+
+
+
+
+// ── DRAW WIDGET FILTERS ──
+
+
+
+// ── SAVE ──
+
+
+// ── EDIT ORDER ──
+let isEditOrder=false;
+let dragSrcIdx=null;
+let orderItems=[]; // [{type:'folder'|'recipe', id, el}]
+
+
+
+
+
+
+
+// ── CONVERT ──
+
+
+
+
+// ── BACKGROUND ──
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded',()=>{
+  loadAuthScreen();
+  document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});});
+});
+</script>
+</body>
+</html>
+// ── COVER DRAW (two-layer: img + transparent stroke canvas) ──
+let coverTextPos={x:0.5,y:0.5};
+let coverTextDragging=false,coverTextDragStart=null;
+let coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
+let coverDrawHistory=[];
+
+function initCoverDraw(){
+  if(!rawCoverSrc)return;
+  const drawImg=document.getElementById('cover-draw-img');
+  const canvas=document.getElementById('cover-draw-canvas');
+  if(!drawImg||!canvas)return;
+  const doInit=()=>{
+    const modal=document.querySelector('#cover-modal .modal');
+    const w=modal?modal.clientWidth-40:340;
+    const h=drawImg.naturalWidth>0?Math.round(w*drawImg.naturalHeight/drawImg.naturalWidth):Math.round(w*0.75);
+    // Size img explicitly
+    drawImg.style.width=w+'px';drawImg.style.height=h+'px';
+    // Size canvas to match img exactly
+    canvas.width=w;canvas.height=h;
+    canvas.style.width=w+'px';canvas.style.height=h+'px';
+    canvas.style.top='0';canvas.style.left='0';
+    // Clear canvas (transparent - eraser reveals img behind)
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,w,h);
+    coverDrawState={tool:'pen',size:5,drawing:false,points:[],strokeSnapshot:null};
+    coverDrawHistory=[];
+    bindCoverDrawEvents(canvas,ctx,w,h);
+    // Reset text
+    coverTextPos={x:0.5,y:0.15};
+    updateTextOverlay();
+  };
+  if(drawImg.complete&&drawImg.naturalWidth>0){doInit();}
+  else{drawImg.onload=doInit;drawImg.src=rawCoverSrc;}
+  if(drawImg.src!==rawCoverSrc)drawImg.src=rawCoverSrc;
+}
+
+function bindCoverDrawEvents(canvas,ctx,w,h){
+  const getPos=(clientX,clientY)=>{
+    const r=canvas.getBoundingClientRect();
+    return{x:(clientX-r.left)*w/r.width,y:(clientY-r.top)*h/r.height};
+  };
+  const onStart=(p)=>{
+    if(isOnTextOverlay(p,canvas,w,h)){
+      const overlay=document.getElementById('cover-text-overlay');
+      coverTextDragging=true;
+      coverTextDragStart={mx:p.x,my:p.y,tx:coverTextPos.x,ty:coverTextPos.y};
+      overlay.style.cursor='grabbing';
+    }else{
+      coverDrawState.drawing=true;
+      coverDrawState.points=[p];
+      // Snapshot current strokes (transparent canvas)
+      coverDrawState.strokeSnapshot=canvas.toDataURL();
+    }
+  };
+  const onMove=(p)=>{
+    if(coverTextDragging){
+      coverTextPos.x=Math.max(0.05,Math.min(0.95,coverTextDragStart.tx+(p.x-coverTextDragStart.mx)/w));
+      coverTextPos.y=Math.max(0.05,Math.min(0.95,coverTextDragStart.ty+(p.y-coverTextDragStart.my)/h));
+      updateTextOverlay();
+    }else if(coverDrawState.drawing){
+      coverDrawState.points.push(p);
+      redrawStrokes(canvas,ctx,w,h);
+    }
+  };
+  const onEnd=()=>{
+    if(coverTextDragging){
+      coverTextDragging=false;
+      document.getElementById('cover-text-overlay').style.cursor='move';
+    }else if(coverDrawState.drawing){
+      coverDrawState.drawing=false;
+      // Save full canvas state to history
+      coverDrawHistory.push(canvas.toDataURL());
+      if(coverDrawHistory.length>20)coverDrawHistory.shift();
+    }
+  };
+  canvas.onmousedown=(e)=>{e.preventDefault();onStart(getPos(e.clientX,e.clientY));};
+  canvas.onmousemove=(e)=>{if(coverDrawState.drawing||coverTextDragging)onMove(getPos(e.clientX,e.clientY));};
+  canvas.onmouseup=canvas.onmouseleave=onEnd;
+  canvas.ontouchstart=(e)=>{e.preventDefault();const t=e.touches[0];onStart(getPos(t.clientX,t.clientY));};
+  canvas.ontouchmove=(e)=>{e.preventDefault();const t=e.touches[0];onMove(getPos(t.clientX,t.clientY));};
+  canvas.ontouchend=onEnd;
+}
+
+function redrawStrokes(canvas,ctx,w,h){
+  if(!coverDrawState.strokeSnapshot||coverDrawState.points.length<2)return;
+  const img=new Image();
+  img.onload=()=>{
+    ctx.clearRect(0,0,w,h);
+    if(coverDrawState.tool!=='eraser')ctx.drawImage(img,0,0);
+    else ctx.drawImage(img,0,0);
+    drawFullPath(ctx,coverDrawState.tool,coverDrawState.points,
+      document.getElementById('cover-draw-color').value,
+      parseInt(document.getElementById('cover-draw-size').value)||5);
+  };
+  img.src=coverDrawState.strokeSnapshot;
+}
+
+function isOnTextOverlay(p,canvas,w,h){
+  const txt=document.getElementById('cover-text-input')?.value.trim();
+  if(!txt)return false;
+  const size=parseInt(document.getElementById('cover-text-size')?.value)||24;
+  const scale=w/(document.getElementById('cover-draw-container')?.offsetWidth||w);
+  const fs=size*scale;
+  const px=coverTextPos.x*w,py=coverTextPos.y*h;
+  const hitW=txt.length*fs*0.6+32,hitH=fs+16;
+  return p.x>=px-hitW/2&&p.x<=px+hitW/2&&p.y>=py-hitH/2&&p.y<=py+hitH/2;
+}
+
+function updateTextOverlay(){
+  const txt=document.getElementById('cover-text-input')?.value.trim();
+  const overlay=document.getElementById('cover-text-overlay');
+  if(!overlay)return;
+  if(!txt){overlay.style.display='none';return;}
+  const color=document.getElementById('cover-text-color')?.value||'#fff';
+  const size=document.getElementById('cover-text-size')?.value||24;
+  overlay.style.display='block';
+  overlay.style.color=color;
+  overlay.style.fontSize=size+'px';
+  overlay.textContent=txt;
+  overlay.style.left=(coverTextPos.x*100)+'%';
+  overlay.style.top=(coverTextPos.y*100)+'%';
+  overlay.style.transform='translate(-50%,-50%)';
+}
+
+function refreshCoverText(){updateTextOverlay();}
+
+function undoCoverDraw(){
+  const canvas=document.getElementById('cover-draw-canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  if(coverDrawHistory.length>0){
+    coverDrawHistory.pop();
+    if(coverDrawHistory.length>0){
+      const img=new Image();
+      img.onload=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0);};
+      img.src=coverDrawHistory[coverDrawHistory.length-1];
+    }else{ctx.clearRect(0,0,canvas.width,canvas.height);}
+  }else{ctx.clearRect(0,0,canvas.width,canvas.height);}
+}
+
+
+function saveCoverDrawHistory(){} // handled inline now
+
 
 function setCoverDrawTool(tool){
   coverDrawState.tool=tool;
@@ -1899,10 +2023,10 @@ function updateCropBox(){
 function hideCropBox(){
   const box=document.getElementById('crop-box');
   if(box)box.style.display='none';
-  cropActive=false;
+  cropActive=false;coverUseCrop=false;
 }
 
-function setCropAspect(aw,ah){
+function setCropAspect(aw,ah){coverUseCrop=true;
   if(event)event.stopPropagation();
   cropState.aspectW=aw;cropState.aspectH=ah;
   const container=document.getElementById('crop-container');
@@ -1993,38 +2117,7 @@ function setupCropDrag(container){
   });
 }
 
-function applyCover(){
-  cropActive=false;
-  // Canvas already has image baked in, just use it directly
-  const drawCanvas=document.getElementById('cover-draw-canvas');
-  if(drawCanvas&&drawCanvas.width>0){
-    const mctx=drawCanvas.getContext('2d');
-    drawCoverText(mctx,drawCanvas.width,drawCanvas.height);
-    try{
-      coverDataUrl=drawCanvas.toDataURL('image/jpeg',0.85);
-    }catch(e){
-      showToast('無法儲存（跨網域圖片限制），請改用從相簿上傳');return;
-    }
-    CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');return;
-  }
-  const canvas=document.getElementById('cover-draw-canvas');
-  if(!canvas||!canvas.width){showToast('請先選取照片');return;}
-  // Add text overlay if any
-  const text=document.getElementById('cover-text-input').value.trim();
-  if(text){
-    const ctx=canvas.getContext('2d');
-    const fontSize=Math.max(20,canvas.width/15);
-    ctx.font=`bold ${fontSize}px sans-serif`;
-    ctx.fillStyle=document.getElementById('cover-text-color').value;
-    ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=8;
-    ctx.textAlign='center';
-    ctx.fillText(text,canvas.width/2,canvas.height-fontSize);
-    ctx.shadowBlur=0;
-  }
-  coverDataUrl=canvas.toDataURL('image/jpeg',0.85);
-  CR.cover=coverDataUrl;
-  renderCoverArea();closeModal('cover-modal');
-}
+
 
 function setCoverFilter(filter){
   activeFilter=filter;
