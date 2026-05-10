@@ -1826,8 +1826,7 @@ function initCoverDraw(){
     drawImg.style.width=w+'px';drawImg.style.height=h+'px';
     // Size canvas to match img exactly
     canvas.width=w;canvas.height=h;
-    canvas.style.width=w+'px';canvas.style.height=h+'px';
-    canvas.style.top='0';canvas.style.left='0';
+    canvas.style.cssText='position:absolute;top:0;left:0;width:'+w+'px;height:'+h+'px;touch-action:none;cursor:crosshair;';
     // Clear canvas (transparent - eraser reveals img behind)
     const ctx=canvas.getContext('2d');
     ctx.clearRect(0,0,w,h);
@@ -1848,18 +1847,40 @@ function bindCoverDrawEvents(canvas,ctx,w,h){
     const r=canvas.getBoundingClientRect();
     return{x:(clientX-r.left)*w/r.width,y:(clientY-r.top)*h/r.height};
   };
+  // Text overlay drag - handled separately on the overlay div itself
+  const overlay=document.getElementById('cover-text-overlay');
+  overlay.onmousedown=(e)=>{
+    e.stopPropagation();e.preventDefault();
+    coverTextDragging=true;
+    const r=canvas.getBoundingClientRect();
+    coverTextDragStart={mx:e.clientX,my:e.clientY,tx:coverTextPos.x,ty:coverTextPos.y};
+    overlay.style.cursor='grabbing';
+    const mv=(ev)=>{
+      coverTextPos.x=Math.max(0.05,Math.min(0.95,coverTextDragStart.tx+(ev.clientX-coverTextDragStart.mx)/r.width));
+      coverTextPos.y=Math.max(0.05,Math.min(0.95,coverTextDragStart.ty+(ev.clientY-coverTextDragStart.my)/r.height));
+      updateTextOverlay();
+    };
+    const up=()=>{coverTextDragging=false;overlay.style.cursor='move';document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);};
+    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+  };
+  overlay.ontouchstart=(e)=>{
+    e.stopPropagation();e.preventDefault();
+    coverTextDragging=true;
+    const r=canvas.getBoundingClientRect();
+    const t0=e.touches[0];
+    coverTextDragStart={mx:t0.clientX,my:t0.clientY,tx:coverTextPos.x,ty:coverTextPos.y};
+    const mv=(ev)=>{ev.preventDefault();const t=ev.touches[0];
+      coverTextPos.x=Math.max(0.05,Math.min(0.95,coverTextDragStart.tx+(t.clientX-coverTextDragStart.mx)/r.width));
+      coverTextPos.y=Math.max(0.05,Math.min(0.95,coverTextDragStart.ty+(t.clientY-coverTextDragStart.my)/r.height));
+      updateTextOverlay();
+    };
+    const up=()=>{coverTextDragging=false;document.removeEventListener('touchmove',mv);document.removeEventListener('touchend',up);};
+    document.addEventListener('touchmove',mv,{passive:false});document.addEventListener('touchend',up,{once:true});
+  };
   const onStart=(p)=>{
-    if(isOnTextOverlay(p,canvas,w,h)){
-      const overlay=document.getElementById('cover-text-overlay');
-      coverTextDragging=true;
-      coverTextDragStart={mx:p.x,my:p.y,tx:coverTextPos.x,ty:coverTextPos.y};
-      overlay.style.cursor='grabbing';
-    }else{
-      coverDrawState.drawing=true;
-      coverDrawState.points=[p];
-      // Snapshot current strokes (transparent canvas)
-      coverDrawState.strokeSnapshot=canvas.toDataURL();
-    }
+    coverDrawState.drawing=true;
+    coverDrawState.points=[p];
+    coverDrawState.strokeSnapshot=canvas.toDataURL();
   };
   const onMove=(p)=>{
     if(coverTextDragging){
@@ -1988,14 +2009,27 @@ function initCropBox(){
 function setupCropBox(container,cropImg,cropBox){
   cropBox.style.display='none';
   setupCropDrag(container);
-  cropImg.onclick=()=>{
-    const cw=container.offsetWidth;const ch=cropImg.offsetHeight||200;
-    if(!cropActive){
-      cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
+  // Click image = show crop box
+  cropImg.onclick=(e)=>{
+    e.stopPropagation();
+    if(cropActive){
+      hideCropBox();return;
     }
+    const cw=container.offsetWidth;const ch=cropImg.offsetHeight||200;
+    cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
     cropActive=true;
     document.getElementById('crop-box').style.display='block';
     updateCropBox();
+    // Click anywhere in the modal outside container = hide
+    setTimeout(()=>{
+      const handler=(ev)=>{
+        if(!container.contains(ev.target)){
+          hideCropBox();
+          document.removeEventListener('click',handler);
+        }
+      };
+      document.addEventListener('click',handler);
+    },50);
   };
 }
 
