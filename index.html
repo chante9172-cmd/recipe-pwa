@@ -1849,7 +1849,7 @@ function bindCoverDrawEvents(canvas,ctx,w,h){
   };
   // Text overlay drag - handled separately on the overlay div itself
   const overlay=document.getElementById('cover-text-overlay');
-  overlay.onmousedown=(e)=>{
+  overlay.addEventListener('mousedown',(e)=>{
     e.stopPropagation();e.preventDefault();
     coverTextDragging=true;
     const r=canvas.getBoundingClientRect();
@@ -1862,8 +1862,8 @@ function bindCoverDrawEvents(canvas,ctx,w,h){
     };
     const up=()=>{coverTextDragging=false;overlay.style.cursor='move';document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);};
     document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
-  };
-  overlay.ontouchstart=(e)=>{
+  });
+  overlay.addEventListener('touchstart',(e)=>{
     e.stopPropagation();e.preventDefault();
     coverTextDragging=true;
     const r=canvas.getBoundingClientRect();
@@ -1876,7 +1876,7 @@ function bindCoverDrawEvents(canvas,ctx,w,h){
     };
     const up=()=>{coverTextDragging=false;document.removeEventListener('touchmove',mv);document.removeEventListener('touchend',up);};
     document.addEventListener('touchmove',mv,{passive:false});document.addEventListener('touchend',up,{once:true});
-  };
+  },{passive:false});
   const onStart=(p)=>{
     coverDrawState.drawing=true;
     coverDrawState.points=[p];
@@ -1903,12 +1903,14 @@ function bindCoverDrawEvents(canvas,ctx,w,h){
       if(coverDrawHistory.length>20)coverDrawHistory.shift();
     }
   };
-  canvas.onmousedown=(e)=>{e.preventDefault();onStart(getPos(e.clientX,e.clientY));};
-  canvas.onmousemove=(e)=>{if(coverDrawState.drawing||coverTextDragging)onMove(getPos(e.clientX,e.clientY));};
-  canvas.onmouseup=canvas.onmouseleave=onEnd;
-  canvas.ontouchstart=(e)=>{e.preventDefault();const t=e.touches[0];onStart(getPos(t.clientX,t.clientY));};
-  canvas.ontouchmove=(e)=>{e.preventDefault();const t=e.touches[0];onMove(getPos(t.clientX,t.clientY));};
-  canvas.ontouchend=onEnd;
+  // Use addEventListener with passive:false so preventDefault() works on iOS
+  canvas.addEventListener('mousedown',(e)=>{e.preventDefault();onStart(getPos(e.clientX,e.clientY));});
+  canvas.addEventListener('mousemove',(e)=>{if(coverDrawState.drawing||coverTextDragging)onMove(getPos(e.clientX,e.clientY));});
+  canvas.addEventListener('mouseup',onEnd);
+  canvas.addEventListener('mouseleave',onEnd);
+  canvas.addEventListener('touchstart',(e)=>{e.preventDefault();const t=e.touches[0];onStart(getPos(t.clientX,t.clientY));},{passive:false});
+  canvas.addEventListener('touchmove',(e)=>{e.preventDefault();const t=e.touches[0];onMove(getPos(t.clientX,t.clientY));},{passive:false});
+  canvas.addEventListener('touchend',onEnd);
 }
 
 function redrawStrokes(canvas,ctx,w,h){
@@ -2123,21 +2125,21 @@ function setupCropDrag(container){
   const touchEnd=()=>{if(cropState.dragging)doEnd();};
   // Attach start to box and handles
   box.onmousedown=(e)=>{if(!e.target.classList.contains('crop-handle'))doStart(e,null);};
-  box.ontouchstart=(e)=>{
+  box.addEventListener('touchstart',(e)=>{
     if(e.target.classList.contains('crop-handle'))return;
     doStart(e,null);
     document.addEventListener('touchmove',touchMove,{passive:false});
     document.addEventListener('touchend',touchEnd,{once:true});
-  };
+  },{passive:false});
   ['nw','ne','sw','se'].forEach(dir=>{
     const h=document.getElementById('ch-'+dir);
     if(!h)return;
     h.onmousedown=(e)=>doStart(e,dir);
-    h.ontouchstart=(e)=>{
+    h.addEventListener('touchstart',(e)=>{
       doStart(e,dir);
       document.addEventListener('touchmove',touchMove,{passive:false});
       document.addEventListener('touchend',touchEnd,{once:true});
-    };
+    },{passive:false});
   });
 }
 
