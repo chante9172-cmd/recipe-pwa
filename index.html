@@ -1663,7 +1663,6 @@ function coverRedraw(canvas,ctx,w,h){
     drawFullPath(ctx,coverDrawState.tool,coverDrawState.points,
       document.getElementById('cover-draw-color').value,
       parseInt(document.getElementById('cover-draw-size').value)||5);
-    drawCoverText(ctx,w,h);
   }
 }
 
@@ -2011,28 +2010,29 @@ function initCropBox(){
 function setupCropBox(container,cropImg,cropBox){
   cropBox.style.display='none';
   setupCropDrag(container);
-  // Click image = show crop box
-  cropImg.onclick=(e)=>{
-    e.stopPropagation();
-    if(cropActive){
-      hideCropBox();return;
-    }
+  // Click/tap image = show crop box
+  const showCrop=()=>{
+    if(cropActive){hideCropBox();return;}
     const cw=container.offsetWidth;const ch=cropImg.offsetHeight||200;
     cropState={x:cw*0.1,y:ch*0.1,w:cw*0.8,h:ch*0.8,dragging:false,startX:0,startY:0,aspectW:0,aspectH:0};
     cropActive=true;
     document.getElementById('crop-box').style.display='block';
     updateCropBox();
-    // Click anywhere in the modal outside container = hide
+    // After 100ms, any tap/click outside container hides the box
     setTimeout(()=>{
-      const handler=(ev)=>{
+      const hide=(ev)=>{
         if(!container.contains(ev.target)){
           hideCropBox();
-          document.removeEventListener('click',handler);
+          document.removeEventListener('click',hide);
+          document.removeEventListener('touchend',hide);
         }
       };
-      document.addEventListener('click',handler);
-    },50);
+      document.addEventListener('click',hide);
+      document.addEventListener('touchend',hide);
+    },100);
   };
+  cropImg.onclick=showCrop;
+  cropImg.addEventListener('touchend',(e)=>{e.preventDefault();showCrop();},{passive:false});
 }
 
 function updateCropBox(){
