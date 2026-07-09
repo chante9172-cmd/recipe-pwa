@@ -519,6 +519,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <button class="btn btn-ghost btn-sm" onclick="backToClubHome()">← 返回</button>
           <div style="flex:1;font-size:18px;font-weight:700" id="club-detail-name"></div>
           <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="showClubInviteCode()">📋 邀請碼</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="showClubMenu()">⋯</button>
         </div>
         <div class="card" style="margin-bottom:12px">
           <div class="card-title">成員</div>
@@ -779,6 +780,32 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('change-pw-modal')">取消</button>
       <button class="btn btn-primary" onclick="doChangePassword()">確定</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="club-menu-modal">
+  <div class="modal">
+    <div class="modal-title" id="club-menu-title">社團管理</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-outline btn-full" onclick="closeModal('club-menu-modal');showClubInviteCode()">📋 查看邀請碼</button>
+      <button class="btn btn-outline btn-full" id="club-rename-btn" onclick="closeModal('club-menu-modal');showRenameClubModal()">✏️ 改社團名稱</button>
+      <button class="btn btn-outline btn-full" id="club-leave-btn" onclick="closeModal('club-menu-modal');confirmLeaveClub()">🚪 離開社團</button>
+      <button class="btn btn-danger btn-full" id="club-delete-btn" onclick="closeModal('club-menu-modal');confirmDeleteClub()">🗑 解散社團</button>
+    </div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('club-menu-modal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="rename-club-modal">
+  <div class="modal">
+    <div class="modal-title">改社團名稱</div>
+    <div class="mb10"><label>新名稱</label><input type="text" id="rename-club-input" placeholder="輸入新名稱"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('rename-club-modal')">取消</button>
+      <button class="btn btn-primary" onclick="doRenameClub()">確定</button>
     </div>
   </div>
 </div>
@@ -2998,6 +3025,59 @@ function renderClubIngredients(ratio){
     const newCell=document.createElement('div');newCell.style.cssText=`padding:10px;font-size:14px;font-weight:700;color:var(--gd);${b};text-align:right`;newCell.textContent=ratio===1?'—':(newQty+ing.unit);
     container.appendChild(nameCell);container.appendChild(origCell);container.appendChild(newCell);
   });
+}
+
+function showClubMenu(){
+  if(!currentClub)return;
+  document.getElementById('club-menu-title').textContent=currentClub.name;
+  const isOwner=currentClub.created_by===currentUser.id;
+  document.getElementById('club-rename-btn').style.display=isOwner?'':'none';
+  document.getElementById('club-delete-btn').style.display=isOwner?'':'none';
+  document.getElementById('club-leave-btn').style.display=isOwner?'none':'';
+  openModal('club-menu-modal');
+}
+
+function showRenameClubModal(){
+  document.getElementById('rename-club-input').value=currentClub?.name||'';
+  openModal('rename-club-modal');
+}
+
+async function doRenameClub(){
+  const name=document.getElementById('rename-club-input').value.trim();
+  if(!name){showToast('請輸入名稱');return;}
+  const{error}=await sb.from('clubs').update({name}).eq('id',currentClub.id);
+  if(error){showToast('更新失敗');return;}
+  currentClub.name=name;
+  document.getElementById('club-detail-name').textContent=name;
+  closeModal('rename-club-modal');
+  showToast('✅ 名稱已更新');
+  loadClubs();
+}
+
+function confirmLeaveClub(){
+  showConfirm('離開社團','確定要離開「'+currentClub.name+'」嗎？',doLeaveClub);
+}
+
+async function doLeaveClub(){
+  const{error}=await sb.from('club_members').delete().eq('club_id',currentClub.id).eq('user_id',currentUser.id);
+  if(error){showToast('離開失敗');return;}
+  backToClubHome();
+  showToast('已離開社團');
+  loadClubs();
+}
+
+function confirmDeleteClub(){
+  showConfirm('解散社團','確定要解散「'+currentClub.name+'」嗎？所有成員都會被移除，無法復原！',doDeleteClub);
+}
+
+async function doDeleteClub(){
+  // Delete members first, then club (cascade should handle it but just in case)
+  await sb.from('club_members').delete().eq('club_id',currentClub.id);
+  const{error}=await sb.from('clubs').delete().eq('id',currentClub.id);
+  if(error){showToast('解散失敗');return;}
+  backToClubHome();
+  showToast('社團已解散');
+  loadClubs();
 }
 
 function showCreateClubModal(){document.getElementById('new-club-name').value='';openModal('create-club-modal');}
