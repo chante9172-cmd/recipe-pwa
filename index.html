@@ -264,6 +264,15 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         </svg>
         比例換算
       </button>
+      <button class="top-tab" id="tab-club" onclick="switchPage('club')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
+          <circle cx="9" cy="7" r="3"/>
+          <circle cx="17" cy="9" r="2.5"/>
+          <path d="M2 21v-1a7 7 0 0114 0v1"/>
+          <path d="M17 13c2.8.4 5 2.5 5 5v1"/>
+        </svg>
+        社團
+      </button>
       <button class="top-tab" id="tab-settings" onclick="switchPage('settings')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
           <circle cx="12" cy="12" r="3.2"/>
@@ -495,6 +504,88 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       </div>
     </div>
 
+    <!-- CLUB PAGE -->
+    <div class="page" id="page-club">
+      <div id="club-home">
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="showCreateClubModal()">＋ 創建社團</button>
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="showJoinClubModal()">🔑 加入社團</button>
+        </div>
+        <div id="club-list"><div class="loading">載入中…</div></div>
+      </div>
+      <!-- Club detail view -->
+      <div id="club-detail" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <button class="btn btn-ghost btn-sm" onclick="backToClubHome()">← 返回</button>
+          <div style="flex:1;font-size:18px;font-weight:700" id="club-detail-name"></div>
+          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="showClubInviteCode()">📋 邀請碼</button>
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-title">成員</div>
+          <div id="club-members-list" style="font-size:14px;line-height:2"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">成員食譜（只能換算，不能修改）</div>
+          <div style="margin-bottom:10px">
+            <input type="text" id="club-recipe-search" placeholder="搜尋食譜名稱…" style="width:100%" oninput="filterClubRecipes(this.value)">
+          </div>
+          <div id="club-recipe-list"><div class="loading">載入中…</div></div>
+        </div>
+      </div>
+      <!-- Club recipe detail (read-only conversion) -->
+      <div id="club-recipe-detail" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <button class="btn btn-ghost btn-sm" onclick="backToClubDetail()">← 返回社團</button>
+        </div>
+        <div class="card" style="padding:14px 18px">
+          <div style="font-size:20px;font-weight:700" id="club-recipe-name"></div>
+          <div style="font-size:12px;color:var(--tl);margin-top:4px" id="club-recipe-author"></div>
+          <div style="font-size:12px;color:var(--tl)" id="club-recipe-servings"></div>
+        </div>
+        <!-- Conversion same as detail page -->
+        <div class="card">
+          <div class="card-title">比例換算</div>
+          <div style="display:flex;gap:6px;margin-bottom:12px">
+            <button id="crtab-0" class="btn btn-sm" style="flex:1;background:var(--gd);color:#fff" onclick="setClubRecipeMode(0)">👥 人數</button>
+            <button id="crtab-1" class="btn btn-ghost btn-sm" style="flex:1" onclick="setClubRecipeMode(1)">⚖️ 總重</button>
+            <button id="crtab-2" class="btn btn-ghost btn-sm" style="flex:1" onclick="setClubRecipeMode(2)">🧂 食材</button>
+          </div>
+          <div id="crmode-0" style="margin-bottom:10px">
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="number" id="cr-target-servings" placeholder="目標人數" min="0.1" step="0.5" style="flex:1" oninput="recalcClubRecipe()">
+              <span style="color:var(--tl);font-size:13px">人份</span>
+            </div>
+          </div>
+          <div id="crmode-1" style="display:none;margin-bottom:10px">
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="number" id="cr-target-weight" placeholder="目標總重量" min="1" style="flex:1" oninput="recalcClubRecipe()">
+              <span style="color:var(--tl);font-size:13px">g</span>
+            </div>
+          </div>
+          <div id="crmode-2" style="display:none;margin-bottom:10px">
+            <div id="cr-ref-hint" style="font-size:13px;color:var(--tl);margin-bottom:8px">點食材的「設為基準」開始換算</div>
+            <div id="cr-ref-input" style="display:none">
+              <label id="cr-ref-label" style="font-size:13px;font-weight:600;color:var(--gd);display:block;margin-bottom:6px"></label>
+              <div style="display:flex;gap:8px">
+                <input type="text" id="cr-ref-amount" placeholder="你有多少" style="flex:1" oninput="recalcClubRecipe()">
+                <span id="cr-ref-unit" style="display:flex;align-items:center;font-weight:600;color:var(--gd)"></span>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+            <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--tl);background:var(--gu);border-bottom:1px solid var(--border)">食材</div>
+            <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--tl);background:var(--gu);border-bottom:1px solid var(--border);text-align:right">原始</div>
+            <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--gd);background:var(--gu);border-bottom:1px solid var(--border);text-align:right">換算後</div>
+            <div id="cr-ing-rows" style="display:contents"></div>
+          </div>
+        </div>
+        <div id="cr-steps-card" class="card" style="display:none">
+          <div class="card-title">做法</div>
+          <div id="cr-steps" style="font-size:15px;line-height:1.8;white-space:pre-wrap"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- SETTINGS PAGE -->
     <div class="page" id="page-settings">
       <div style="margin-bottom:20px">
@@ -688,6 +779,42 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('change-pw-modal')">取消</button>
       <button class="btn btn-primary" onclick="doChangePassword()">確定</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="create-club-modal">
+  <div class="modal">
+    <div class="modal-title">創建社團</div>
+    <div class="mb10"><label>社團名稱</label><input type="text" id="new-club-name" placeholder="例如：烘焙愛好者"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('create-club-modal')">取消</button>
+      <button class="btn btn-primary" onclick="doCreateClub()">創建</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="join-club-modal">
+  <div class="modal">
+    <div class="modal-title">加入社團</div>
+    <div class="mb10"><label>邀請碼（6碼）</label><input type="text" id="join-club-code" placeholder="輸入邀請碼" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;font-size:20px;text-align:center"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('join-club-modal')">取消</button>
+      <button class="btn btn-primary" onclick="doJoinClub()">加入</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="club-invite-modal">
+  <div class="modal">
+    <div class="modal-title">邀請朋友</div>
+    <div style="text-align:center;margin:16px 0">
+      <div style="font-size:13px;color:var(--tl);margin-bottom:8px">把這個邀請碼傳給朋友</div>
+      <div id="invite-code-display" style="font-size:36px;font-weight:700;letter-spacing:8px;color:var(--gd);background:var(--gp);border-radius:12px;padding:16px"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('club-invite-modal')">關閉</button>
+      <button class="btn btn-primary" onclick="copyInviteCode()">複製邀請碼</button>
     </div>
   </div>
 </div>
@@ -1493,20 +1620,34 @@ async function loadAuthScreen(){
   }else document.getElementById('login-or').style.display='none';
 }
 async function doLogin(){
-  const u=document.getElementById('login-u').value.trim();const p=document.getElementById('login-p').value;
+  const u=document.getElementById('login-u').value.trim();
+  const p=document.getElementById('login-p').value;
   if(!u||!p){showToast('請填入帳號和密碼');return;}
-  const{data}=await sb.from('users').select('*').eq('username',u).single();
-  if(!data){showToast('找不到此帳號');return;}
-  if(await hashPw(p)!==data.password_hash){showToast('密碼錯誤');return;}
-  loginSuccess(data);
+  try{
+    const{data,error}=await sb.from('users').select('*').eq('username',u).maybeSingle();
+    if(error){showToast('連線錯誤，請確認網路或稍後再試');console.error('Login error:',error);return;}
+    if(!data){showToast('找不到此帳號，請確認名稱或建立新帳號');return;}
+    const hash=await hashPw(p);
+    if(hash!==data.password_hash){showToast('密碼錯誤');return;}
+    loginSuccess(data);
+  }catch(e){
+    showToast('連線失敗，請檢查網路連線');console.error(e);
+  }
 }
 async function doRegister(){
-  const u=document.getElementById('reg-u').value.trim();const p=document.getElementById('reg-p').value;
+  const u=document.getElementById('reg-u').value.trim();
+  const p=document.getElementById('reg-p').value;
   if(u.length<2){showToast('帳號至少2個字');return;}
   if(p.length<4){showToast('密碼至少4位');return;}
-  const{data,error}=await sb.from('users').insert({username:u,password_hash:await hashPw(p)}).select().single();
-  if(error){showToast('帳號已存在');return;}
-  loginSuccess(data);
+  try{
+    const{data,error}=await sb.from('users').insert({username:u,password_hash:await hashPw(p)}).select().single();
+    if(error){
+      if(error.code==='23505')showToast('此帳號名稱已被使用');
+      else{showToast('建立失敗，請確認網路或稍後再試');console.error(error);}
+      return;
+    }
+    loginSuccess(data);
+  }catch(e){showToast('連線失敗，請檢查網路連線');console.error(e);}
 }
 async function hashPw(p){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+'recipe_salt_2024'));
@@ -1547,6 +1688,7 @@ function switchPage(page){
   if(page==='saved')renderSaved();
   if(page==='convert')loadConvertList();
   if(page==='settings')renderBgSettings();
+  if(page==='club')loadClubs();
   applyPageBg(page==='detail'?'saved':page);
 }
 
@@ -2717,6 +2859,183 @@ function doConvert(){
   });
   document.getElementById('convert-result').style.display='';
 }
+
+// ── CLUBS ──
+let currentClub=null;
+let clubRecipes=[];
+let clubRecipesAll=[];
+let currentClubRecipe=null;
+let crRefIdx=null;
+let crMode=0;
+
+function genInviteCode(){return Math.random().toString(36).substring(2,8).toUpperCase();}
+
+async function loadClubs(){
+  const listEl=document.getElementById('club-list');
+  if(!listEl)return;
+  listEl.innerHTML='<div class="loading">載入中…</div>';
+  const{data:memberships}=await sb.from('club_members').select('club_id').eq('user_id',currentUser.id);
+  if(!memberships||!memberships.length){
+    listEl.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><p>還沒有加入任何社團<br>創建或加入一個社團吧！</p></div>';return;
+  }
+  const ids=memberships.map(m=>m.club_id);
+  const{data:clubs}=await sb.from('clubs').select('*').in('id',ids);
+  listEl.innerHTML='';
+  (clubs||[]).forEach(club=>{
+    const div=document.createElement('div');div.className='card';
+    div.style.cssText='cursor:pointer;padding:14px 18px;margin-bottom:10px';
+    div.innerHTML=`<div style="font-size:16px;font-weight:700">${club.name}</div><div style="font-size:12px;color:var(--tl);margin-top:4px">${club.created_by===currentUser.id?'👑 我創建的':'👤 成員'}</div>`;
+    div.onclick=()=>enterClub(club);listEl.appendChild(div);
+  });
+}
+
+async function enterClub(club){
+  currentClub=club;
+  document.getElementById('club-home').style.display='none';
+  document.getElementById('club-detail').style.display='';
+  document.getElementById('club-detail-name').textContent=club.name;
+  document.getElementById('club-recipe-detail').style.display='none';
+  const{data:members}=await sb.from('club_members').select('user_id').eq('club_id',club.id);
+  const memberIds=(members||[]).map(m=>m.user_id);
+  const{data:users}=await sb.from('users').select('id,username').in('id',memberIds);
+  const usersMap={};(users||[]).forEach(u=>usersMap[u.id]=u);
+  document.getElementById('club-members-list').innerHTML=(users||[]).map(u=>`<span style="display:inline-flex;align-items:center;gap:6px;margin-right:12px">${u.id===club.created_by?'👑':'👤'} ${u.username}${u.id===currentUser.id?' (我)':''}</span>`).join('');
+  const{data:recipes}=await sb.from('recipes').select('*').in('user_id',memberIds);
+  clubRecipesAll=recipes||[];
+  renderClubRecipes(clubRecipesAll,usersMap);
+}
+
+function renderClubRecipes(recipes,usersMap){
+  const el=document.getElementById('club-recipe-list');
+  if(!recipes.length){el.innerHTML='<div style="text-align:center;color:var(--tl);padding:20px">社團內還沒有食譜</div>';return;}
+  el.innerHTML='';
+  recipes.forEach(r=>{
+    const author=usersMap[r.user_id]?.username||'未知';
+    const card=document.createElement('div');card.className='card';
+    card.style.cssText='cursor:pointer;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px';
+    card.innerHTML=`${r.cover?`<img src="${r.cover}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0">`:'<div style="width:44px;height:44px;border-radius:8px;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🍽</div>'}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${r.name}</div><div style="font-size:12px;color:var(--tl)">${author}${r.user_id===currentUser.id?' (我)':''} · ${(r.ingredients||[]).length}種食材</div></div>`;
+    card.onclick=()=>viewClubRecipe(r,author);el.appendChild(card);
+  });
+}
+
+let _clubUsersMap={};
+function filterClubRecipes(q){
+  const filtered=!q.trim()?clubRecipesAll:clubRecipesAll.filter(r=>r.name.toLowerCase().includes(q.toLowerCase()));
+  renderClubRecipes(filtered,_clubUsersMap);
+}
+
+function viewClubRecipe(recipe,author){
+  currentClubRecipe=recipe;crRefIdx=null;crMode=0;
+  document.getElementById('club-detail').style.display='none';
+  document.getElementById('club-recipe-detail').style.display='';
+  document.getElementById('club-recipe-name').textContent=recipe.name;
+  document.getElementById('club-recipe-author').textContent='作者：'+author;
+  document.getElementById('club-recipe-servings').textContent=recipe.servings?recipe.servings+' 人份':'';
+  const steps=Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'';
+  if(steps){document.getElementById('cr-steps-card').style.display='';document.getElementById('cr-steps').textContent=steps;}
+  else document.getElementById('cr-steps-card').style.display='none';
+  setClubRecipeMode(0);renderClubIngredients(1);
+}
+
+function backToClubDetail(){document.getElementById('club-recipe-detail').style.display='none';document.getElementById('club-detail').style.display='';}
+function backToClubHome(){currentClub=null;document.getElementById('club-detail').style.display='none';document.getElementById('club-home').style.display='';}
+
+function setClubRecipeMode(m){
+  crMode=m;
+  [0,1,2].forEach(i=>{
+    document.getElementById('crmode-'+i).style.display=i===m?'block':'none';
+    const tab=document.getElementById('crtab-'+i);
+    if(i===m){tab.style.background='var(--gd)';tab.style.color='#fff';tab.classList.remove('btn-ghost');}
+    else{tab.style.background='';tab.style.color='';tab.classList.add('btn-ghost');}
+  });
+  document.getElementById('cr-ref-hint').style.display='block';
+  document.getElementById('cr-ref-input').style.display='none';
+  renderClubIngredients(1);
+}
+
+function recalcClubRecipe(){
+  const ings=currentClubRecipe?.ingredients||[];if(!ings.length)return;
+  if(crMode===0){
+    const orig=parseFraction(currentClubRecipe.servings);
+    const t=parseFraction(document.getElementById('cr-target-servings').value);
+    if(!currentClubRecipe.servings){showToast('此食譜未設定人數');return;}
+    if(isNaN(t)||t<=0)return;renderClubIngredients(t/orig);
+  }else if(crMode===1){
+    const tw=parseFraction(document.getElementById('cr-target-weight').value);
+    if(isNaN(tw)||tw<=0)return;
+    const wu=['g','kg','ml','L','毫升','公克'];let tot=0;
+    ings.forEach(ing=>{let q=parseFraction(ing.qty)||0;if(wu.includes(ing.unit)){if(ing.unit==='kg'||ing.unit==='L')q*=1000;tot+=q;}});
+    if(tot<=0){showToast('找不到可計算重量的食材');return;}
+    renderClubIngredients(tw/tot);
+  }else if(crMode===2&&crRefIdx!==null){
+    const val=parseFraction(document.getElementById('cr-ref-amount').value);
+    const orig=parseFraction(ings[crRefIdx].qty);
+    if(isNaN(val)||val<=0||isNaN(orig)||orig<=0){renderClubIngredients(1);return;}
+    renderClubIngredients(val/orig);
+  }
+}
+
+function setClubRef(idx){
+  crRefIdx=idx;const ing=currentClubRecipe.ingredients[idx];
+  document.getElementById('cr-ref-hint').style.display='none';
+  document.getElementById('cr-ref-input').style.display='block';
+  document.getElementById('cr-ref-label').textContent=(ing.name||'食材'+(idx+1))+'：你有多少？';
+  document.getElementById('cr-ref-unit').textContent=ing.unit;
+  document.getElementById('cr-ref-amount').value='';renderClubIngredients(1);
+}
+
+function renderClubIngredients(ratio){
+  const ings=currentClubRecipe?.ingredients||[];
+  const container=document.getElementById('cr-ing-rows');container.innerHTML='';
+  ings.forEach((ing,i)=>{
+    const origQty=parseFraction(ing.qty);const newQty=isNaN(origQty)?'?':fmtNum(origQty*ratio);
+    const isRef=crMode===2&&i===crRefIdx;const b='border-bottom:1px solid var(--border)';
+    const nameCell=document.createElement('div');
+    nameCell.style.cssText=`padding:10px;font-size:14px;font-weight:${isRef?700:500};color:var(--text);${b};display:flex;align-items:center;gap:6px`;
+    if(crMode===2)nameCell.innerHTML=`${ing.name||'食材'+(i+1)}<button onclick="setClubRef(${i})" style="font-size:10px;padding:2px 6px;border-radius:6px;border:1px solid ${isRef?'var(--gd)':'var(--border)'};background:${isRef?'var(--gp)':'white'};color:${isRef?'var(--gd)':'var(--tl)'};cursor:pointer;white-space:nowrap">設為基準</button>`;
+    else nameCell.textContent=ing.name||'食材'+(i+1);
+    const origCell=document.createElement('div');origCell.style.cssText=`padding:10px;font-size:14px;color:var(--tl);${b};text-align:right`;origCell.textContent=ing.qty+ing.unit;
+    const newCell=document.createElement('div');newCell.style.cssText=`padding:10px;font-size:14px;font-weight:700;color:var(--gd);${b};text-align:right`;newCell.textContent=ratio===1?'—':(newQty+ing.unit);
+    container.appendChild(nameCell);container.appendChild(origCell);container.appendChild(newCell);
+  });
+}
+
+function showCreateClubModal(){document.getElementById('new-club-name').value='';openModal('create-club-modal');}
+function showJoinClubModal(){document.getElementById('join-club-code').value='';openModal('join-club-modal');}
+
+async function doCreateClub(){
+  const name=document.getElementById('new-club-name').value.trim();
+  if(!name){showToast('請輸入社團名稱');return;}
+  const invite_code=genInviteCode();
+  const{data:club,error}=await sb.from('clubs').insert({name,created_by:currentUser.id,invite_code}).select().single();
+  if(error){showToast('創建失敗，請確認Supabase已建立clubs資料表');return;}
+  await sb.from('club_members').insert({club_id:club.id,user_id:currentUser.id});
+  closeModal('create-club-modal');
+  showToast('✅ 社團已創建！邀請碼：'+invite_code);loadClubs();
+}
+
+async function doJoinClub(){
+  const code=document.getElementById('join-club-code').value.trim().toUpperCase();
+  if(code.length!==6){showToast('邀請碼為6碼');return;}
+  const{data:club}=await sb.from('clubs').select('*').eq('invite_code',code).single();
+  if(!club){showToast('找不到此社團，請確認邀請碼');return;}
+  const{data:existing}=await sb.from('club_members').select('id').eq('club_id',club.id).eq('user_id',currentUser.id).single();
+  if(existing){showToast('你已經是成員了');closeModal('join-club-modal');return;}
+  await sb.from('club_members').insert({club_id:club.id,user_id:currentUser.id});
+  closeModal('join-club-modal');showToast('✅ 成功加入「'+club.name+'」！');loadClubs();
+}
+
+function showClubInviteCode(){
+  if(!currentClub)return;
+  document.getElementById('invite-code-display').textContent=currentClub.invite_code;
+  openModal('club-invite-modal');
+}
+function copyInviteCode(){
+  if(!currentClub)return;
+  navigator.clipboard?.writeText(currentClub.invite_code).then(()=>showToast('✅ 邀請碼已複製！')).catch(()=>showToast('邀請碼：'+currentClub.invite_code));
+  closeModal('club-invite-modal');
+}
+
 
 // ── BACKGROUND ──
 function loadBgSettings(){
