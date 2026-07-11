@@ -251,19 +251,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         </svg>
         新增食譜
       </button>
-      <button class="top-tab" id="tab-convert" onclick="switchPage('convert')">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
-          <line x1="12" y1="3.5" x2="12" y2="7"/>
-          <path d="M5.5 7.5h13.2"/>
-          <path d="M4 8l-1.5 5.5h7.2z"/>
-          <path d="M20 8l1.5 5.5h-7.2z"/>
-          <line x1="2.5" y1="13.5" x2="9.5" y2="13.5"/>
-          <line x1="14.5" y1="13.5" x2="21.5" y2="13.5"/>
-          <path d="M5 17c0 1.1.9 2 2 2s2-.9 2-2"/>
-          <path d="M15 17c0 1.1.9 2 2 2s2-.9 2-2"/>
-        </svg>
-        比例換算
-      </button>
+
       <button class="top-tab" id="tab-club" onclick="switchPage('club')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
           <circle cx="9" cy="7" r="3"/>
@@ -361,7 +349,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <!-- Steps -->
       <div id="detail-steps-card" class="card" style="display:none">
         <div class="card-title">做法</div>
-        <div id="detail-steps" style="font-size:15px;line-height:1.8;white-space:pre-wrap;color:var(--text)"></div>
+        <div id="detail-steps" style="font-size:15px;line-height:1.8;color:var(--text)"></div>
         <div id="detail-steps-drawing" style="margin-top:10px;display:none"><img style="width:100%;border-radius:8px" id="detail-steps-img"></div>
       </div>
       <!-- Notes -->
@@ -603,7 +591,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         </div>
         <div id="cr-steps-card" class="card" style="display:none">
           <div class="card-title">做法</div>
-          <div id="cr-steps" style="font-size:15px;line-height:1.8;white-space:pre-wrap"></div>
+          <div id="cr-steps" style="font-size:15px;line-height:1.8"></div>
         </div>
         <!-- Comments -->
         <div class="card">
@@ -887,6 +875,41 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
   </div>
 </div>
 
+<!-- TIMER -->
+<div id="timer-float" style="display:none;position:fixed;bottom:80px;right:16px;background:var(--gd);color:#fff;border-radius:16px;padding:12px 18px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:600;min-width:140px;text-align:center;cursor:pointer" onclick="showTimerModal()">
+  <div style="font-size:11px;opacity:0.8;margin-bottom:2px" id="timer-label">計時器</div>
+  <div style="font-size:28px;font-weight:700;font-family:monospace" id="timer-display">00:00</div>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+    <button onclick="event.stopPropagation();toggleTimer()" id="timer-playbtn" style="background:rgba(255,255,255,0.25);border:none;color:#fff;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:14px">▶</button>
+    <button onclick="event.stopPropagation();resetTimer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">↺</button>
+    <button onclick="event.stopPropagation();closeTimer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:14px">✕</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="timer-modal">
+  <div class="modal">
+    <div class="modal-title">⏱ 計時器</div>
+    <div style="text-align:center;margin:16px 0">
+      <div style="font-size:52px;font-weight:700;font-family:monospace;color:var(--gd)" id="timer-modal-display">00:00</div>
+      <div style="font-size:13px;color:var(--tl);margin-top:4px" id="timer-modal-label"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="btn btn-primary btn-full" onclick="toggleTimer()" id="timer-modal-playbtn">▶ 開始</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetTimer()">↺ 重置</button>
+    </div>
+    <div style="font-size:13px;color:var(--tl);margin-bottom:8px">自訂時間</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <input type="number" id="custom-min" placeholder="分" min="0" max="99" style="flex:1;text-align:center">
+      <span style="font-weight:700">:</span>
+      <input type="number" id="custom-sec" placeholder="秒" min="0" max="59" style="flex:1;text-align:center">
+      <button class="btn btn-outline btn-sm" onclick="setCustomTimer()">設定</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('timer-modal')">關閉</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -913,7 +936,6 @@ const UNITS=['g','kg','ml','L','杯','tbsp','tsp','T','t','個','片','條','支
 const BG_PAGES=[
   {key:'saved',icon:'📚',name:'已儲存頁面'},
   {key:'edit',icon:'✏️',name:'新增食譜頁面'},
-  {key:'convert',icon:'⚖️',name:'比例換算頁面'},
   {key:'settings',icon:'⚙️',name:'設定頁面'},
   {key:'auth',icon:'🔐',name:'登入頁面'},
 ];
@@ -1533,7 +1555,7 @@ function showRecipeDetail(recipe){
   const steps=Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'';
   if(steps||recipe.steps_drawing){
     document.getElementById('detail-steps-card').style.display='';
-    document.getElementById('detail-steps').textContent=steps;
+    renderStepsWithTimers(steps,'detail-steps');
     if(recipe.steps_drawing){document.getElementById('detail-steps-drawing').style.display='';document.getElementById('detail-steps-img').src=recipe.steps_drawing;}
     else document.getElementById('detail-steps-drawing').style.display='none';
   }else document.getElementById('detail-steps-card').style.display='none';
@@ -1649,6 +1671,125 @@ function editCurrentDetail(){
   if(detailRecipe)loadRecipeForEdit(detailRecipe);
 }
 function autoResize(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+// ── TIMER ──
+let timerInterval=null;
+let timerSeconds=0;
+let timerTotal=0;
+let timerRunning=false;
+let timerFinishAudio=null;
+
+function renderStepsWithTimers(text, containerId){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  if(!text){el.innerHTML='';return;}
+  // Match patterns like 5分鐘, 10分, 30秒, 1小時, 1.5小時
+  const timePattern=/(\d+(?:\.\d+)?)\s*(小時|分鐘|分|秒)/g;
+  let html=text.replace(/\n/g,'<br>');
+  html=html.replace(timePattern,(match,num,unit)=>{
+    let secs=0;
+    if(unit==='小時')secs=Math.round(parseFloat(num)*3600);
+    else if(unit==='分鐘'||unit==='分')secs=Math.round(parseFloat(num)*60);
+    else if(unit==='秒')secs=Math.round(parseFloat(num));
+    return `${match}<button onclick="startTimer(${secs},'${match}')" style="margin-left:6px;background:var(--gp);border:1px solid var(--gd);color:var(--gd);border-radius:6px;padding:1px 8px;font-size:11px;cursor:pointer;font-weight:600">⏱ 計時</button>`;
+  });
+  el.innerHTML=html;
+}
+
+function startTimer(seconds, label){
+  timerTotal=seconds;
+  timerSeconds=seconds;
+  timerRunning=false;
+  if(timerInterval)clearInterval(timerInterval);
+  document.getElementById('timer-label').textContent=label||'計時器';
+  document.getElementById('timer-modal-label').textContent=label||'';
+  updateTimerDisplay();
+  document.getElementById('timer-float').style.display='block';
+  document.getElementById('timer-playbtn').textContent='▶';
+  document.getElementById('timer-modal-playbtn').textContent='▶ 開始';
+  // Auto start
+  toggleTimer();
+}
+
+function toggleTimer(){
+  if(timerRunning){
+    clearInterval(timerInterval);
+    timerRunning=false;
+    document.getElementById('timer-playbtn').textContent='▶';
+    document.getElementById('timer-modal-playbtn').textContent='▶ 繼續';
+  }else{
+    if(timerSeconds<=0)return;
+    timerRunning=true;
+    document.getElementById('timer-playbtn').textContent='⏸';
+    document.getElementById('timer-modal-playbtn').textContent='⏸ 暫停';
+    timerInterval=setInterval(()=>{
+      timerSeconds--;
+      updateTimerDisplay();
+      if(timerSeconds<=0){
+        clearInterval(timerInterval);
+        timerRunning=false;
+        timerFinish();
+      }
+    },1000);
+  }
+}
+
+function updateTimerDisplay(){
+  const m=Math.floor(Math.abs(timerSeconds)/60);
+  const s=Math.abs(timerSeconds)%60;
+  const str=(timerSeconds<0?'-':'')+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  document.getElementById('timer-display').textContent=str;
+  document.getElementById('timer-modal-display').textContent=str;
+  // Color feedback
+  const color=timerSeconds<=10?'#e53e3e':timerSeconds<=30?'#d97706':'var(--gd)';
+  document.getElementById('timer-float').style.background=color;
+  document.getElementById('timer-modal-display').style.color=color;
+}
+
+function timerFinish(){
+  document.getElementById('timer-display').textContent='完成！';
+  document.getElementById('timer-modal-display').textContent='✅ 完成！';
+  document.getElementById('timer-float').style.background='#38a169';
+  document.getElementById('timer-playbtn').textContent='▶';
+  document.getElementById('timer-modal-playbtn').textContent='▶ 重新開始';
+  showToast('⏱ 計時完成！');
+  // Beep using Web Audio API
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [0,0.3,0.6].forEach(t=>{
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=880;g.gain.setValueAtTime(0.3,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.25);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.25);
+    });
+  }catch(e){}
+}
+
+function resetTimer(){
+  clearInterval(timerInterval);
+  timerRunning=false;
+  timerSeconds=timerTotal;
+  updateTimerDisplay();
+  document.getElementById('timer-playbtn').textContent='▶';
+  document.getElementById('timer-modal-playbtn').textContent='▶ 開始';
+}
+
+function closeTimer(){
+  clearInterval(timerInterval);
+  timerRunning=false;
+  document.getElementById('timer-float').style.display='none';
+}
+
+function showTimerModal(){openModal('timer-modal');}
+
+function setCustomTimer(){
+  const m=parseInt(document.getElementById('custom-min').value)||0;
+  const s=parseInt(document.getElementById('custom-sec').value)||0;
+  const total=m*60+s;
+  if(total<=0){showToast('請輸入時間');return;}
+  startTimer(total,m+'分'+( s>0?s+'秒':''));
+}
+
 function parseFraction(s){
   if(!s)return NaN;s=String(s).trim();
   const u={'½':.5,'⅓':1/3,'⅔':2/3,'¼':.25,'¾':.75,'⅛':.125,'⅜':.375,'⅝':.625,'⅞':.875};
@@ -3094,7 +3235,7 @@ async function viewClubRecipe(recipe,author){
   document.getElementById('club-recipe-author').textContent='作者：'+author;
   document.getElementById('club-recipe-servings').textContent=recipe.servings?recipe.servings+' 人份':'';
   const steps=Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'';
-  if(steps){document.getElementById('cr-steps-card').style.display='';document.getElementById('cr-steps').textContent=steps;}
+  if(steps){document.getElementById('cr-steps-card').style.display='';renderStepsWithTimers(steps,'cr-steps');}
   else document.getElementById('cr-steps-card').style.display='none';
   setClubRecipeMode(0);renderClubIngredients(1);
   // Like button
