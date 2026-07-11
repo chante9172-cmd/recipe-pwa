@@ -2001,19 +2001,18 @@ async function devToggleBan(userId,banned,btn){
 // Show announcement on login
 async function checkSiteAnnouncement(){
   const{data:anns}=await sb.from('site_announcements').select('id,content').eq('is_active',true).order('created_at',{ascending:false}).limit(1);
-  if(!anns||!anns.length)return;
+  if(!anns||!anns.length){document.getElementById('ann-banner').style.display='none';return;}
   const ann=anns[0];
-  const seenKey='seen_ann_'+ann.id;
-  const seen=localStorage.getItem(seenKey);
-  if(!seen){
-    // First time: show modal
-    document.getElementById('ann-modal-text').textContent=ann.content;
-    document.getElementById('ann-modal').style.display='flex';
-    localStorage.setItem(seenKey,'1');
-  }else{
-    // Already seen: show banner
-    showAnnBanner(ann.content);
-  }
+  if(localStorage.getItem('closed_ann_'+ann.id))return;
+  const banner=document.getElementById('ann-banner');
+  banner.dataset.annId=ann.id;
+  showAnnBanner(ann.content);
+}
+
+function closeAnnBanner(){
+  const banner=document.getElementById('ann-banner');
+  if(banner.dataset.annId)localStorage.setItem('closed_ann_'+banner.dataset.annId,'1');
+  banner.style.display='none';
 }
 
 function closeAnnModal(){
@@ -2156,7 +2155,6 @@ function switchPage(page){
   if(page==='settings')renderBgSettings();
   if(page==='club')loadClubs();
   applyPageBg(page==='detail'?'saved':page);
-  checkSiteAnnouncement();
 }
 
 // ── EDIT ──
