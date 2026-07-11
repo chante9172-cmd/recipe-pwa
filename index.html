@@ -221,6 +221,23 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 
 <!-- APP -->
 <div id="app">
+  <!-- Site announcement banner -->
+  <div id="ann-banner" style="display:none;background:#1a5c38;color:#fff;padding:8px 14px;font-size:13px;display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <span style="font-size:16px">📢</span>
+    <span id="ann-banner-text" style="flex:1;line-height:1.4"></span>
+    <button onclick="closeAnnBanner()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;opacity:0.8">✕</button>
+  </div>
+  <!-- Site announcement modal (first time) -->
+  <div class="modal-overlay" id="ann-modal" style="z-index:2000">
+    <div class="modal">
+      <div style="font-size:24px;text-align:center;margin-bottom:8px">📢</div>
+      <div class="modal-title">系統公告</div>
+      <div id="ann-modal-text" style="font-size:15px;line-height:1.8;text-align:center;color:var(--text);margin-bottom:4px"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-full" onclick="closeAnnModal()">我知道了</button>
+      </div>
+    </div>
+  </div>
   <div class="top-header">
     <div class="header-row">
       <div class="header-title">🌿 食譜轉換器</div>
@@ -1983,10 +2000,37 @@ async function devToggleBan(userId,banned,btn){
 
 // Show announcement on login
 async function checkSiteAnnouncement(){
-  const{data:anns}=await sb.from('site_announcements').select('content').eq('is_active',true).order('created_at',{ascending:false}).limit(1);
-  if(anns&&anns.length){
-    showToast('📢 '+anns[0].content);
+  const{data:anns}=await sb.from('site_announcements').select('id,content').eq('is_active',true).order('created_at',{ascending:false}).limit(1);
+  if(!anns||!anns.length)return;
+  const ann=anns[0];
+  const seenKey='seen_ann_'+ann.id;
+  const seen=localStorage.getItem(seenKey);
+  if(!seen){
+    // First time: show modal
+    document.getElementById('ann-modal-text').textContent=ann.content;
+    document.getElementById('ann-modal').style.display='flex';
+    localStorage.setItem(seenKey,'1');
+  }else{
+    // Already seen: show banner
+    showAnnBanner(ann.content);
   }
+}
+
+function closeAnnModal(){
+  document.getElementById('ann-modal').style.display='none';
+  // Show banner after modal closes
+  const txt=document.getElementById('ann-modal-text').textContent;
+  if(txt)showAnnBanner(txt);
+}
+
+function showAnnBanner(text){
+  const banner=document.getElementById('ann-banner');
+  document.getElementById('ann-banner-text').textContent=text;
+  banner.style.display='flex';
+}
+
+function closeAnnBanner(){
+  document.getElementById('ann-banner').style.display='none';
 }
 
 function parseFraction(s){
@@ -2137,10 +2181,72 @@ function renderIngredients(){
   const list=document.getElementById('ing-list');list.innerHTML='';
   CR.ingredients.forEach((ing,i)=>{
     const row=document.createElement('div');row.className='ing-row';
+    row.dataset.idx=i;
+    row.style.cssText='display:flex;gap:7px;align-items:center;margin-bottom:8px;position:relative';
     const opts=UNITS.map(u=>`<option value="${u}"${ing.unit===u?' selected':''}>${u}</option>`).join('');
-    row.innerHTML=`<input type="text" value="${ing.name||''}" placeholder="食材名稱" onchange="CR.ingredients[${i}].name=this.value"><input class="qty" type="text" value="${ing.qty||''}" placeholder="份量" onchange="CR.ingredients[${i}].qty=this.value"><select onchange="CR.ingredients[${i}].unit=this.value">${opts}</select><button class="del-btn" onclick="delIng(${i})">✕</button>`;
+    row.innerHTML=`<span class="drag-handle" style="cursor:grab;color:var(--tl);font-size:18px;padding:0 2px;touch-action:none;flex-shrink:0">☰</span><input type="text" value="${ing.name||''}" placeholder="食材名稱" onchange="CR.ingredients[${i}].name=this.value"><input class="qty" type="text" value="${ing.qty||''}" placeholder="份量" onchange="CR.ingredients[${i}].qty=this.value"><select onchange="CR.ingredients[${i}].unit=this.value">${opts}</select><button class="del-btn" onclick="delIng(${i})">✕</button>`;
+    // Drag to reorder
+    const handle=row.querySelector('.drag-handle');
+    setupIngDrag(handle,row,list);
     list.appendChild(row);
   });
+}
+
+let _ingDragEl=null,_ingDragIdx=-1,_ingPlaceholder=null;
+function setupIngDrag(handle,row,list){
+  const getY=(e)=>e.touches?e.touches[0].clientY:e.clientY;
+  const start=(e)=>{
+    e.preventDefault();
+    _ingDragIdx=parseInt(row.dataset.idx);
+    _ingDragEl=row;
+    row.style.opacity='0.5';
+    row.style.zIndex='999';
+    handle.style.cursor='grabbing';
+    // Create placeholder
+    _ingPlaceholder=document.createElement('div');
+    _ingPlaceholder.style.cssText=`height:${row.offsetHeight}px;background:var(--gp);border-radius:8px;margin-bottom:8px;border:2px dashed var(--gd)`;
+    list.insertBefore(_ingPlaceholder,row.nextSibling);
+    document.addEventListener('mousemove',move);document.addEventListener('mouseup',end);
+    document.addEventListener('touchmove',move,{passive:false});document.addEventListener('touchend',end);
+  };
+  const move=(e)=>{
+    if(!_ingDragEl)return;
+    if(e.cancelable)e.preventDefault();
+    const y=getY(e);
+    const rows=[...list.querySelectorAll('.ing-row')].filter(r=>r!==_ingDragEl);
+    let target=null;
+    for(const r of rows){
+      const rect=r.getBoundingClientRect();
+      if(y<rect.top+rect.height/2){target=r;break;}
+    }
+    if(target)list.insertBefore(_ingPlaceholder,target);
+    else list.appendChild(_ingPlaceholder);
+  };
+  const end=()=>{
+    if(!_ingDragEl)return;
+    // Reorder CR.ingredients based on placeholder position
+    const rows=[...list.querySelectorAll('.ing-row,.ing-placeholder')];
+    const phIdx=Array.from(list.children).indexOf(_ingPlaceholder);
+    // Sync CR.ingredients order
+    const newOrder=[];
+    Array.from(list.children).forEach(el=>{
+      if(el===_ingPlaceholder){newOrder.push(CR.ingredients[_ingDragIdx]);}
+      else if(el.classList.contains('ing-row')){
+        const idx=parseInt(el.dataset.idx);
+        if(idx!==_ingDragIdx)newOrder.push(CR.ingredients[idx]);
+      }
+    });
+    CR.ingredients=newOrder;
+    _ingDragEl.style.opacity='';_ingDragEl.style.zIndex='';
+    handle.style.cursor='grab';
+    _ingDragEl=null;_ingDragIdx=-1;
+    if(_ingPlaceholder)_ingPlaceholder.remove();_ingPlaceholder=null;
+    document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',end);
+    document.removeEventListener('touchmove',move);document.removeEventListener('touchend',end);
+    renderIngredients();
+  };
+  handle.addEventListener('mousedown',start);
+  handle.addEventListener('touchstart',start,{passive:false});
 }
 function addIngredient(){CR.ingredients.push({qty:'',unit:'g',name:''});renderIngredients();const ins=document.querySelectorAll('.ing-row input');if(ins.length)ins[ins.length-2].focus();}
 function delIng(i){CR.ingredients.splice(i,1);renderIngredients();}
