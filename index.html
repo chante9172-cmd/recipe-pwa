@@ -1743,7 +1743,7 @@ function renderDetailIngredients(ratio){
   container.innerHTML='';
   ings.forEach((ing,i)=>{
     const origQty=parseFraction(ing.qty);
-    const newQty=isNaN(origQty)?'?':fmtNum(origQty*ratio);
+    const newQty=isNaN(origQty)?'?':fmtNum(origQty*ratio,isFractionFormat(ing.qty));
     const isRef=i===detailRefIdx;
     const b=`border-bottom:1px solid var(--border)`;
     const nameCell=document.createElement('div');
@@ -2206,7 +2206,34 @@ function parseFraction(s){
   if(m)return(+m[1])/(+m[2]);
   return parseFloat(s);
 }
-function fmtNum(n){if(isNaN(n))return'?';if(n===Math.floor(n))return String(n);return parseFloat(n.toFixed(2)).toString();}
+function isFractionFormat(s){
+  if(!s)return false;
+  const str=String(s).trim();
+  if(/[\u00BD\u2153\u2154\u00BC\u00BE\u215B\u215C\u215D\u215E\u2159\u215A]/.test(str))return true;
+  if(/\d[\u2044\/]\d/.test(str))return true;
+  if(/\d\s+\d+[\u2044\/]\d/.test(str))return true;
+  return false;
+}
+function fmtNum(n,asFraction){
+  if(isNaN(n))return'?';
+  if(n===Math.floor(n))return String(Math.round(n));
+  if(!asFraction)return parseFloat(n.toFixed(2)).toString();
+  const whole=Math.floor(n);
+  const frac=n-whole;
+  const dens=[2,3,4,5,6,8,10,12,16];
+  const gcd=(a,b)=>b===0?a:gcd(b,a%b);
+  for(const d of dens){
+    const num=Math.round(frac*d);
+    if(num<0||num>d)continue;
+    if(Math.abs(frac-num/d)>=0.005)continue;
+    if(num===0)return String(whole);
+    if(num===d)return String(whole+1);
+    const g=gcd(num,d);const sn=num/g,sd=d/g;
+    const f=`${sn}\u2044${sd}`;
+    return whole>0?`${whole} ${f}`:f;
+  }
+  return parseFloat(n.toFixed(2)).toString();
+}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
 function openModal(id){document.getElementById(id).classList.add('show');}
@@ -4069,7 +4096,7 @@ function renderClubIngredients(ratio){
   const ings=currentClubRecipe?.ingredients||[];
   const container=document.getElementById('cr-ing-rows');container.innerHTML='';
   ings.forEach((ing,i)=>{
-    const origQty=parseFraction(ing.qty);const newQty=isNaN(origQty)?'?':fmtNum(origQty*ratio);
+    const origQty=parseFraction(ing.qty);const newQty=isNaN(origQty)?'?':fmtNum(origQty*ratio,isFractionFormat(ing.qty));
     const isRef=crMode===2&&i===crRefIdx;const b='border-bottom:1px solid var(--border)';
     const nameCell=document.createElement('div');
     nameCell.style.cssText=`padding:10px;font-size:14px;font-weight:${isRef?700:500};color:var(--text);${b};display:flex;align-items:center;gap:6px`;
