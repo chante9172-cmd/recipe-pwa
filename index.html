@@ -655,8 +655,49 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <button class="btn btn-ghost btn-full" onclick="showConfirm('登出帳號','確定要登出嗎？',doLogout)">登出帳號</button>
         </div>
       </div>
+      <!-- Hidden dev entry: tap version text 5 times -->
+      <div style="text-align:center;margin-top:24px">
+        <span id="dev-tap" onclick="devTap()" style="font-size:11px;color:var(--tl);cursor:default;user-select:none">v1.0</span>
+      </div>
     </div>
+  </div>
 
+<!-- DEV PASSWORD MODAL -->
+<div class="modal-overlay" id="dev-pw-modal">
+  <div class="modal">
+    <div class="modal-title">🔐 開發者驗證</div>
+    <div class="mb10"><input type="password" id="dev-pw-input" placeholder="輸入密碼" onkeydown="if(event.key==='Enter')checkDevPw()"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('dev-pw-modal')">取消</button>
+      <button class="btn btn-primary" onclick="checkDevPw()">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEV PANEL MODAL -->
+<div class="modal-overlay" id="dev-panel-modal">
+  <div class="modal" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-title">🛠 開發者面板</div>
+    <!-- Stats -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">📊 使用統計</div>
+      <div id="dev-stats" style="font-size:14px;line-height:2">載入中…</div>
+    </div>
+    <!-- Announcement -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">📢 發全站公告</div>
+      <div id="dev-ann-list" style="margin-bottom:10px;font-size:13px"></div>
+      <textarea id="dev-ann-input" placeholder="輸入公告內容…" style="width:100%;min-height:70px;resize:none;margin-bottom:8px"></textarea>
+      <button class="btn btn-primary btn-full" onclick="devPostAnnouncement()">發布公告</button>
+    </div>
+    <!-- Users -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">👥 用戶管理</div>
+      <div id="dev-users-list" style="font-size:13px">載入中…</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('dev-panel-modal')">關閉</button>
+    </div>
   </div>
 </div>
 
@@ -1861,6 +1902,93 @@ function setCustomTimer(){
   startTimer(total,m+'分'+( s>0?s+'秒':''));
 }
 
+// ── DEV PANEL ──
+const DEV_HASH='97dbcf4cd6514d2ad80eb5fc50e132d03b2d7a7355e7e5f8212c0d3840945170';
+let devTapCount=0;let devTapTimer=null;
+
+function devTap(){
+  devTapCount++;
+  if(devTapTimer)clearTimeout(devTapTimer);
+  devTapTimer=setTimeout(()=>devTapCount=0,2000);
+  if(devTapCount>=5){
+    devTapCount=0;
+    document.getElementById('dev-pw-input').value='';
+    openModal('dev-pw-modal');
+    setTimeout(()=>document.getElementById('dev-pw-input').focus(),100);
+  }
+}
+
+async function checkDevPw(){
+  const pw=document.getElementById('dev-pw-input').value;
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));
+  const hash=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  if(hash!==DEV_HASH){showToast('密碼錯誤');return;}
+  closeModal('dev-pw-modal');
+  openModal('dev-panel-modal');
+  loadDevPanel();
+}
+
+async function loadDevPanel(){
+  // Stats
+  const[{count:uc},{count:rc},{count:fc}]=await Promise.all([
+    sb.from('users').select('*',{count:'exact',head:true}),
+    sb.from('recipes').select('*',{count:'exact',head:true}),
+    sb.from('clubs').select('*',{count:'exact',head:true})
+  ]);
+  document.getElementById('dev-stats').innerHTML=
+    `👤 用戶：<b>${uc||0}</b> 人<br>🍽 食譜：<b>${rc||0}</b> 份<br>👥 社團：<b>${fc||0}</b> 個`;
+  // Announcements
+  const{data:anns}=await sb.from('site_announcements').select('*').order('created_at',{ascending:false});
+  const annEl=document.getElementById('dev-ann-list');
+  if(!anns||!anns.length)annEl.innerHTML='<div style="color:var(--tl)">還沒有公告</div>';
+  else annEl.innerHTML=anns.map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+    <span>${a.is_active?'🟢':'⚫'} ${a.content.substring(0,40)}${a.content.length>40?'…':''}</span>
+    <div style="display:flex;gap:6px">
+      <button onclick="devToggleAnn('${a.id}',${a.is_active})" style="border:none;background:var(--gp);color:var(--gd);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px">${a.is_active?'停用':'啟用'}</button>
+      <button onclick="devDeleteAnn('${a.id}')" style="border:none;background:#fee2e2;color:#e53e3e;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px">刪除</button>
+    </div>
+  </div>`).join('');
+  // Users
+  const{data:users}=await sb.from('users').select('id,username,banned').order('username');
+  const usersEl=document.getElementById('dev-users-list');
+  usersEl.innerHTML=(users||[]).map(u=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+    <span>${u.banned?'🚫':'✅'} ${u.username}</span>
+    <div style="display:flex;gap:6px">
+      <button onclick="devToggleBan('${u.id}',${u.banned},this)" style="border:none;background:${u.banned?'var(--gp)':'#fee2e2'};color:${u.banned?'var(--gd)':'#e53e3e'};border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px">${u.banned?'解封':'封鎖'}</button>
+    </div>
+  </div>`).join('');
+}
+
+async function devPostAnnouncement(){
+  const content=document.getElementById('dev-ann-input').value.trim();
+  if(!content){showToast('請輸入公告內容');return;}
+  await sb.from('site_announcements').insert({content,is_active:true});
+  document.getElementById('dev-ann-input').value='';
+  showToast('✅ 公告已發布');
+  loadDevPanel();
+}
+async function devToggleAnn(id,active){
+  await sb.from('site_announcements').update({is_active:!active}).eq('id',id);
+  loadDevPanel();
+}
+async function devDeleteAnn(id){
+  await sb.from('site_announcements').delete().eq('id',id);
+  loadDevPanel();
+}
+async function devToggleBan(userId,banned,btn){
+  await sb.from('users').update({banned:!banned}).eq('id',userId);
+  showToast(banned?'已解封':'已封鎖用戶');
+  loadDevPanel();
+}
+
+// Show announcement on login
+async function checkSiteAnnouncement(){
+  const{data:anns}=await sb.from('site_announcements').select('content').eq('is_active',true).order('created_at',{ascending:false}).limit(1);
+  if(anns&&anns.length){
+    showToast('📢 '+anns[0].content);
+  }
+}
+
 function parseFraction(s){
   if(!s)return NaN;s=String(s).trim();
   const u={'½':.5,'⅓':1/3,'⅔':2/3,'¼':.25,'¾':.75,'⅛':.125,'⅜':.375,'⅝':.625,'⅞':.875};
@@ -1907,6 +2035,7 @@ async function doLogin(){
     const{data,error}=await sb.from('users').select('*').eq('username',u).maybeSingle();
     if(error){showToast('連線錯誤，請確認網路或稍後再試');console.error('Login error:',error);return;}
     if(!data){showToast('找不到此帳號，請確認名稱或建立新帳號');return;}
+    if(data.banned){showToast('此帳號已被封鎖，請聯絡管理員');return;}
     const hash=await hashPw(p);
     if(hash!==data.password_hash){showToast('密碼錯誤');return;}
     loginSuccess(data);
@@ -1941,7 +2070,8 @@ function loginSuccess(user){
   document.getElementById('user-name').textContent=user.username;
   loadBgSettings();
   newRecipe();
-  switchPage('saved'); // ← login goes to saved page
+  switchPage('saved');
+  setTimeout(checkSiteAnnouncement,1000);
 }
 function doLogout(){
   currentUser=null;bgSettings={};currentFolderPath=[];currentFolderId=null;convertRecipe=null;allRecipes=[];allConvertRecipes=[];
