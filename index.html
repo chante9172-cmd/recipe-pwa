@@ -807,6 +807,16 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
   </div>
 </div>
 
+<div class="modal-overlay" id="member-recipes-modal">
+  <div class="modal" style="max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-title" id="member-recipes-title">的食譜</div>
+    <div id="member-recipes-list" style="flex:1;overflow-y:auto;margin-bottom:12px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('member-recipes-modal')">關閉</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="upload-recipe-modal">
   <div class="modal">
     <div class="modal-title">選擇要上傳的食譜</div>
@@ -1096,7 +1106,8 @@ function createDrawWidget(containerId, canvasHeight=260){
       <span>粗細</span>
       <input type="range" id="ds-${id}" min="1" max="30" value="5" oninput="drawWidgets['${id}'].size=parseInt(this.value);document.getElementById('dsv-${id}').textContent=this.value">
       <span id="dsv-${id}">5</span>px
-      <button class="btn btn-ghost btn-sm" onclick="undoDraw('${id}')">↩ 返回</button><button class="btn btn-ghost btn-sm" onclick="clearDrawWidget('${id}')">🗑 清除</button>
+      <button class="btn btn-ghost btn-sm" onclick="undoDraw('${id}')">↩ 返回</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearDrawWidget('${id}')">🗑 清除</button>
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
       <span style="font-size:11px;color:var(--tl);align-self:center">濾鏡：</span>
@@ -1104,6 +1115,7 @@ function createDrawWidget(containerId, canvasHeight=260){
       <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyDrawFilter('${id}','mosaic')">馬賽克</button>
       <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyDrawFilter('${id}','grayscale')">黑白</button>
       <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyDrawFilter('${id}','sepia')">復古</button>
+      <label class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;cursor:pointer">📷 插入照片<input type="file" accept="image/*" style="display:none" onchange="insertPhotoToCanvas('${id}',this)"></label>
     </div>
     <canvas class="draw-canvas" id="dc2-${id}" height="${canvasHeight}"></canvas>`;
 
@@ -2039,6 +2051,32 @@ function onCoverFile(e){
 // ── UNDO HISTORY ──
 const drawHistory={};   // id -> [dataUrl, ...]
 const annoHistory={};   // section -> [dataUrl, ...]
+
+function insertPhotoToCanvas(id, input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const state=drawWidgets[id];
+    if(!state||!state.canvas||!state.ctx)return;
+    const img=new Image();
+    img.onload=()=>{
+      const c=state.canvas;
+      const ctx=state.ctx;
+      // Save current state to history before inserting
+      saveDrawHistory(id);
+      // Draw photo scaled to fit canvas width, positioned at top
+      const scale=c.width/img.naturalWidth;
+      const h=Math.min(img.naturalHeight*scale, c.height);
+      ctx.drawImage(img,0,0,c.width,h);
+      state.strokeSnapshot=c.toDataURL();
+      saveDrawHistory(id);
+    };
+    img.src=ev.target.result;
+    input.value=''; // reset so same file can be chosen again
+  };
+  reader.readAsDataURL(file);
+}
 
 function saveDrawHistory(id){
   const state=drawWidgets[id];if(!state||!state.canvas||!state.ctx)return;
@@ -3144,7 +3182,6 @@ async function loadClubMembers(){
   const{data:users}=await sb.from('users').select('id,username').in('id',memberIds);
   clubUsersMap={};
   (users||[]).forEach(u=>clubUsersMap[u.id]={username:u.username,role:(members||[]).find(m=>m.user_id===u.id)?.role||'member'});
-  // Render members tab
   const el=document.getElementById('club-members-list');
   const isOwner=currentClub.created_by===currentUser.id;
   el.innerHTML=(users||[]).map(u=>{
@@ -3154,7 +3191,7 @@ async function loadClubMembers(){
     const isCreator=u.id===currentClub.created_by;
     return `<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)">
       <span style="font-size:20px">${isCreator?'👑':isAdmin?'🛡':'👤'}</span>
-      <span style="flex:1;font-weight:${isSelf?700:500}">${u.username}${isSelf?' (我)':''}</span>
+      <span style="flex:1;font-weight:${isSelf?700:500};cursor:pointer;color:var(--gd);text-decoration:underline" onclick="viewMemberRecipes('${u.id}','${u.username}')">${u.username}${isSelf?' (我)':''}</span>
       <span style="font-size:11px;color:var(--tl)">${isCreator?'創建者':isAdmin?'管理員':'成員'}</span>
       ${isOwner&&!isSelf?`<button onclick="kickMember('${u.id}','${u.username}')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid #e53e3e;background:none;color:#e53e3e;cursor:pointer">踢除</button>`:''}
       ${isOwner&&!isSelf&&!isAdmin?`<button onclick="promoteAdmin('${u.id}','${u.username}')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--gd);background:none;color:var(--gd);cursor:pointer">升管理員</button>`:''}
@@ -3218,6 +3255,28 @@ function renderClubRecipes(recipes){
 function filterClubRecipes(q){
   const filtered=!q.trim()?clubRecipesAll:clubRecipesAll.filter(r=>r.name.toLowerCase().includes(q.toLowerCase()));
   renderClubRecipes(filtered);
+}
+
+async function viewMemberRecipes(userId, username){
+  document.getElementById('member-recipes-title').textContent=username+' 的食譜';
+  const el=document.getElementById('member-recipes-list');
+  el.innerHTML='<div class="loading">載入中…</div>';
+  openModal('member-recipes-modal');
+  // Get recipes this member shared to this club
+  const{data:shared}=await sb.from('club_recipes').select('recipe_id').eq('club_id',currentClub.id).eq('user_id',userId);
+  if(!shared||!shared.length){el.innerHTML='<div style="text-align:center;color:var(--tl);padding:20px">這位成員還沒有上傳食譜</div>';return;}
+  const{data:recipes}=await sb.from('recipes').select('*').in('id',shared.map(s=>s.recipe_id));
+  if(!recipes||!recipes.length){el.innerHTML='<div style="text-align:center;color:var(--tl);padding:20px">找不到食譜</div>';return;}
+  el.innerHTML=recipes.map(r=>`
+    <div onclick="closeModal('member-recipes-modal');viewClubRecipe({...${JSON.stringify(r).replace(/'/g,"\\'")},'_sharedBy':'${userId}'},'${username}')"
+      style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      ${r.cover?`<img src="${r.cover}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0">`:'<div style="width:44px;height:44px;border-radius:8px;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🍽</div>'}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px">${r.name}</div>
+        <div style="font-size:12px;color:var(--tl)">${r.servings?r.servings+' 人份 · ':''}${(r.ingredients||[]).length}種食材${r.mold?' · 🥣'+r.mold:''}</div>
+      </div>
+      <span style="color:var(--tl);font-size:18px">›</span>
+    </div>`).join('');
 }
 
 async function showUploadRecipeModal(){
