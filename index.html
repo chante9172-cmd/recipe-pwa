@@ -422,7 +422,21 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div class="card">
         <div class="card-title">食譜資訊</div>
         <div class="mb10"><label>食譜名稱</label><input type="text" id="recipe-name" placeholder="例如：媽媽的紅燒肉"></div>
-        <div class="mb10"><label>份量（人數）</label><input type="text" id="recipe-servings" placeholder="例如：4 或留空"></div>
+        <div class="mb10"><label>份量</label><div style="display:flex;gap:8px">
+  <input type="text" id="recipe-servings" placeholder="例如：4" style="flex:1">
+  <select id="recipe-servings-unit" onchange="CR.servings_unit=this.value" style="width:90px;border-radius:8px;border:1px solid var(--border);padding:8px 4px">
+    <option value="人份">人份</option>
+    <option value="份">份</option>
+    <option value="個">個</option>
+    <option value="盤">盤</option>
+    <option value="條">條</option>
+    <option value="顆">顆</option>
+    <option value="杯">杯</option>
+    <option value="罐">罐</option>
+    <option value="片">片</option>
+    <option value="塊">塊</option>
+  </select>
+</div></div>
         <div><label>使用模具（可空白）</label><input type="text" id="recipe-mold" placeholder="例如：6吋圓模、20×20方模"></div>
       </div>
       <div class="card">
@@ -700,6 +714,15 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div class="card-title">📊 使用統計</div>
       <div id="dev-stats" style="font-size:14px;line-height:2">載入中…</div>
     </div>
+    <!-- Maintenance -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">🔧 系統維護模式</div>
+      <div style="font-size:13px;color:var(--tl);margin-bottom:10px">開啟後，除你以外的用戶無法登入</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="maintenance-status" style="font-size:14px;font-weight:700">載入中…</span>
+        <button id="maintenance-btn" class="btn btn-sm" onclick="devToggleMaintenance()">切換</button>
+      </div>
+    </div>
     <!-- Announcement -->
     <div class="card" style="margin-bottom:12px">
       <div class="card-title">📢 發全站公告</div>
@@ -709,8 +732,23 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
     </div>
     <!-- Users -->
     <div class="card" style="margin-bottom:12px">
-      <div class="card-title">👥 用戶管理</div>
+      <div class="card-title">👥 用戶管理（點名字看食譜）</div>
       <div id="dev-users-list" style="font-size:13px">載入中…</div>
+    </div>
+    <!-- Clubs -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">🏘 所有社團</div>
+      <div id="dev-clubs-list" style="font-size:13px">載入中…</div>
+    </div>
+    <!-- User recipes -->
+    <div id="dev-recipes-panel" style="display:none">
+      <div class="card" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('dev-recipes-panel').style.display='none'">← 返回</button>
+          <div class="card-title" id="dev-recipes-title" style="margin:0">食譜列表</div>
+        </div>
+        <div id="dev-recipes-list" style="font-size:13px"></div>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost btn-full" onclick="closeModal('dev-panel-modal')">關閉</button>
@@ -1034,7 +1072,7 @@ const sb=supabase.createClient(
 );
 
 let currentUser=null;
-let CR={id:null,name:'',servings:'',mold:'',ingredients:[{qty:'',unit:'g',name:''}],steps:'',notes:'',cover:'',drawing:'',steps_drawing:'',notes_drawing:'',folder_id:null};
+let CR={id:null,name:'',servings:'',servings_unit:'人份',mold:'',ingredients:[{qty:'',unit:'g',name:''}],steps:'',notes:'',cover:'',drawing:'',steps_drawing:'',notes_drawing:'',folder_id:null};
 let currentFolderPath=[];
 let currentFolderId=null;
 let convertMode=0;
@@ -1661,7 +1699,8 @@ function showRecipeDetail(recipe){
   detailRefIdx=null;
   // Fill in data
   document.getElementById('detail-name').textContent=recipe.name;
-  document.getElementById('detail-servings').textContent=recipe.servings?`${recipe.servings} 人份`:'';
+  document.getElementById('detail-servings').textContent=recipe.servings?`${recipe.servings} ${recipe.servings_unit||'人份'}`:'';
+  const suEl=document.getElementById('detail-servings-unit');if(suEl)suEl.textContent=recipe.servings_unit||'人份';
   const moldEl=document.getElementById('detail-mold');
   if(moldEl){moldEl.textContent=recipe.mold?`🥣 模具：${recipe.mold}`:'';}
   // Cover
@@ -1953,7 +1992,15 @@ async function loadDevPanel(){
     sb.from('clubs').select('*',{count:'exact',head:true})
   ]);
   document.getElementById('dev-stats').innerHTML=
-    `👤 用戶：<b>${uc||0}</b> 人<br>🍽 食譜：<b>${rc||0}</b> 份<br>👥 社團：<b>${fc||0}</b> 個`;
+    `👤 用戶：<b>${uc||0}</b> 人<br>🍽 食譜：<b>${rc||0}</b> 份<br>🏘 社團：<b>${fc||0}</b> 個`;
+
+  // Maintenance mode
+  const{data:maint}=await sb.from('site_settings').select('value').eq('key','maintenance').single();
+  const isOn=maint?.value==='true';
+  document.getElementById('maintenance-status').textContent=isOn?'🔴 維護中（用戶無法登入）':'🟢 正常運作';
+  document.getElementById('maintenance-btn').textContent=isOn?'關閉維護模式':'開啟維護模式';
+  document.getElementById('maintenance-btn').className=isOn?'btn btn-outline btn-sm':'btn btn-danger btn-sm';
+
   // Announcements
   const{data:anns}=await sb.from('site_announcements').select('*').order('created_at',{ascending:false});
   const annEl=document.getElementById('dev-ann-list');
@@ -1965,15 +2012,84 @@ async function loadDevPanel(){
       <button onclick="devDeleteAnn('${a.id}')" style="border:none;background:#fee2e2;color:#e53e3e;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px">刪除</button>
     </div>
   </div>`).join('');
+
   // Users
-  const{data:users}=await sb.from('users').select('id,username,banned').order('username');
+  const{data:users}=await sb.from('users').select('id,username,banned,last_login').order('last_login',{ascending:false,nullsFirst:false});
   const usersEl=document.getElementById('dev-users-list');
-  usersEl.innerHTML=(users||[]).map(u=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-    <span>${u.banned?'🚫':'✅'} ${u.username}</span>
-    <div style="display:flex;gap:6px">
-      <button onclick="devToggleBan('${u.id}',${u.banned},this)" style="border:none;background:${u.banned?'var(--gp)':'#fee2e2'};color:${u.banned?'var(--gd)':'#e53e3e'};border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px">${u.banned?'解封':'封鎖'}</button>
-    </div>
+  usersEl.innerHTML=(users||[]).map(u=>{
+    const lastLogin=u.last_login?new Date(u.last_login).toLocaleString('zh-TW'):'從未登入';
+    return`<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="cursor:pointer;color:var(--gd);text-decoration:underline;font-weight:600" onclick="devViewUserRecipes('${u.id}','${u.username.replace(/'/g,"\\'")}')">
+          ${u.banned?'🚫':'✅'} ${u.username}
+        </span>
+        <div style="display:flex;gap:4px">
+          <button onclick="devSendNotif('${u.id}','${u.username.replace(/'/g,"\\'")}') " style="border:none;background:var(--gp);color:var(--gd);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">📩</button>
+          <button onclick="devToggleBan('${u.id}',${u.banned},this)" style="border:none;background:${u.banned?'var(--gp)':'#fee2e2'};color:${u.banned?'var(--gd)':'#e53e3e'};border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">${u.banned?'解封':'封鎖'}</button>
+          <button onclick="devDeleteAccount('${u.id}','${u.username.replace(/'/g,"\\'")}') " style="border:none;background:#fee2e2;color:#e53e3e;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">刪帳</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--tl);margin-top:2px">⏱ 上次登入：${lastLogin}</div>
+    </div>`;
+  }).join('');
+
+  // Clubs
+  const{data:clubs}=await sb.from('clubs').select('id,name,created_by,invite_code').order('created_at',{ascending:false});
+  const clubsEl=document.getElementById('dev-clubs-list');
+  if(!clubs||!clubs.length)clubsEl.innerHTML='<div style="color:var(--tl)">還沒有社團</div>';
+  else clubsEl.innerHTML=clubs.map(c=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+    <div><div style="font-weight:600">${c.name}</div><div style="font-size:11px;color:var(--tl)">邀請碼：${c.invite_code}</div></div>
+    <button onclick="devDeleteClub('${c.id}','${c.name.replace(/'/g,"\\'")}') " style="border:none;background:#fee2e2;color:#e53e3e;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">解散</button>
   </div>`).join('');
+}
+
+async function devToggleMaintenance(){
+  const{data:maint}=await sb.from('site_settings').select('value').eq('key','maintenance').single();
+  const isOn=maint?.value==='true';
+  await sb.from('site_settings').upsert({key:'maintenance',value:isOn?'false':'true'});
+  showToast(isOn?'✅ 維護模式已關閉':'🔴 維護模式已開啟');
+  loadDevPanel();
+}
+
+async function devViewUserRecipes(userId,username){
+  document.getElementById('dev-recipes-title').textContent=username+' 的食譜';
+  document.getElementById('dev-recipes-panel').style.display='block';
+  const el=document.getElementById('dev-recipes-list');
+  el.innerHTML='<div class="loading">載入中…</div>';
+  const{data:recipes}=await sb.from('recipes').select('id,name,created_at').eq('user_id',userId).order('created_at',{ascending:false});
+  if(!recipes||!recipes.length){el.innerHTML='<div style="color:var(--tl);padding:10px">沒有食譜</div>';return;}
+  el.innerHTML=recipes.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:13px">${r.name}</span>
+    <button onclick="devDeleteRecipe('${r.id}','${r.name.replace(/'/g,"\\'")}') " style="border:none;background:#fee2e2;color:#e53e3e;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">刪除</button>
+  </div>`).join('');
+}
+
+function devDeleteRecipe(recipeId,name){
+  showConfirm('刪除食譜','確定要刪除「'+name+'」嗎？',async()=>{
+    await sb.from('recipes').delete().eq('id',recipeId);
+    showToast('已刪除食譜');
+    // Refresh recipe list
+    const btn=document.querySelector('[onclick*="devViewUserRecipes"]');
+    document.getElementById('dev-recipes-list').innerHTML='<div style="color:var(--tl)">已刪除</div>';
+  });
+}
+
+function devDeleteAccount(userId,username){
+  showConfirm('刪除帳號','確定要刪除「'+username+'」的帳號嗎？所有食譜也會一併刪除！',async()=>{
+    await sb.from('recipes').delete().eq('user_id',userId);
+    await sb.from('folders').delete().eq('user_id',userId);
+    await sb.from('club_members').delete().eq('user_id',userId);
+    await sb.from('users').delete().eq('id',userId);
+    showToast('帳號已刪除');loadDevPanel();
+  });
+}
+
+function devDeleteClub(clubId,name){
+  showConfirm('解散社團','確定要解散「'+name+'」嗎？',async()=>{
+    await sb.from('club_members').delete().eq('club_id',clubId);
+    await sb.from('clubs').delete().eq('id',clubId);
+    showToast('社團已解散');loadDevPanel();
+  });
 }
 
 async function devPostAnnouncement(){
@@ -2032,24 +2148,60 @@ function closeAnnBanner(){
   document.getElementById('ann-banner').style.display='none';
 }
 
+// ── PRIVATE NOTIFICATIONS ──
+async function checkUserNotifications(){
+  if(!currentUser)return;
+  const{data:notifs}=await sb.from('user_notifications').select('id,content').eq('user_id',currentUser.id).eq('is_read',false);
+  if(!notifs||!notifs.length)return;
+  // Show each unread notification
+  for(const n of notifs){
+    await new Promise(r=>setTimeout(r,500));
+    showPrivateNotifModal(n.content,n.id);
+  }
+}
+
+function showPrivateNotifModal(content,id){
+  // Reuse ann modal for private notif
+  const modal=document.getElementById('ann-modal');
+  document.getElementById('ann-modal-text').textContent=content;
+  document.querySelector('#ann-modal .modal-title').textContent='📩 來自開發者的通知';
+  modal.style.display='flex';
+  document.querySelector('#ann-modal button').onclick=async()=>{
+    modal.style.display='none';
+    document.querySelector('#ann-modal .modal-title').textContent='系統公告';
+    document.querySelector('#ann-modal button').onclick=closeAnnModal;
+    await sb.from('user_notifications').update({is_read:true}).eq('id',id);
+  };
+}
+
+// Dev: send private notification
+let devNotifTargetId=null;
+function devSendNotif(userId,username){
+  devNotifTargetId=userId;
+  const msg=prompt(`發送私人通知給「${username}」：`);
+  if(!msg)return;
+  sb.from('user_notifications').insert({user_id:userId,content:msg,is_read:false})
+    .then(()=>showToast('✅ 通知已發送給 '+username));
+}
+
 function parseFraction(s){
   if(!s)return NaN;s=String(s).trim();
-  // Unicode fraction chars
+  // Unicode fraction chars (exact match)
   const u={'½':.5,'⅓':1/3,'⅔':2/3,'¼':.25,'¾':.75,'⅛':.125,'⅜':.375,'⅝':.625,'⅞':.875,
            '⅙':1/6,'⅚':5/6,'⅕':1/5,'⅖':2/5,'⅗':3/5,'⅘':4/5,'⅒':1/10};
   if(u[s])return u[s];
-  // Handle superscript/fraction slash: 1⁄2, 11⁄2, 1 1⁄2
-  // ⁄ is U+2044 (fraction slash), / is U+002F
+  // Replace fraction slash (U+2044) and superscript digits
   s=s.replace(/⁄/g,'/');
-  // Superscript digits to normal
   const sup={'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
   const sub={'₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9'};
   s=s.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g,c=>sup[c]||c);
   s=s.replace(/[₀₁₂₃₄₅₆₇₈₉]/g,c=>sub[c]||c);
-  // Integer + fraction: "1 1/2" or "11/2" treated as "1 1/2" if >1 digit before slash
-  let m=s.match(/^(\d+)\s+(\d+)\/(\d+)$/);if(m)return+m[1]+(+m[2])/(+m[3]);
-  // e.g. 11⁄2 → after replace: "11/2" = 5.5 (not mixed number)
-  m=s.match(/^(\d+)\/(\d+)$/);if(m)return(+m[1])/(+m[2]);
+  // Mixed number with optional trailing text: "1 1/2" or "1 1/2兩"
+  let m=s.match(/^(\d+(?:\.\d+)?)\s+(\d+)\/(\d+)/);
+  if(m)return+m[1]+(+m[2])/(+m[3]);
+  // Pure fraction: "1/2" or "11/2"
+  m=s.match(/^(\d+)\/(\d+)/);
+  if(m)return(+m[1])/(+m[2]);
   return parseFloat(s);
 }
 function fmtNum(n){if(isNaN(n))return'?';if(n===Math.floor(n))return String(n);return parseFloat(n.toFixed(2)).toString();}
@@ -2091,6 +2243,13 @@ async function doLogin(){
     if(error){showToast('連線錯誤，請確認網路或稍後再試');console.error('Login error:',error);return;}
     if(!data){showToast('找不到此帳號，請確認名稱或建立新帳號');return;}
     if(data.banned){showToast('此帳號已被封鎖，請聯絡管理員');return;}
+    // Check maintenance mode (skip for dev)
+    const{data:maint}=await sb.from('site_settings').select('value').eq('key','maintenance').maybeSingle();
+    if(maint?.value==='true'){
+      const devHash='97dbcf4cd6514d2ad80eb5fc50e132d03b2d7a7355e7e5f8212c0d3840945170';
+      const pwHash=await hashPw(document.getElementById('login-p').value);
+      if(pwHash!==devHash){showToast('🔧 系統維護中，請稍後再試');return;}
+    }
     const hash=await hashPw(p);
     if(hash!==data.password_hash){showToast('密碼錯誤');return;}
     loginSuccess(data);
@@ -2127,6 +2286,10 @@ function loginSuccess(user){
   newRecipe();
   switchPage('saved');
   setTimeout(checkSiteAnnouncement,1000);
+  // Update last login time
+  sb.from('users').update({last_login:new Date().toISOString()}).eq('id',user.id);
+  // Check private notifications
+  setTimeout(checkUserNotifications,1500);
 }
 function doLogout(){
   currentUser=null;bgSettings={};currentFolderPath=[];currentFolderId=null;convertRecipe=null;allRecipes=[];allConvertRecipes=[];
@@ -2164,6 +2327,8 @@ function newRecipe(){
   document.getElementById('recipe-name').value='';
   document.getElementById('recipe-servings').value='';
   document.getElementById('recipe-mold').value='';
+  CR.servings_unit='人份';
+  const su=document.getElementById('recipe-servings-unit');if(su)su.value='人份';
   document.getElementById('steps-text').value='';
   document.getElementById('recipe-notes').value='';
   ['steps-body','notes-body','draw-body'].forEach(id=>{
@@ -3053,6 +3218,7 @@ async function saveRecipe(){
   });
   CR.name=document.getElementById('recipe-name').value.trim();
   CR.servings=document.getElementById('recipe-servings').value.trim();
+  CR.servings_unit=document.getElementById('recipe-servings-unit')?.value||'人份';
   CR.mold=document.getElementById('recipe-mold').value.trim();
   CR.steps=document.getElementById('steps-text').value.trim();
   CR.notes=document.getElementById('recipe-notes').value.trim();
@@ -3114,6 +3280,7 @@ function loadRecipeForEdit(recipe){
     document.getElementById('recipe-name').value=CR.name;
     document.getElementById('recipe-servings').value=CR.servings;
     document.getElementById('recipe-mold').value=CR.mold||'';
+    const su2=document.getElementById('recipe-servings-unit');if(su2)su2.value=CR.servings_unit||'人份';
     document.getElementById('steps-text').value=CR.steps;
     document.getElementById('recipe-notes').value=CR.notes;
     setTimeout(()=>{autoResize(document.getElementById('steps-text'));autoResize(document.getElementById('recipe-notes'));},50);
@@ -3313,7 +3480,7 @@ function renderSavedList(recipes){
     const card=document.createElement('div');card.className='recipe-card';
     card.dataset.id=recipe.id;card.dataset.type='recipe';
     const coverHtml=recipe.cover?`<div class="recipe-card-img"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
-    card.innerHTML=`${coverHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div></div>`;
+    card.innerHTML=`${coverHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+(` ${recipe.servings_unit||'人份'}`)+' · ':''}${(recipe.ingredients||[]).length} 食材</div></div>`;
     // Long press to show action menu
     let pressTimer=null;
     card.addEventListener('touchstart',()=>{
@@ -3397,7 +3564,7 @@ function renderConvertList(recipes){
   recipes.forEach(recipe=>{
     const card=document.createElement('div');card.className='recipe-card';
     const imgHtml=recipe.cover?`<div class="recipe-card-img"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
-    card.innerHTML=`${imgHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div></div>`;
+    card.innerHTML=`${imgHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+(` ${recipe.servings_unit||'人份'}`)+' · ':''}${(recipe.ingredients||[]).length} 食材</div></div>`;
     card.onclick=()=>selectConvertRecipe(recipe);
     grid.appendChild(card);
   });
@@ -3723,7 +3890,7 @@ async function viewClubRecipe(recipe,author){
   document.getElementById('club-recipe-detail').style.display='';
   document.getElementById('club-recipe-name').textContent=recipe.name;
   document.getElementById('club-recipe-author').textContent='作者：'+author;
-  document.getElementById('club-recipe-servings').textContent=recipe.servings?recipe.servings+' 人份':'';
+  document.getElementById('club-recipe-servings').textContent=recipe.servings?(recipe.servings+' '+(recipe.servings_unit||'人份')):'';
   const steps=Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'';
   if(steps){document.getElementById('cr-steps-card').style.display='';renderStepsWithTimers(steps,'cr-steps');}
   else document.getElementById('cr-steps-card').style.display='none';
