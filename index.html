@@ -71,7 +71,8 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 .top-tab.active svg{opacity:1}
 
 .page-content{flex:1;overflow-y:auto;padding-bottom:24px;background:transparent}
-.page{display:none;padding:16px;background:transparent}.page.active{display:block}
+.page{display:none!important;padding:16px;background:transparent}.page.active{display:block!important}
+#page-saved.active{display:flex!important;flex-direction:column;padding:0}
 
 /* CARDS */
 .card{background:#fff;border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--gp)}
@@ -275,16 +276,45 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 
     <!-- SAVED PAGE -->
     <div class="page" id="page-saved">
-      <div class="search-bar">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="saved-search" placeholder="搜尋食譜名稱…" oninput="filterSaved(this.value)">
+      <!-- Top search bar -->
+      <div style="padding:12px 14px 8px;flex-shrink:0">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="saved-search" placeholder="搜尋食譜名稱…" oninput="filterSaved(this.value)">
+        </div>
       </div>
-      <div class="saved-toolbar">
-        <button class="btn btn-outline btn-sm" onclick="showNewFolderModal()">📁 新增資料夾</button>
-        <button class="btn btn-ghost btn-sm" id="edit-order-btn" onclick="toggleEditOrder()">✏️ 編輯順序</button>
+      <!-- Split layout: sidebar + main -->
+      <div style="display:flex;flex:1;overflow:hidden">
+        <!-- Left sidebar: folders -->
+        <div id="folder-sidebar" style="width:90px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:6px 4px;background:rgba(255,255,255,0.5)">
+          <button id="sidebar-all" onclick="selectSidebarFolder(null)" style="width:100%;padding:8px 4px;border:none;border-radius:8px;background:var(--gd);color:#fff;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:4px;text-align:center">全部<br>食譜</button>
+          <div id="sidebar-folders"></div>
+          <button onclick="showNewFolderModal()" style="width:100%;padding:6px 4px;border:1px dashed var(--border);border-radius:8px;background:none;color:var(--tl);font-size:11px;cursor:pointer;margin-top:4px">＋ 新增<br>資料夾</button>
+        </div>
+        <!-- Right main: recipes -->
+        <div style="flex:1;overflow-y:auto;padding:10px 10px 10px 10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div id="saved-folder-title" style="font-size:13px;font-weight:700;color:var(--gd)">全部食譜</div>
+            <button class="btn btn-ghost btn-sm" id="edit-order-btn" onclick="toggleEditOrder()" style="font-size:11px;padding:4px 8px">✏️ 排序</button>
+          </div>
+          <div id="saved-list"><div class="loading">載入中…</div></div>
+        </div>
       </div>
-      <div class="breadcrumb" id="breadcrumb"></div>
-      <div id="saved-list"><div class="loading">載入中…</div></div>
+    </div>
+
+    <!-- Long press action menu modal -->
+    <div class="modal-overlay" id="card-action-modal">
+      <div class="modal">
+        <div class="modal-title" id="card-action-title"></div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-outline btn-full" onclick="closeModal('card-action-modal');showMoveModal(cardActionRecipeId)">📂 移動到資料夾</button>
+          <button class="btn btn-outline btn-full" onclick="closeModal('card-action-modal');loadRecipeForEdit(cardActionRecipe)">✏️ 編輯食譜</button>
+          <button class="btn btn-danger btn-full" onclick="closeModal('card-action-modal');showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe(cardActionRecipeId))">🗑 刪除食譜</button>
+        </div>
+        <div class="modal-actions" style="margin-top:14px">
+          <button class="btn btn-ghost btn-full" onclick="closeModal('card-action-modal')">取消</button>
+        </div>
+      </div>
     </div>
 
     <!-- RECIPE DETAIL PAGE -->
@@ -1713,15 +1743,25 @@ function renderStepsWithTimers(text, containerId){
   const el=document.getElementById(containerId);
   if(!el)return;
   if(!text){el.innerHTML='';return;}
-  // Match patterns like 5分鐘, 10分, 30秒, 1小時, 1.5小時
-  const timePattern=/(\d+(?:\.\d+)?)\s*(小時|分鐘|分|秒)/g;
+  const timePattern=/(\d+(?:\.\d+)?)\s*(?:[-~～至到]\s*(\d+(?:\.\d+)?))?\s*(小時|分鐘|分|秒)/g;
   let html=text.replace(/\n/g,'<br>');
-  html=html.replace(timePattern,(match,num,unit)=>{
-    let secs=0;
-    if(unit==='小時')secs=Math.round(parseFloat(num)*3600);
-    else if(unit==='分鐘'||unit==='分')secs=Math.round(parseFloat(num)*60);
-    else if(unit==='秒')secs=Math.round(parseFloat(num));
-    return `${match}<button onclick="startTimer(${secs},'${match}')" style="margin-left:6px;background:var(--gp);border:1px solid var(--gd);color:var(--gd);border-radius:6px;padding:1px 8px;font-size:11px;cursor:pointer;font-weight:600">⏱ 計時</button>`;
+  html=html.replace(timePattern,(match,num1,num2,unit)=>{
+    const toSecs=(n,u)=>{
+      if(u==='小時')return Math.round(parseFloat(n)*3600);
+      if(u==='分鐘'||u==='分')return Math.round(parseFloat(n)*60);
+      if(u==='秒')return Math.round(parseFloat(n));
+      return 0;
+    };
+    const btnStyle="margin-left:4px;background:var(--gp);border:1px solid var(--gd);color:var(--gd);border-radius:6px;padding:1px 7px;font-size:11px;cursor:pointer;font-weight:600";
+    if(num2){
+      // Range: show both + custom
+      const s1=toSecs(num1,unit);
+      const s2=toSecs(num2,unit);
+      return `${match}<button onclick="startTimer(${s1},'${num1}${unit}')" style="${btnStyle}">⏱ ${num1}${unit}</button><button onclick="startTimer(${s2},'${num2}${unit}')" style="${btnStyle}">⏱ ${num2}${unit}</button><button onclick="showTimerModal()" style="${btnStyle}">⏱ 自訂</button>`;
+    }else{
+      const secs=toSecs(num1,unit);
+      return `${match}<button onclick="startTimer(${secs},'${match}')" style="${btnStyle}">⏱ 計時</button>`;
+    }
   });
   el.innerHTML=html;
 }
@@ -2959,64 +2999,108 @@ async function saveOrder(){
   ]);
   showToast('✅ 順序已儲存');
 }
+let selectedFolderId=null; // null = all recipes
+let cardActionRecipeId=null;
+let cardActionRecipe=null;
+let allFolders=[];
+
 async function renderSaved(){
-  const list=document.getElementById('saved-list');list.innerHTML='<div class="loading">載入中…</div>';
-  renderBreadcrumb();
-  let fq=sb.from('folders').select('*').eq('user_id',currentUser.id).order('sort_order');
-  if(currentFolderId)fq=fq.eq('parent_id',currentFolderId);else fq=fq.is('parent_id',null);
-  let rq=sb.from('recipes').select('*').eq('user_id',currentUser.id).order('sort_order');
-  if(currentFolderId)rq=rq.eq('folder_id',currentFolderId);else rq=rq.is('folder_id',null);
-  const[{data:folders,error:fe},{data:recipes,error:re}]=await Promise.all([fq,rq]);
+  const list=document.getElementById('saved-list');
+  list.innerHTML='<div class="loading">載入中…</div>';
+  // Load all folders and all recipes in parallel
+  const[{data:folders},{data:recipes,error:re}]=await Promise.all([
+    sb.from('folders').select('*').eq('user_id',currentUser.id).order('sort_order'),
+    sb.from('recipes').select('*').eq('user_id',currentUser.id).order('sort_order')
+  ]);
   if(re)showToast('查詢錯誤：'+re.message);
+  allFolders=folders||[];
   allRecipes=recipes||[];
-  renderSavedList(folders||[],allRecipes);
+  renderSidebar(allFolders);
+  renderSavedList(allRecipes);
 }
 
-function renderSavedList(folders,recipes){
+function renderSidebar(folders){
+  const el=document.getElementById('sidebar-folders');
+  if(!el)return;
+  el.innerHTML=folders.map(f=>`
+    <button onclick="selectSidebarFolder('${f.id}','${f.name.replace(/'/g,"\'")}','${f.id}')"
+      id="sidebar-f-${f.id}"
+      style="width:100%;padding:8px 4px;border:none;border-radius:8px;background:${selectedFolderId===f.id?'var(--gp)':'none'};color:${selectedFolderId===f.id?'var(--gd)':'var(--text)'};font-size:11px;cursor:pointer;margin-bottom:3px;text-align:center;word-break:break-all;font-weight:${selectedFolderId===f.id?700:400};line-height:1.3">
+      📁 ${f.name}
+    </button>`).join('');
+}
+
+function selectSidebarFolder(folderId){
+  selectedFolderId=folderId;
+  // Update sidebar highlight
+  document.getElementById('sidebar-all').style.background=!folderId?'var(--gd)':'rgba(255,255,255,0.5)';
+  document.getElementById('sidebar-all').style.color=!folderId?'#fff':'var(--text)';
+  allFolders.forEach(f=>{
+    const btn=document.getElementById('sidebar-f-'+f.id);
+    if(btn){
+      btn.style.background=selectedFolderId===f.id?'var(--gp)':'none';
+      btn.style.color=selectedFolderId===f.id?'var(--gd)':'var(--text)';
+      btn.style.fontWeight=selectedFolderId===f.id?700:400;
+    }
+  });
+  const titleEl=document.getElementById('saved-folder-title');
+  if(titleEl){
+    if(!folderId)titleEl.textContent='全部食譜';
+    else titleEl.textContent=allFolders.find(f=>f.id===folderId)?.name||'';
+  }
+  // Filter recipes
+  if(!folderId)renderSavedList(allRecipes);
+  else renderSavedList(allRecipes.filter(r=>r.folder_id===folderId));
+}
+
+function renderSavedList(recipes){
   const list=document.getElementById('saved-list');list.innerHTML='';
-  // Reset edit order mode
   isEditOrder=false;
   const btn=document.getElementById('edit-order-btn');
-  if(btn){btn.textContent='✏️ 編輯順序';btn.classList.remove('btn-primary');btn.classList.add('btn-ghost');}
-  if(!folders.length&&!recipes.length){
-    list.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><p>${currentFolderId?'此資料夾是空的':'還沒有食譜！'}</p></div>`;return;
+  if(btn){btn.textContent='✏️ 排序';btn.classList.remove('btn-primary');btn.classList.add('btn-ghost');}
+  if(!recipes.length){
+    list.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div><p>${selectedFolderId?'此資料夾是空的':'還沒有食譜！'}</p></div>`;return;
   }
   const grid=document.createElement('div');grid.className='recipe-grid';
-  folders.forEach(f=>{
-    const card=document.createElement('div');card.className='recipe-card';
-    card.dataset.id=f.id;card.dataset.type='folder';
-    card.innerHTML=`<div class="recipe-card-name">📁 ${f.name}</div><div class="recipe-card-meta">資料夾</div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除資料夾','裡面的食譜會移回根目錄',()=>deleteFolder('${f.id}'))">🗑</button></div>`;
-    card.onclick=(e)=>{if(!isEditOrder&&!e.target.closest('.icon-btn'))enterFolder(f.id,f.name);};
-    grid.appendChild(card);
-  });
   recipes.forEach(recipe=>{
     const card=document.createElement('div');card.className='recipe-card';
     card.dataset.id=recipe.id;card.dataset.type='recipe';
     const coverHtml=recipe.cover?`<div class="recipe-card-img"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
-    card.innerHTML=`${coverHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div></div><div class="recipe-card-actions"><button class="icon-btn" onclick="event.stopPropagation();showMoveModal('${recipe.id}')">📂</button><button class="icon-btn" onclick="event.stopPropagation();showConfirm('刪除食譜','確定要刪除嗎？',()=>deleteRecipe('${recipe.id}'))">🗑</button></div>`;
-    card.onclick=(e)=>{if(!isEditOrder&&!e.target.closest('.icon-btn'))showRecipeDetail(recipe);};
+    card.innerHTML=`${coverHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' 人份 · ':''}${(recipe.ingredients||[]).length} 食材</div></div>`;
+    // Long press to show action menu
+    let pressTimer=null;
+    card.addEventListener('touchstart',()=>{
+      pressTimer=setTimeout(()=>{
+        pressTimer=null;
+        cardActionRecipeId=recipe.id;
+        cardActionRecipe=recipe;
+        document.getElementById('card-action-title').textContent=recipe.name;
+        openModal('card-action-modal');
+      },600);
+    },{passive:true});
+    card.addEventListener('touchend',()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}});
+    card.addEventListener('touchmove',()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}});
+    // Right click on desktop
+    card.addEventListener('contextmenu',(e)=>{
+      e.preventDefault();
+      cardActionRecipeId=recipe.id;cardActionRecipe=recipe;
+      document.getElementById('card-action-title').textContent=recipe.name;
+      openModal('card-action-modal');
+    });
+    card.onclick=(e)=>{if(!isEditOrder)showRecipeDetail(recipe);};
     grid.appendChild(card);
   });
   list.appendChild(grid);
 }
 
 function filterSaved(q){
-  if(!q.trim()){renderSavedList([],allRecipes);return;}
-  const filtered=allRecipes.filter(r=>r.name.toLowerCase().includes(q.toLowerCase()));
-  renderSavedList([],filtered);
+  const base=selectedFolderId?allRecipes.filter(r=>r.folder_id===selectedFolderId):allRecipes;
+  if(!q.trim()){renderSavedList(base);return;}
+  renderSavedList(base.filter(r=>r.name.toLowerCase().includes(q.toLowerCase())));
 }
 
-function renderBreadcrumb(){
-  const bc=document.getElementById('breadcrumb');bc.innerHTML='';
-  const home=document.createElement('span');home.className='bc-item';home.textContent='🏠 所有食譜';
-  home.onclick=()=>{currentFolderPath=[];currentFolderId=null;renderSaved();};bc.appendChild(home);
-  currentFolderPath.forEach((seg,i)=>{
-    const sep=document.createElement('span');sep.className='bc-sep';sep.textContent=' › ';bc.appendChild(sep);
-    const item=document.createElement('span');item.className='bc-item';item.textContent=seg.name;
-    item.onclick=()=>{currentFolderPath=currentFolderPath.slice(0,i+1);currentFolderId=seg.id;renderSaved();};bc.appendChild(item);
-  });
-}
-function enterFolder(id,name){currentFolderPath.push({id,name});currentFolderId=id;renderSaved();}
+function renderBreadcrumb(){}
+function enterFolder(id,name){selectSidebarFolder(id);}
 function showNewFolderModal(){document.getElementById('new-folder-name').value='';openModal('folder-modal');}
 async function createFolder(){
   const name=document.getElementById('new-folder-name').value.trim();
