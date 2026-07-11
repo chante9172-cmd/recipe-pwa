@@ -1588,18 +1588,16 @@ function renderDetailIngredients(ratio){
     const origQty=parseFraction(ing.qty);
     const newQty=isNaN(origQty)?'?':fmtNum(origQty*ratio);
     const isRef=i===detailRefIdx;
-    const borderStyle=`border-bottom:1px solid var(--border)`;
-    // Name cell
+    const b=`border-bottom:1px solid var(--border)`;
     const nameCell=document.createElement('div');
-    nameCell.style.cssText=`padding:10px;font-size:14px;font-weight:${isRef?700:500};color:var(--text);${borderStyle};display:flex;align-items:center;gap:6px`;
+    nameCell.style.cssText=`padding:10px;font-size:14px;font-weight:${isRef?700:500};color:var(--text);${b};display:flex;align-items:center;gap:6px`;
+    // Always show 設為基準 button - clicking auto-switches to mode 2
     nameCell.innerHTML=`${ing.name||'食材'+(i+1)}<button onclick="setDetailRef(${i})" style="font-size:10px;padding:2px 6px;border-radius:6px;border:1px solid ${isRef?'var(--gd)':'var(--border)'};background:${isRef?'var(--gp)':'white'};color:${isRef?'var(--gd)':'var(--tl)'};cursor:pointer;white-space:nowrap">設為基準</button>`;
-    // Orig cell
     const origCell=document.createElement('div');
-    origCell.style.cssText=`padding:10px;font-size:14px;color:var(--tl);${borderStyle};text-align:right`;
+    origCell.style.cssText=`padding:10px;font-size:14px;color:var(--tl);${b};text-align:right`;
     origCell.textContent=`${ing.qty}${ing.unit}`;
-    // New cell
     const newCell=document.createElement('div');
-    newCell.style.cssText=`padding:10px;font-size:14px;font-weight:700;color:var(--gd);${borderStyle};text-align:right`;
+    newCell.style.cssText=`padding:10px;font-size:14px;font-weight:700;color:var(--gd);${b};text-align:right`;
     newCell.textContent=ratio===1?'—':`${newQty}${ing.unit}`;
     container.appendChild(nameCell);container.appendChild(origCell);container.appendChild(newCell);
   });
@@ -1644,6 +1642,9 @@ function recalcDetailAuto(){
 }
 
 function setDetailRef(idx){
+  detailRefIdx=idx;
+  // Auto switch to mode 2 (食材)
+  if(detailMode!==2)setDetailMode(2);
   const ing=detailRecipe.ingredients[idx];
   document.getElementById('detail-ref-hint').style.display='none';
   document.getElementById('detail-ref-input').style.display='block';
