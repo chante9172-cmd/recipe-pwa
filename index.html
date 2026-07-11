@@ -222,7 +222,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 <!-- APP -->
 <div id="app">
   <!-- Site announcement banner -->
-  <div id="ann-banner" style="display:none;background:#1a5c38;color:#fff;padding:8px 14px;font-size:13px;display:flex;align-items:center;gap:8px;flex-shrink:0">
+  <div id="ann-banner" style="display:none;background:#1a5c38;color:#fff;padding:8px 14px;font-size:13px;align-items:center;gap:8px;flex-shrink:0">
     <span style="font-size:16px">📢</span>
     <span id="ann-banner-text" style="flex:1;line-height:1.4"></span>
     <button onclick="closeAnnBanner()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;opacity:0.8">✕</button>
@@ -2119,23 +2119,13 @@ async function checkSiteAnnouncement(){
   const{data:anns}=await sb.from('site_announcements').select('id,content').eq('is_active',true).order('created_at',{ascending:false}).limit(1);
   if(!anns||!anns.length){document.getElementById('ann-banner').style.display='none';return;}
   const ann=anns[0];
-  if(localStorage.getItem('closed_ann_'+ann.id))return;
+  // Already seen this announcement
+  if(localStorage.getItem('seen_ann_'+ann.id))return;
+  // Mark as seen immediately when shown (not just on close)
+  localStorage.setItem('seen_ann_'+ann.id,'1');
   const banner=document.getElementById('ann-banner');
   banner.dataset.annId=ann.id;
   showAnnBanner(ann.content);
-}
-
-function closeAnnBanner(){
-  const banner=document.getElementById('ann-banner');
-  if(banner.dataset.annId)localStorage.setItem('closed_ann_'+banner.dataset.annId,'1');
-  banner.style.display='none';
-}
-
-function closeAnnModal(){
-  document.getElementById('ann-modal').style.display='none';
-  // Show banner after modal closes
-  const txt=document.getElementById('ann-modal-text').textContent;
-  if(txt)showAnnBanner(txt);
 }
 
 function showAnnBanner(text){
@@ -2146,6 +2136,10 @@ function showAnnBanner(text){
 
 function closeAnnBanner(){
   document.getElementById('ann-banner').style.display='none';
+}
+
+function closeAnnModal(){
+  document.getElementById('ann-modal').style.display='none';
 }
 
 // ── PRIVATE NOTIFICATIONS ──
