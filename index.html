@@ -95,7 +95,7 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 .recipe-card-img{width:46px;height:46px;flex-shrink:0;border-radius:6px;border:1.5px solid var(--border);background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden}
 .recipe-card-img img{width:100%;height:100%;object-fit:cover}
 .recipe-card-body{flex:1;min-width:0}
-.recipe-card-name{font-weight:700;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recipe-card-name{font-weight:700;font-size:12px;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4}
 .recipe-card-meta{font-size:10px;color:var(--tl);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .recipe-card-actions{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
 .icon-btn{background:var(--gp);border:none;border-radius:5px;width:22px;height:22px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;color:var(--gd)}
@@ -304,6 +304,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div class="card" style="padding:14px 18px">
         <div style="font-size:22px;font-weight:700" id="detail-name"></div>
         <div style="font-size:13px;color:var(--tl);margin-top:4px" id="detail-servings"></div>
+        <div style="font-size:13px;color:var(--tl);margin-top:2px" id="detail-mold"></div>
       </div>
       <!-- Conversion -->
       <div class="card">
@@ -374,7 +375,8 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div class="card">
         <div class="card-title">食譜資訊</div>
         <div class="mb10"><label>食譜名稱</label><input type="text" id="recipe-name" placeholder="例如：媽媽的紅燒肉"></div>
-        <div><label>份量（人數）</label><input type="text" id="recipe-servings" placeholder="例如：4 或留空"></div>
+        <div class="mb10"><label>份量（人數）</label><input type="text" id="recipe-servings" placeholder="例如：4 或留空"></div>
+        <div><label>使用模具（可空白）</label><input type="text" id="recipe-mold" placeholder="例如：6吋圓模、20×20方模"></div>
       </div>
       <div class="card">
         <div class="card-title">食材清單</div>
@@ -934,7 +936,7 @@ const sb=supabase.createClient(
 );
 
 let currentUser=null;
-let CR={id:null,name:'',servings:'',ingredients:[{qty:'',unit:'g',name:''}],steps:'',notes:'',cover:'',drawing:'',steps_drawing:'',notes_drawing:'',folder_id:null};
+let CR={id:null,name:'',servings:'',mold:'',ingredients:[{qty:'',unit:'g',name:''}],steps:'',notes:'',cover:'',drawing:'',steps_drawing:'',notes_drawing:'',folder_id:null};
 let currentFolderPath=[];
 let currentFolderId=null;
 let convertMode=0;
@@ -1560,6 +1562,8 @@ function showRecipeDetail(recipe){
   // Fill in data
   document.getElementById('detail-name').textContent=recipe.name;
   document.getElementById('detail-servings').textContent=recipe.servings?`${recipe.servings} 人份`:'';
+  const moldEl=document.getElementById('detail-mold');
+  if(moldEl){moldEl.textContent=recipe.mold?`🥣 模具：${recipe.mold}`:'';}
   // Cover
   if(recipe.cover){
     document.getElementById('detail-cover').style.display='block';
@@ -1918,10 +1922,11 @@ function switchPage(page){
 
 // ── EDIT ──
 function newRecipe(){
-  CR={id:null,name:'',servings:'',ingredients:[{qty:'',unit:'g',name:''}],steps:'',notes:'',cover:'',drawing:'',steps_drawing:'',notes_drawing:'',folder_id:null};
+  CR={id:null,name:'',servings:'',mold:'',ingredients:[{qty:'',unit:'g',name:''}],steps:'',notes:'',cover:'',drawing:'',steps_drawing:'',notes_drawing:'',folder_id:null};
   coverDataUrl='';
   document.getElementById('recipe-name').value='';
   document.getElementById('recipe-servings').value='';
+  document.getElementById('recipe-mold').value='';
   document.getElementById('steps-text').value='';
   document.getElementById('recipe-notes').value='';
   ['steps-body','notes-body','draw-body'].forEach(id=>{
@@ -2723,6 +2728,7 @@ async function saveRecipe(){
   });
   CR.name=document.getElementById('recipe-name').value.trim();
   CR.servings=document.getElementById('recipe-servings').value.trim();
+  CR.mold=document.getElementById('recipe-mold').value.trim();
   CR.steps=document.getElementById('steps-text').value.trim();
   CR.notes=document.getElementById('recipe-notes').value.trim();
   CR.drawing=getWidgetData('main-draw-widget');
@@ -2731,7 +2737,7 @@ async function saveRecipe(){
   if(!CR.name){showToast('請輸入食譜名稱');return;}
 
   const payload={
-    user_id:currentUser.id,name:CR.name,servings:CR.servings||null,
+    user_id:currentUser.id,name:CR.name,servings:CR.servings||null,mold:CR.mold||null,
     ingredients:CR.ingredients,steps:CR.steps,notes:CR.notes,
     cover:CR.cover||'',folder_id:CR.folder_id||null,sort_order:0
   };
@@ -2782,6 +2788,7 @@ function loadRecipeForEdit(recipe){
     coverDataUrl='';
     document.getElementById('recipe-name').value=CR.name;
     document.getElementById('recipe-servings').value=CR.servings;
+    document.getElementById('recipe-mold').value=CR.mold||'';
     document.getElementById('steps-text').value=CR.steps;
     document.getElementById('recipe-notes').value=CR.notes;
     setTimeout(()=>{autoResize(document.getElementById('steps-text'));autoResize(document.getElementById('recipe-notes'));},50);
