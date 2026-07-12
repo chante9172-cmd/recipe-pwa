@@ -1053,12 +1053,16 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 </div>
 
 <div class="modal-overlay" id="upload-recipe-modal">
-  <div class="modal">
+  <div class="modal" style="max-height:85vh;display:flex;flex-direction:column">
     <div class="modal-title">選擇要上傳的食譜</div>
-    <div style="font-size:13px;color:var(--tl);margin-bottom:10px">選擇你想分享到社團的食譜</div>
-    <div id="upload-recipe-list" style="max-height:350px;overflow-y:auto"></div>
-    <div class="modal-actions">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:13px;color:var(--tl)">打勾選取，再按上傳</span>
+      <button class="btn btn-ghost btn-sm" onclick="toggleSelectAllUpload()" id="select-all-upload-btn">全選</button>
+    </div>
+    <div id="upload-recipe-list" style="flex:1;overflow-y:auto;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
       <button class="btn btn-ghost btn-full" onclick="closeModal('upload-recipe-modal')">取消</button>
+      <button class="btn btn-primary btn-full" onclick="uploadSelectedRecipes()" id="upload-selected-btn">⬆️ 上傳所選</button>
     </div>
   </div>
 </div>
@@ -4305,9 +4309,7 @@ async function viewMemberRecipes(userId, username){
 
 async function showUploadRecipeModal(){
   if(!currentClub)return;
-  // Get user's recipes
   const{data:myRecipes}=await sb.from('recipes').select('id,name,cover,ingredients').eq('user_id',currentUser.id);
-  // Get already-shared recipe IDs
   const{data:shared}=await sb.from('club_recipes').select('recipe_id').eq('club_id',currentClub.id);
   const sharedIds=new Set((shared||[]).map(s=>s.recipe_id));
   const el=document.getElementById('upload-recipe-list');
@@ -4317,15 +4319,50 @@ async function showUploadRecipeModal(){
   }
   el.innerHTML=myRecipes.map(r=>{
     const already=sharedIds.has(r.id);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+    return`<label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:${already?'default':'pointer'}">
+      <input type="checkbox" value="${r.id}" ${already?'disabled checked':''}
+        style="width:20px;height:20px;accent-color:var(--gd);flex-shrink:0;cursor:${already?'default':'pointer'}">
       ${r.cover?`<img src="${r.cover}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0">`:'<div style="width:40px;height:40px;border-radius:8px;background:var(--gp);display:flex;align-items:center;justify-content:center;flex-shrink:0">🍽</div>'}
-      <div style="flex:1"><div style="font-weight:600;font-size:14px">${r.name}</div><div style="font-size:12px;color:var(--tl)">${(r.ingredients||[]).length}種食材</div></div>
-      ${already
-        ?'<span style="font-size:12px;color:var(--tl);padding:4px 10px">已上傳</span>'
-        :`<button onclick="uploadRecipeToClub('${r.id}')" style="background:var(--gd);color:#fff;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px">上傳</button>`}
-    </div>`;
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px">${r.name}</div>
+        <div style="font-size:12px;color:var(--tl)">${(r.ingredients||[]).length}種食材${already?' · 已上傳':''}</div>
+      </div>
+    </label>`;
   }).join('');
   openModal('upload-recipe-modal');
+}
+
+function toggleSelectAllUpload(){
+  const checkboxes=document.querySelectorAll('#upload-recipe-list input[type="checkbox"]:not(:disabled)');
+  const allChecked=[...checkboxes].every(c=>c.checked);
+  checkboxes.forEach(c=>c.checked=!allChecked);
+  document.getElementById('select-all-upload-btn').textContent=allChecked?'全選':'取消全選';
+}
+
+async function uploadSelectedRecipes(){
+  const checkboxes=[...document.querySelectorAll('#upload-recipe-list input[type="checkbox"]:not(:disabled):checked')];
+  if(!checkboxes.length){showToast('請先選取食譜');return;}
+  const btn=document.getElementById('upload-selected-btn');
+  btn.disabled=true;btn.textContent='上傳中…';
+  let count=0;
+  for(const cb of checkboxes){
+    const{error}=await sb.from('club_recipes').insert({club_id:currentClub.id,recipe_id:cb.value,user_id:currentUser.id});
+    if(!error||error.code==='23505')count++;
+  }
+  // Notify members once
+  if(count>0){
+    const memberIds=Object.keys(clubUsersMap).filter(id=>id!==currentUser.id);
+    if(memberIds.length){
+      await sb.from('club_notifications').insert(memberIds.map(uid=>({
+        club_id:currentClub.id,user_id:uid,type:'recipe',
+        content:`${currentUser.username} 在「${currentClub.name}」分享了 ${count} 個食譜`
+      })));
+    }
+  }
+  btn.disabled=false;btn.textContent='⬆️ 上傳所選';
+  closeModal('upload-recipe-modal');
+  showToast(`✅ 已上傳 ${count} 個食譜！`);
+  loadClubRecipes();
 }
 
 async function uploadRecipeToClub(recipeId){
