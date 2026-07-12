@@ -728,6 +728,12 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div class="card-title">📢 發全站公告</div>
       <div id="dev-ann-list" style="margin-bottom:10px;font-size:13px"></div>
       <textarea id="dev-ann-input" placeholder="輸入公告內容…" style="width:100%;min-height:70px;resize:none;margin-bottom:8px"></textarea>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <label style="font-size:12px;color:var(--tl)">背景顏色</label>
+        <input type="color" id="dev-ann-color" value="#1a5c38" style="width:44px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border)">
+        <label style="font-size:12px;color:var(--tl)">文字顏色</label>
+        <input type="color" id="dev-ann-text-color" value="#ffffff" style="width:44px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border)">
+      </div>
       <button class="btn btn-primary btn-full" onclick="devPostAnnouncement()">發布公告</button>
     </div>
     <!-- Users -->
@@ -2095,7 +2101,9 @@ function devDeleteClub(clubId,name){
 async function devPostAnnouncement(){
   const content=document.getElementById('dev-ann-input').value.trim();
   if(!content){showToast('請輸入公告內容');return;}
-  await sb.from('site_announcements').insert({content,is_active:true});
+  const bg=document.getElementById('dev-ann-color')?.value||'#1a5c38';
+  const tc=document.getElementById('dev-ann-text-color')?.value||'#ffffff';
+  await sb.from('site_announcements').insert({content,is_active:true,color:bg+'|'+tc});
   document.getElementById('dev-ann-input').value='';
   showToast('✅ 公告已發布');
   loadDevPanel();
@@ -2116,21 +2124,24 @@ async function devToggleBan(userId,banned,btn){
 
 // Show announcement on login
 async function checkSiteAnnouncement(){
-  const{data:anns}=await sb.from('site_announcements').select('id,content').eq('is_active',true).order('created_at',{ascending:false}).limit(1);
+  const{data:anns}=await sb.from('site_announcements').select('id,content,color').eq('is_active',true).order('created_at',{ascending:false}).limit(1);
   if(!anns||!anns.length){document.getElementById('ann-banner').style.display='none';return;}
   const ann=anns[0];
-  // Already seen this announcement
   if(localStorage.getItem('seen_ann_'+ann.id))return;
-  // Mark as seen immediately when shown (not just on close)
   localStorage.setItem('seen_ann_'+ann.id,'1');
   const banner=document.getElementById('ann-banner');
   banner.dataset.annId=ann.id;
-  showAnnBanner(ann.content);
+  const colors=(ann.color||'#1a5c38|#ffffff').split('|');
+  showAnnBanner(ann.content,colors[0]||'#1a5c38',colors[1]||'#ffffff');
 }
 
-function showAnnBanner(text){
+function showAnnBanner(text,bg,tc){
   const banner=document.getElementById('ann-banner');
   document.getElementById('ann-banner-text').textContent=text;
+  banner.style.background=bg||'#1a5c38';
+  banner.style.color=tc||'#ffffff';
+  const closeBtn=banner.querySelector('button');
+  if(closeBtn)closeBtn.style.color=tc||'#ffffff';
   banner.style.display='flex';
 }
 
@@ -4175,12 +4186,26 @@ function copyInviteCode(){
 }
 
 // ── BACKGROUND ──
-function loadBgSettings(){
+async function loadBgSettings(){
+  // Try Supabase first, fallback to localStorage
+  if(currentUser){
+    const{data}=await sb.from('users').select('bg_settings').eq('id',currentUser.id).single();
+    if(data?.bg_settings){
+      try{bgSettings=JSON.parse(data.bg_settings);}catch{bgSettings={};}
+      localStorage.setItem('bgSettings_'+currentUser.id,data.bg_settings);
+      BG_PAGES.forEach(p=>applyPageBg(p.key));
+      return;
+    }
+  }
   const raw=localStorage.getItem('bgSettings_'+(currentUser?.id||'guest'));
   bgSettings=raw?JSON.parse(raw):{};
   BG_PAGES.forEach(p=>applyPageBg(p.key));
 }
-function saveBgSettings(){localStorage.setItem('bgSettings_'+(currentUser?.id||'guest'),JSON.stringify(bgSettings));}
+async function saveBgSettings(){
+  const json=JSON.stringify(bgSettings);
+  localStorage.setItem('bgSettings_'+(currentUser?.id||'guest'),json);
+  if(currentUser)await sb.from('users').update({bg_settings:json}).eq('id',currentUser.id);
+}
 function applyPageBg(pageKey){
   const setting=bgSettings[pageKey];
   const overlay=document.getElementById('bg-overlay');
