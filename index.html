@@ -2330,6 +2330,8 @@ function loginSuccess(user){
   sb.from('users').update({last_login:new Date().toISOString()}).eq('id',user.id);
   // Check private notifications
   setTimeout(checkUserNotifications,1500);
+  // Poll for new notifications every 30 seconds
+  setInterval(checkUserNotifications,30000);
 }
 function doLogout(){
   currentUser=null;bgSettings={};currentFolderPath=[];currentFolderId=null;convertRecipe=null;allRecipes=[];allConvertRecipes=[];
