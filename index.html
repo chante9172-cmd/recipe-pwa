@@ -75,7 +75,7 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 #page-saved.active{display:flex!important;flex-direction:column;padding:0}
 
 /* CARDS */
-.card{background:#fff;border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--gp)}
+.card{background:rgba(255,255,255,0.75);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--gp)}
 .card-title{font-size:12px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px}
 
 /* INGREDIENTS */
@@ -164,7 +164,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:500}
 .modal-overlay.show{display:flex}
-.modal{background:#fff;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;animation:slideUp .3s ease}
+.modal{background:rgba(255,255,255,0.92);border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;animation:slideUp .3s ease}
 @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 .modal-title{font-size:17px;font-weight:700;margin-bottom:16px;text-align:center}
 .modal-actions{display:flex;gap:10px;margin-top:16px}
@@ -1095,7 +1095,9 @@ const BG_PAGES=[
   {key:'saved',icon:'📚',name:'已儲存頁面'},
   {key:'edit',icon:'✏️',name:'新增食譜頁面'},
   {key:'settings',icon:'⚙️',name:'設定頁面'},
+  {key:'club',icon:'👥',name:'社團頁面'},
   {key:'auth',icon:'🔐',name:'登入頁面'},
+  {key:'header',icon:'🎨',name:'頂部導覽列'},
 ];
 
 // ── DRAW WIDGETS ──
@@ -4210,8 +4212,21 @@ async function saveBgSettings(){
 }
 function applyPageBg(pageKey){
   const setting=bgSettings[pageKey];
+  // Header special handling
+  if(pageKey==='header'){
+    const header=document.querySelector('.top-header');
+    if(!header)return;
+    if(!setting||setting.type==='none'){
+      header.style.background='';header.style.backgroundImage='';
+    }else if(setting.type==='color'){
+      header.style.background=setting.value;header.style.backgroundImage='';
+    }else if(setting.type==='image'){
+      header.style.backgroundImage=`url(${setting.value})`;
+      header.style.backgroundSize='cover';header.style.backgroundPosition='center';
+    }
+    return;
+  }
   const overlay=document.getElementById('bg-overlay');
-  // Also clear individual page backgrounds (legacy cleanup)
   const pageEl=pageKey==='auth'?document.getElementById('auth-screen'):document.getElementById('page-'+pageKey);
   if(pageEl){pageEl.style.backgroundColor='';pageEl.style.backgroundImage='';}
   if(!overlay)return;
@@ -4224,7 +4239,6 @@ function applyPageBg(pageKey){
     overlay.style.backgroundSize='cover';overlay.style.backgroundPosition='center';
     overlay.style.backgroundColor='';
   }
-  // Auth screen special handling
   if(pageKey==='auth'&&pageEl){
     if(!setting||setting.type==='none'){pageEl.style.background='linear-gradient(160deg,var(--gd) 0%,var(--g) 60%,var(--gm) 100%)';}
     else if(setting.type==='color'){pageEl.style.backgroundColor=setting.value;pageEl.style.backgroundImage='';}
