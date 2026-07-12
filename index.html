@@ -272,13 +272,13 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       </button>
 
       <button class="top-tab" id="tab-club" onclick="switchPage('club')">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px;position:relative">
           <circle cx="9" cy="7" r="3"/>
           <circle cx="17" cy="9" r="2.5"/>
           <path d="M2 21v-1a7 7 0 0114 0v1"/>
           <path d="M17 13c2.8.4 5 2.5 5 5v1"/>
         </svg>
-        社團
+        <span style="position:relative;display:inline-block">社團<span id="club-notif-badge" style="display:none;position:absolute;top:-4px;right:-10px;background:#e53e3e;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;align-items:center;justify-content:center;font-weight:700"></span></span>
       </button>
       <button class="top-tab" id="tab-settings" onclick="switchPage('settings')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
@@ -337,9 +337,10 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 
     <!-- RECIPE DETAIL PAGE -->
     <div class="page" id="page-detail">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
         <button class="btn btn-ghost btn-sm" onclick="backToSaved()">← 返回</button>
         <div style="flex:1"></div>
+        <button class="btn btn-ghost btn-sm" onclick="duplicateRecipe()" title="複製食譜">📋</button>
         <button class="btn btn-outline btn-sm" onclick="editCurrentDetail()">✏️ 編輯</button>
       </div>
       <!-- Cover -->
@@ -674,6 +675,11 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 
     <!-- SETTINGS PAGE -->
     <div class="page" id="page-settings">
+      <!-- Recipe stats -->
+      <div style="margin-bottom:20px">
+        <div class="settings-label">📊 我的食譜統計</div>
+        <div class="card" id="my-stats" style="font-size:14px;line-height:2.2">載入中…</div>
+      </div>
       <div style="margin-bottom:20px">
         <div class="settings-label">🎨 頁面背景設定</div>
         <div id="bg-settings-list"></div>
@@ -724,6 +730,14 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 
       <!-- STAT TAB -->
       <div id="devt-stat">
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-title">📈 近7天活躍用戶</div>
+          <div id="dev-activity-chart" style="font-size:13px">載入中…</div>
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-title">⏰ 系統時間</div>
+          <div id="dev-sys-time" style="font-size:14px;font-family:monospace"></div>
+        </div>
         <div class="card" style="margin-bottom:12px">
           <div class="card-title">使用統計</div>
           <div id="dev-stats" style="font-size:14px;line-height:2.2">載入中…</div>
@@ -1760,6 +1774,7 @@ let detailRecipe=null;
 let detailRefIdx=null;
 
 function showRecipeDetail(recipe){
+  detailRecipeCache=recipe;
   detailRecipe=recipe;
   detailRefIdx=null;
   // Fill in data
@@ -2296,6 +2311,11 @@ function devDeleteAccount(userId,username){
   });
 }
 
+async function devTogglePrivate(clubId, isPrivate){
+  await sb.from('clubs').update({is_private:!isPrivate}).eq('id',clubId);
+  showToast(isPrivate?'已設為公開':'已設為私密');devLoadClubs();
+}
+
 function devDeleteClub(clubId,name){
   showConfirm('解散社團','確定要解散「'+name+'」嗎？',async()=>{
     await sb.from('club_members').delete().eq('club_id',clubId);
@@ -2392,6 +2412,58 @@ function devSendNotif(userId,username){
   if(!msg)return;
   sb.from('user_notifications').insert({user_id:userId,content:msg,is_read:false})
     .then(()=>showToast('✅ 通知已發送給 '+username));
+}
+
+// ── USER FEATURES ──
+let detailRecipeCache=null;
+
+async function duplicateRecipe(){
+  const recipe=detailRecipeCache||detailRecipe;
+  if(!recipe)return;
+  const{data,error}=await sb.from('recipes').insert({
+    user_id:currentUser.id,
+    name:'（複製）'+recipe.name,
+    servings:recipe.servings,servings_unit:recipe.servings_unit||'人份',
+    mold:recipe.mold||null,
+    ingredients:recipe.ingredients,steps:recipe.steps,notes:recipe.notes,
+    cover:recipe.cover||null,folder_id:null,sort_order:0
+  }).select().single();
+  if(error){showToast('複製失敗');return;}
+  showToast('✅ 已複製食譜！');
+  allRecipes=[...allRecipes,data];
+  renderSavedList(selectedFolderId?allRecipes.filter(r=>r.folder_id===selectedFolderId):allRecipes);
+}
+
+async function loadMyStats(){
+  const el=document.getElementById('my-stats');
+  if(!el)return;
+  const{data:recipes}=await sb.from('recipes').select('ingredients').eq('user_id',currentUser.id);
+  if(!recipes){el.innerHTML='載入失敗';return;}
+  const totalRecipes=recipes.length;
+  // Count unique ingredient names
+  const ingSet=new Set();
+  let totalIngs=0;
+  recipes.forEach(r=>(r.ingredients||[]).forEach(i=>{if(i.name)ingSet.add(i.name);totalIngs++;}));
+  // Folder count
+  const{count:folderCount}=await sb.from('folders').select('*',{count:'exact',head:true}).eq('user_id',currentUser.id);
+  // Club count
+  const{count:clubCount}=await sb.from('club_members').select('*',{count:'exact',head:true}).eq('user_id',currentUser.id);
+  el.innerHTML=`🍽 食譜：<b>${totalRecipes}</b> 份<br>🧂 食材種類：<b>${ingSet.size}</b> 種（共 ${totalIngs} 項）<br>📁 資料夾：<b>${folderCount||0}</b> 個<br>👥 加入社團：<b>${clubCount||0}</b> 個`;
+}
+
+async function loadClubNotifBadge(){
+  if(!currentUser)return;
+  const{data}=await sb.from('club_notifications').select('id').eq('user_id',currentUser.id).eq('is_read',false);
+  const badge=document.getElementById('club-notif-badge');
+  const count=(data||[]).length;
+  if(badge){
+    if(count>0){
+      badge.style.display='flex';
+      badge.textContent=count>9?'9+':count;
+    }else{
+      badge.style.display='none';
+    }
+  }
 }
 
 function parseFraction(s){
@@ -2534,6 +2606,8 @@ async function loginSuccess(user){
   await sb.from('users').update({last_login:new Date().toISOString()}).eq('id',user.id);
   setTimeout(checkUserNotifications,1500);
   setInterval(checkUserNotifications,30000);
+  setTimeout(loadClubNotifBadge,2000);
+  setInterval(loadClubNotifBadge,60000);
   // Dev account: show dev button in settings and auto-open on first login
   const isDev=user.username==='開發者';
   const devBtn=document.getElementById('dev-tap');
@@ -2573,8 +2647,8 @@ function switchPage(page){
   else{const fallback=document.getElementById('tab-saved');if(fallback)fallback.classList.add('active');}
   if(page==='saved')renderSaved();
   if(page==='convert')loadConvertList();
-  if(page==='settings')renderBgSettings();
-  if(page==='club')loadClubs();
+  if(page==='settings'){renderBgSettings();loadMyStats();}
+  if(page==='club'){loadClubs();loadClubNotifBadge();}
   applyPageBg(page==='detail'?'saved':page);
 }
 
@@ -3974,6 +4048,10 @@ async function loadClubs(){
   const listEl=document.getElementById('club-list');
   if(!listEl)return;
   listEl.innerHTML='<div class="loading">載入中…</div>';
+  // Mark club notifications as read when visiting club page
+  sb.from('club_notifications').update({is_read:true}).eq('user_id',currentUser.id).eq('is_read',false);
+  const badge=document.getElementById('club-notif-badge');
+  if(badge)badge.style.display='none';
   const{data:memberships}=await sb.from('club_members').select('club_id').eq('user_id',currentUser.id);
   if(!memberships||!memberships.length){
     listEl.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><p>還沒有加入任何社團<br>創建或加入一個社團吧！</p></div>';
