@@ -329,7 +329,33 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
     </div>
 
     <!-- Long press action menu modal -->
-    <div class="modal-overlay" id="card-action-modal">
+    <!-- FOLDER ACTION MODAL -->
+<div class="modal-overlay" id="folder-action-modal">
+  <div class="modal">
+    <div class="modal-title" id="folder-action-title"></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-outline btn-full" onclick="closeModal('folder-action-modal');showRenameFolderModal()">✏️ 更改名字</button>
+      <button class="btn btn-danger btn-full" onclick="closeModal('folder-action-modal');confirmDeleteFolderAction()">🗑 刪除</button>
+    </div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('folder-action-modal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOLDER RENAME MODAL -->
+<div class="modal-overlay" id="folder-rename-modal">
+  <div class="modal">
+    <div class="modal-title">更改資料夾名稱</div>
+    <div class="mb10"><input type="text" id="folder-rename-input" placeholder="輸入新名稱"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('folder-rename-modal')">取消</button>
+      <button class="btn btn-primary" onclick="doRenameFolder()">確定</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="card-action-modal">
       <div class="modal">
         <div class="modal-title" id="card-action-title"></div>
         <div style="display:flex;flex-direction:column;gap:10px">
@@ -3887,19 +3913,31 @@ function renderSidebar(folders){
   });
 }
 
+let currentFolderActionId=null;
+let currentFolderActionName=null;
+
 function showFolderMenu(folderId, folderName){
-  // Simple prompt-based rename or confirm delete
-  const action=confirm(`資料夾「${folderName}」\n\n確定要改名嗎？\n（取消=刪除資料夾）`);
-  if(action){
-    const newName=prompt('輸入新名稱：',folderName);
-    if(newName&&newName.trim()&&newName.trim()!==folderName){
-      renameFolderById(folderId,newName.trim());
-    }
-  }else{
-    if(confirm(`確定要刪除「${folderName}」嗎？\n（裡面的食譜會移回全部食譜）`)){
-      deleteFolder(folderId);
-    }
-  }
+  currentFolderActionId=folderId;
+  currentFolderActionName=folderName;
+  document.getElementById('folder-action-title').textContent=folderName;
+  openModal('folder-action-modal');
+}
+
+function showRenameFolderModal(){
+  document.getElementById('folder-rename-input').value=currentFolderActionName||'';
+  openModal('folder-rename-modal');
+}
+
+async function doRenameFolder(){
+  const newName=document.getElementById('folder-rename-input').value.trim();
+  if(!newName){showToast('請輸入名稱');return;}
+  if(newName===currentFolderActionName){closeModal('folder-rename-modal');return;}
+  await renameFolderById(currentFolderActionId,newName);
+  closeModal('folder-rename-modal');
+}
+
+function confirmDeleteFolderAction(){
+  showConfirm('刪除資料夾','確定要刪除「'+currentFolderActionName+'」嗎？\n（裡面的食譜會移回全部食譜）',()=>deleteFolder(currentFolderActionId));
 }
 
 async function renameFolderById(id, newName){
