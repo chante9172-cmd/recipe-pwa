@@ -2316,21 +2316,18 @@ async function hashPw(p){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+'recipe_salt_2024'));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-function loginSuccess(user){
+async function loginSuccess(user){
   currentUser=user;
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').classList.add('active');
   document.getElementById('user-av').textContent=user.username[0].toUpperCase();
   document.getElementById('user-name').textContent=user.username;
-  loadBgSettings();
+  await loadBgSettings();
   newRecipe();
   switchPage('saved');
   setTimeout(checkSiteAnnouncement,1000);
-  // Update last login time
   sb.from('users').update({last_login:new Date().toISOString()}).eq('id',user.id);
-  // Check private notifications
   setTimeout(checkUserNotifications,1500);
-  // Poll for new notifications every 30 seconds
   setInterval(checkUserNotifications,30000);
 }
 function doLogout(){
@@ -4206,7 +4203,10 @@ async function loadBgSettings(){
 async function saveBgSettings(){
   const json=JSON.stringify(bgSettings);
   localStorage.setItem('bgSettings_'+(currentUser?.id||'guest'),json);
-  if(currentUser)await sb.from('users').update({bg_settings:json}).eq('id',currentUser.id);
+  if(currentUser){
+    const{error}=await sb.from('users').update({bg_settings:json}).eq('id',currentUser.id);
+    if(error)console.error('bg sync error:',error);
+  }
 }
 function applyPageBg(pageKey){
   const setting=bgSettings[pageKey];
