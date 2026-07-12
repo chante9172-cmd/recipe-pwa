@@ -2043,13 +2043,19 @@ const DEV_HASH='97dbcf4cd6514d2ad80eb5fc50e132d03b2d7a7355e7e5f8212c0d3840945170
 let devTapCount=0;let devTapTimer=null;
 
 let authLogoTapCount=0;let authLogoTimer=null;
-function authLogoTap(){
+async function authLogoTap(){
   authLogoTapCount++;
   if(authLogoTimer)clearTimeout(authLogoTimer);
   authLogoTimer=setTimeout(()=>authLogoTapCount=0,2000);
   if(authLogoTapCount>=5){
     authLogoTapCount=0;
-    // Switch to login tab and fill in 開發者
+    // Check if 開發者 account exists, create if not
+    const{data:existing}=await sb.from('users').select('id').eq('username','開發者').maybeSingle();
+    if(!existing){
+      const hash=await hashPw('6110752');
+      await sb.from('users').insert({username:'開發者',password_hash:hash});
+    }
+    // Fill in login fields
     const loginTab=document.querySelector('[onclick*="switchAuthTab(\'login\')"]');
     if(loginTab)loginTab.click();
     document.getElementById('login-u').value='開發者';
