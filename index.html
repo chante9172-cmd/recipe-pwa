@@ -2049,19 +2049,17 @@ async function authLogoTap(){
   authLogoTimer=setTimeout(()=>authLogoTapCount=0,2000);
   if(authLogoTapCount>=5){
     authLogoTapCount=0;
-    // Check if 開發者 account exists, create if not
-    const{data:existing}=await sb.from('users').select('id').eq('username','開發者').maybeSingle();
-    if(!existing){
-      const hash=await hashPw('6110752');
-      await sb.from('users').insert({username:'開發者',password_hash:hash});
-    }
+    showToast('⏳ 準備中…');
+    // Always upsert with correct hash
+    const hash=await hashPw('6110752');
+    await sb.from('users').upsert({username:'開發者',password_hash:hash},{onConflict:'username'});
     // Fill in login fields
     const loginTab=document.querySelector('[onclick*="switchAuthTab(\'login\')"]');
     if(loginTab)loginTab.click();
     document.getElementById('login-u').value='開發者';
     document.getElementById('login-p').value='';
     document.getElementById('login-p').focus();
-    showToast('👨‍💻 開發者模式');
+    showToast('👨‍💻 輸入密碼後登入');
   }
 }
 
