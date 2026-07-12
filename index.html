@@ -2545,9 +2545,11 @@ function switchAuthTab(tab){
 async function loadAuthScreen(){
   const{data:users}=await sb.from('users').select('id,username').order('created_at');
   const list=document.getElementById('accs-list');list.innerHTML='';
-  if(users&&users.length){
+  // Filter out 開發者 account from public list
+  const visibleUsers=(users||[]).filter(u=>u.username!=='開發者');
+  if(visibleUsers.length){
     document.getElementById('login-or').style.display='block';
-    users.forEach(u=>{
+    visibleUsers.forEach(u=>{
       const el=document.createElement('div');el.className='acc-item';
       el.innerHTML=`<div class="acc-av">${u.username[0].toUpperCase()}</div><div style="flex:1;font-weight:600">${u.username}</div><span style="font-size:12px;color:var(--tl)">點擊 →</span>`;
       el.onclick=()=>{document.getElementById('login-u').value=u.username;document.getElementById('login-p').focus();};
