@@ -2049,9 +2049,13 @@ function authLogoTap(){
   authLogoTimer=setTimeout(()=>authLogoTapCount=0,2000);
   if(authLogoTapCount>=5){
     authLogoTapCount=0;
-    document.getElementById('dev-pw-input').value='';
-    openModal('dev-pw-modal');
-    setTimeout(()=>document.getElementById('dev-pw-input').focus(),100);
+    // Switch to login tab and fill in 開發者
+    const loginTab=document.querySelector('[onclick*="switchAuthTab(\'login\')"]');
+    if(loginTab)loginTab.click();
+    document.getElementById('login-u').value='開發者';
+    document.getElementById('login-p').value='';
+    document.getElementById('login-p').focus();
+    showToast('👨‍💻 開發者模式');
   }
 }
 
