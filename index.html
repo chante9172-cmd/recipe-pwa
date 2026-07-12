@@ -287,6 +287,14 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         </svg>
         設定
       </button>
+      <!-- Dev tab - only shown for 開發者 account -->
+      <button class="top-tab" id="tab-dev" onclick="openModal('dev-panel-modal');loadDevPanel()" style="display:none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
+          <polyline points="16 18 22 12 16 6"/>
+          <polyline points="8 6 2 12 8 18"/>
+        </svg>
+        開發者
+      </button>
     </div>
   </div>
 
@@ -2141,8 +2149,9 @@ async function devLoadSys(){
   const annEl=document.getElementById('dev-ann-list');
   if(!anns||!anns.length)annEl.innerHTML='<div style="color:var(--tl)">還沒有公告</div>';
   else annEl.innerHTML=anns.map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-    <span style="font-size:13px">${a.is_active?'🟢':'⚫'} ${a.content.substring(0,30)}${a.content.length>30?'…':''}</span>
+    <span style="font-size:13px">${a.is_pinned?'📌':''}${a.is_active?'🟢':'⚫'} ${a.content.substring(0,30)}${a.content.length>30?'…':''}</span>
     <div style="display:flex;gap:4px">
+      <button onclick="devTogglePin('${a.id}',${!!a.is_pinned})" style="border:none;background:var(--gp);color:var(--gd);border-radius:6px;padding:3px 6px;cursor:pointer;font-size:11px">${a.is_pinned?'取消置頂':'📌置頂'}</button>
       <button onclick="devToggleAnn('${a.id}',${a.is_active})" style="border:none;background:var(--gp);color:var(--gd);border-radius:6px;padding:3px 6px;cursor:pointer;font-size:11px">${a.is_active?'停用':'啟用'}</button>
       <button onclick="devDeleteAnn('${a.id}')" style="border:none;background:#fee2e2;color:#e53e3e;border-radius:6px;padding:3px 6px;cursor:pointer;font-size:11px">刪除</button>
     </div>
@@ -2187,7 +2196,7 @@ async function devViewUserDetail(userId, username){
   const el=document.getElementById('dev-recipes-list');
   el.innerHTML='<div class="loading">載入中…</div>';
   const[{data:recipes},{data:memberships}]=await Promise.all([
-    sb.from('recipes').select('id,name,created_at').eq('user_id',userId).order('created_at',{ascending:false}),
+    sb.from('recipes').select('id,name,created_at,is_featured').eq('user_id',userId).order('created_at',{ascending:false}),
     sb.from('club_members').select('club_id').eq('user_id',userId)
   ]);
   const clubIds=(memberships||[]).map(m=>m.club_id);
@@ -2341,6 +2350,14 @@ async function devPostAnnouncement(){
   document.getElementById('dev-ann-input').value='';
   showToast('✅ 公告已發布');devLoadSys();
 }
+async function devToggleFeatured(recipeId, isFeatured){
+  await sb.from('recipes').update({is_featured:!isFeatured}).eq('id',recipeId);
+  showToast(isFeatured?'已取消精選':'🏆 已設為精選');
+}
+async function devTogglePin(id, isPinned){
+  await sb.from('site_announcements').update({is_pinned:!isPinned}).eq('id',id);
+  devLoadSys();
+}
 async function devToggleAnn(id,active){
   await sb.from('site_announcements').update({is_active:!active}).eq('id',id);
   devLoadSys();
@@ -2357,7 +2374,7 @@ async function devToggleBan(userId,banned){
 
 // Show announcement on login
 async function checkSiteAnnouncement(){
-  const{data:anns}=await sb.from('site_announcements').select('id,content,color').eq('is_active',true).order('created_at',{ascending:false}).limit(1);
+  const{data:anns}=await sb.from('site_announcements').select('id,content,color,is_pinned').eq('is_active',true).order('is_pinned',{ascending:false}).order('created_at',{ascending:false}).limit(1);
   if(!anns||!anns.length){document.getElementById('ann-banner').style.display='none';return;}
   const ann=anns[0];
   if(localStorage.getItem('seen_ann_'+ann.id))return;
@@ -2365,7 +2382,7 @@ async function checkSiteAnnouncement(){
   const banner=document.getElementById('ann-banner');
   banner.dataset.annId=ann.id;
   const colors=(ann.color||'#1a5c38|#ffffff').split('|');
-  showAnnBanner(ann.content,colors[0]||'#1a5c38',colors[1]||'#ffffff');
+  showAnnBanner((ann.is_pinned?'📌 ':'')+ann.content,colors[0]||'#1a5c38',colors[1]||'#ffffff');
 }
 
 function showAnnBanner(text,bg,tc){
@@ -2621,6 +2638,8 @@ async function loginSuccess(user){
   // Dev account: show dev button in settings and auto-open on first login
   const isDev=user.username==='開發者';
   const devBtn=document.getElementById('dev-tap');
+  const devTab=document.getElementById('tab-dev');
+  if(devTab)devTab.style.display=isDev?'':'none';
   if(devBtn){
     if(isDev){
       devBtn.textContent='🛠 開發者面板';
@@ -2635,6 +2654,8 @@ async function loginSuccess(user){
 }
 function doLogout(){
   currentUser=null;bgSettings={};currentFolderPath=[];currentFolderId=null;convertRecipe=null;allRecipes=[];allConvertRecipes=[];
+  const devTab=document.getElementById('tab-dev');
+  if(devTab)devTab.style.display='none';
   document.getElementById('app').classList.remove('active');
   document.getElementById('auth-screen').style.display='';
   document.getElementById('auth-screen').style.backgroundImage='';
@@ -3849,13 +3870,49 @@ async function renderSaved(){
 function renderSidebar(folders){
   const el=document.getElementById('sidebar-folders');
   if(!el)return;
-  el.innerHTML=folders.map(f=>{
-    const name=f.name.length>12?f.name.substring(0,12)+'…':f.name;
-    return`<button onclick="selectSidebarFolder('${f.id}','${f.name.replace(/'/g,"\\'")}','${f.id}')"
-      id="sidebar-f-${f.id}"
-      style="width:100%;padding:6px 4px;border:none;border-radius:8px;background:${selectedFolderId===f.id?'var(--gp)':'none'};color:${selectedFolderId===f.id?'var(--gd)':'var(--text)'};font-size:11px;cursor:pointer;margin-bottom:3px;text-align:center;word-break:break-all;font-weight:${selectedFolderId===f.id?700:400};line-height:1.4">
-      📁 ${name}
-    </button>`;}).join('');
+  el.innerHTML='';
+  folders.forEach(f=>{
+    const btn=document.createElement('button');
+    btn.id='sidebar-f-'+f.id;
+    btn.style.cssText=`width:100%;padding:6px 4px;border:none;border-radius:8px;background:${selectedFolderId===f.id?'var(--gp)':'none'};color:${selectedFolderId===f.id?'var(--gd)':'var(--text)'};font-size:11px;cursor:pointer;margin-bottom:3px;text-align:center;word-break:break-all;font-weight:${selectedFolderId===f.id?700:400};line-height:1.4`;
+    btn.innerHTML=`📁 ${f.name}`;
+    btn.onclick=()=>selectSidebarFolder(f.id);
+    // Long press = rename/delete menu
+    let pressTimer=null;
+    btn.addEventListener('touchstart',()=>{pressTimer=setTimeout(()=>{pressTimer=null;showFolderMenu(f.id,f.name);},600);},{passive:true});
+    btn.addEventListener('touchend',()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}});
+    btn.addEventListener('touchmove',()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}});
+    btn.addEventListener('contextmenu',(e)=>{e.preventDefault();showFolderMenu(f.id,f.name);});
+    el.appendChild(btn);
+  });
+}
+
+function showFolderMenu(folderId, folderName){
+  // Simple prompt-based rename or confirm delete
+  const action=confirm(`資料夾「${folderName}」\n\n確定要改名嗎？\n（取消=刪除資料夾）`);
+  if(action){
+    const newName=prompt('輸入新名稱：',folderName);
+    if(newName&&newName.trim()&&newName.trim()!==folderName){
+      renameFolderById(folderId,newName.trim());
+    }
+  }else{
+    if(confirm(`確定要刪除「${folderName}」嗎？\n（裡面的食譜會移回全部食譜）`)){
+      deleteFolder(folderId);
+    }
+  }
+}
+
+async function renameFolderById(id, newName){
+  const{error}=await sb.from('folders').update({name:newName}).eq('id',id);
+  if(error){showToast('改名失敗');return;}
+  const folder=allFolders.find(f=>f.id===id);
+  if(folder)folder.name=newName;
+  if(selectedFolderId===id){
+    const titleEl=document.getElementById('saved-folder-title');
+    if(titleEl)titleEl.textContent=newName;
+  }
+  renderSidebar(allFolders);
+  showToast('✅ 已改名');
 }
 
 function selectSidebarFolder(folderId){
