@@ -1090,7 +1090,7 @@ let bgImgDataUrl='';
 let allRecipes=[];
 let allConvertRecipes=[];
 
-const UNITS=['g','kg','ml','L','杯','tbsp','tsp','T','t','個','片','條','支','顆','包','罐','兩','斤'];
+const UNITS=['g','kg','ml','L','杯','碗','tbsp','tsp','T','t','個','片','條','支','顆','包','罐','兩','斤'];
 const BG_PAGES=[
   {key:'saved',icon:'📚',name:'已儲存頁面'},
   {key:'edit',icon:'✏️',name:'新增食譜頁面'},
@@ -2548,25 +2548,94 @@ const annoHistory={};   // section -> [dataUrl, ...]
 function insertPhotoToCanvas(id, input){
   const file=input.files[0];
   if(!file)return;
+  input.value='';
   const reader=new FileReader();
   reader.onload=ev=>{
     const state=drawWidgets[id];
-    if(!state||!state.canvas||!state.ctx)return;
+    if(!state||!state.canvas)return;
+    const canvas=state.canvas;
+    const container=canvas.parentElement;
+    // Remove existing overlay if any
+    const existing=container.querySelector('.photo-overlay-wrap');
+    if(existing)existing.remove();
     const img=new Image();
     img.onload=()=>{
-      const c=state.canvas;
-      const ctx=state.ctx;
-      // Save current state to history before inserting
-      saveDrawHistory(id);
-      // Draw photo scaled to fit canvas width, positioned at top
-      const scale=c.width/img.naturalWidth;
-      const h=Math.min(img.naturalHeight*scale, c.height);
-      ctx.drawImage(img,0,0,c.width,h);
-      state.strokeSnapshot=c.toDataURL();
-      saveDrawHistory(id);
+      // Create overlay wrapper
+      const wrap=document.createElement('div');
+      wrap.className='photo-overlay-wrap';
+      const cw=canvas.offsetWidth, ch=canvas.offsetHeight;
+      const scale=Math.min(cw*0.8/img.naturalWidth, ch*0.8/img.naturalHeight, 1);
+      let pw=Math.round(img.naturalWidth*scale), ph=Math.round(img.naturalHeight*scale);
+      let px=Math.round((cw-pw)/2), py=Math.round((ch-ph)/2);
+      wrap.style.cssText=`position:absolute;left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;border:2px solid var(--gd);box-sizing:border-box;cursor:move;touch-action:none;z-index:100`;
+      // Image inside
+      const imgEl=document.createElement('img');
+      imgEl.src=ev.target.result;
+      imgEl.style.cssText='width:100%;height:100%;display:block;pointer-events:none;user-select:none';
+      wrap.appendChild(imgEl);
+      // 4 corner handles
+      const corners=['nw','ne','sw','se'];
+      corners.forEach(dir=>{
+        const h=document.createElement('div');
+        const isN=dir.includes('n'), isW=dir.includes('w');
+        h.style.cssText=`position:absolute;width:14px;height:14px;background:var(--gd);border:2px solid #fff;border-radius:3px;cursor:${dir}-resize;touch-action:none;z-index:101;
+          ${isN?'top:-7px':'bottom:-7px'};${isW?'left:-7px':'right:-7px'}`;
+        h.dataset.dir=dir;
+        wrap.appendChild(h);
+        // Resize drag
+        const resizeStart=(clientX,clientY)=>{
+          const startX=clientX,startY=clientY,startW=wrap.offsetWidth,startH=wrap.offsetHeight;
+          const startL=parseInt(wrap.style.left),startT=parseInt(wrap.style.top);
+          const onMove=(ex,ey)=>{
+            const dx=ex-startX, dy=ey-startY;
+            let nw=startW, nh=startH, nl=startL, nt=startT;
+            if(dir.includes('e'))nw=Math.max(40,startW+dx);
+            if(dir.includes('s'))nh=Math.max(40,startH+dy);
+            if(dir.includes('w')){nw=Math.max(40,startW-dx);nl=startL+startW-nw;}
+            if(dir.includes('n')){nh=Math.max(40,startH-dy);nt=startT+startH-nh;}
+            wrap.style.width=nw+'px';wrap.style.height=nh+'px';
+            wrap.style.left=nl+'px';wrap.style.top=nt+'px';
+          };
+          const mm=(e)=>onMove(e.clientX,e.clientY);
+          const tm=(e)=>{e.preventDefault();onMove(e.touches[0].clientX,e.touches[0].clientY);};
+          const up=()=>{document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',up);document.removeEventListener('touchmove',tm);document.removeEventListener('touchend',up);};
+          document.addEventListener('mousemove',mm);document.addEventListener('mouseup',up);
+          document.addEventListener('touchmove',tm,{passive:false});document.addEventListener('touchend',up,{once:true});
+        };
+        h.addEventListener('mousedown',(e)=>{e.stopPropagation();e.preventDefault();resizeStart(e.clientX,e.clientY);});
+        h.addEventListener('touchstart',(e)=>{e.stopPropagation();e.preventDefault();resizeStart(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+      });
+      // Move drag on wrap
+      const moveStart=(clientX,clientY)=>{
+        const startX=clientX,startY=clientY,startL=parseInt(wrap.style.left),startT=parseInt(wrap.style.top);
+        const mm=(e)=>{wrap.style.left=(startL+e.clientX-startX)+'px';wrap.style.top=(startT+e.clientY-startY)+'px';};
+        const tm=(e)=>{e.preventDefault();wrap.style.left=(startL+e.touches[0].clientX-startX)+'px';wrap.style.top=(startT+e.touches[0].clientY-startY)+'px';};
+        const up=()=>{document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',up);document.removeEventListener('touchmove',tm);document.removeEventListener('touchend',up);};
+        document.addEventListener('mousemove',mm);document.addEventListener('mouseup',up);
+        document.addEventListener('touchmove',tm,{passive:false});document.addEventListener('touchend',up,{once:true});
+      };
+      wrap.addEventListener('mousedown',(e)=>{if(!e.target.dataset.dir){e.preventDefault();moveStart(e.clientX,e.clientY);}});
+      wrap.addEventListener('touchstart',(e)=>{if(!e.target.dataset.dir){e.preventDefault();moveStart(e.touches[0].clientX,e.touches[0].clientY);}},{passive:false});
+      // Confirm button
+      const btn=document.createElement('button');
+      btn.textContent='✅ 貼入';
+      btn.style.cssText='position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);background:var(--gd);color:#fff;border:none;border-radius:8px;padding:4px 14px;font-size:12px;cursor:pointer;white-space:nowrap;z-index:102';
+      btn.onclick=()=>{
+        // Stamp to canvas
+        saveDrawHistory(id);
+        const ctx=state.ctx;
+        const r=canvas.getBoundingClientRect();
+        const scaleX=canvas.width/r.width, scaleY=canvas.height/r.height;
+        const cl=parseInt(wrap.style.left), ct=parseInt(wrap.style.top);
+        const cw2=wrap.offsetWidth, ch2=wrap.offsetHeight;
+        ctx.drawImage(imgEl,cl*scaleX,ct*scaleY,cw2*scaleX,ch2*scaleY);
+        saveDrawHistory(id);
+        wrap.remove();
+      };
+      wrap.appendChild(btn);
+      container.appendChild(wrap);
     };
     img.src=ev.target.result;
-    input.value=''; // reset so same file can be chosen again
   };
   reader.readAsDataURL(file);
 }
