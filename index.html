@@ -379,10 +379,9 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <button class="btn btn-ghost btn-sm" onclick="duplicateRecipe()" title="複製食譜" style="font-size:11px;padding:6px 8px">📋 複製</button>
       </div>
       <!-- Cover -->
-      <div id="detail-cover" style="display:none;width:100%;display:flex;justify-content:center;margin-bottom:14px">
-        <div style="width:15%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)">
-          <img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover">
-        </div>
+      <!-- Cover full-width banner -->
+      <div id="detail-cover" style="display:none;width:100%;margin-bottom:14px;border-radius:12px;overflow:hidden;cursor:pointer" onclick="openFullscreenImg(this.querySelector('img').src)">
+        <img id="detail-cover-img" style="width:100%;max-height:280px;object-fit:cover;display:block;border-radius:12px">
       </div>
       <!-- Info -->
       <div class="card" style="padding:14px 18px">
@@ -652,10 +651,15 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <button class="btn btn-outline btn-sm" onclick="copyRecipeToMine()" title="複製到我的食譜">📥 複製食譜</button>
           <button class="btn btn-ghost btn-sm" id="like-btn" onclick="toggleLike()">🤍</button>
         </div>
+        <!-- Club recipe cover banner -->
+        <div id="club-recipe-cover" style="display:none;width:100%;margin-bottom:14px;border-radius:12px;overflow:hidden;cursor:pointer" onclick="openFullscreenImg(this.querySelector('img').src)">
+          <img id="club-recipe-cover-img" style="width:100%;max-height:280px;object-fit:cover;display:block;border-radius:12px">
+        </div>
         <div class="card" style="padding:14px 18px">
           <div style="font-size:20px;font-weight:700" id="club-recipe-name"></div>
           <div style="font-size:12px;color:var(--tl);margin-top:4px" id="club-recipe-author"></div>
           <div style="font-size:12px;color:var(--tl)" id="club-recipe-servings"></div>
+          <div style="font-size:12px;color:var(--tl)" id="club-recipe-mold"></div>
         </div>
         <div class="card">
           <div class="card-title">比例換算</div>
@@ -1080,6 +1084,12 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
   </div>
 </div>
 
+<!-- Fullscreen image viewer -->
+<div id="fullscreen-img-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9000;align-items:center;justify-content:center" onclick="closeFullscreenImg()">
+  <button onclick="closeFullscreenImg();event.stopPropagation()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:9001">✕</button>
+  <img id="fullscreen-img" style="max-width:95vw;max-height:90vh;object-fit:contain;border-radius:8px" onclick="event.stopPropagation()">
+</div>
+
 <div class="modal-overlay" id="club-menu-modal">
   <div class="modal">
     <div class="modal-title" id="club-menu-title">社團管理</div>
@@ -1199,7 +1209,7 @@ let bgImgDataUrl='';
 let allRecipes=[];
 let allConvertRecipes=[];
 
-const UNITS=['g','kg','ml','L','杯','碗','tbsp','tsp','T','t','個','片','條','支','顆','包','罐','兩','斤'];
+const UNITS=['g','kg','ml','L','杯','碗','tbsp','tsp','T','t','個','片','條','根','撮','瓣','支','顆','包','罐','兩','斤','若干','適量'];
 const BG_PAGES=[
   {key:'saved',icon:'📚',name:'已儲存頁面'},
   {key:'edit',icon:'✏️',name:'新增食譜頁面'},
@@ -1744,6 +1754,49 @@ function smoothDrawAnno(section,newPoint){
 // Track active overlays per section so canvas pointer-events are managed correctly
 const _annoOverlayCount={steps:0,notes:0};
 
+// Show/hide the "全部完成" button based on overlay count
+function _updateAnnoCommitBtn(section){
+  const container=document.getElementById('anno-wrap-'+section);
+  if(!container)return;
+  let btn=document.getElementById('anno-commit-btn-'+section);
+  const count=_annoOverlayCount[section]||0;
+  if(count>0){
+    if(!btn){
+      btn=document.createElement('button');
+      btn.id='anno-commit-btn-'+section;
+      btn.textContent='✅ 全部完成';
+      btn.style.cssText='position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:var(--gd);color:#fff;border:none;border-radius:10px;padding:10px 24px;font-size:14px;cursor:pointer;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,0.3);touch-action:manipulation;white-space:nowrap';
+      btn.addEventListener('click',()=>_commitAllPhotos(section));
+      btn.addEventListener('touchend',(e)=>{e.stopPropagation();_commitAllPhotos(section);});
+      container.appendChild(btn);
+    }
+  }else{
+    if(btn)btn.remove();
+  }
+}
+
+function _commitAllPhotos(section){
+  const canvas=document.getElementById(section+'-anno-canvas');
+  const container=document.getElementById('anno-wrap-'+section);
+  if(!canvas||!container)return;
+  const ctx=canvas.getContext('2d');
+  const r=canvas.getBoundingClientRect();
+  const scX=canvas.width/r.width,scY=canvas.height/r.height;
+  // Stamp all photo overlays to canvas
+  container.querySelectorAll('.photo-overlay-wrap').forEach(wrap=>{
+    const img=wrap.querySelector('img');
+    if(!img)return;
+    const cl=parseInt(wrap.style.left),ct=parseInt(wrap.style.top);
+    ctx.drawImage(img,cl*scX,ct*scY,wrap.offsetWidth*scX,wrap.offsetHeight*scY);
+    wrap.remove();
+  });
+  _annoOverlayCount[section]=0;
+  canvas.style.pointerEvents='';
+  _updateAnnoCommitBtn(section);
+  if(!annoHistory[section])annoHistory[section]=[];
+  annoHistory[section].push(canvas.toDataURL());
+}
+
 function insertPhotoToAnno(section, input){
   const file=input.files[0];if(!file)return;input.value='';
   const canvas=document.getElementById(section+'-anno-canvas');
@@ -1757,10 +1810,12 @@ function insertPhotoToAnno(section, input){
       const ch=canvas.offsetHeight||200;
       const scale=Math.min(cw*0.8/img.naturalWidth,ch*0.8/img.naturalHeight,1);
       let pw=Math.round(img.naturalWidth*scale),ph=Math.round(img.naturalHeight*scale);
-      let px=Math.round((cw-pw)/2),py=Math.round((ch-ph)/2);
+      // Offset each new photo slightly so they don't overlap exactly
+      const offset=(_annoOverlayCount[section]||0)*20;
+      let px=Math.round((cw-pw)/2)+offset,py=Math.round((ch-ph)/2)+offset;
       const wrap=document.createElement('div');
       wrap.className='photo-overlay-wrap';
-      wrap.style.cssText=`position:absolute;left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;border:2px solid var(--gd);box-sizing:border-box;cursor:move;touch-action:none;z-index:100`;
+      wrap.style.cssText=`position:absolute;left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;border:2px solid var(--gd);box-sizing:border-box;cursor:move;touch-action:none;z-index:${100+(_annoOverlayCount[section]||0)}`;
       const imgEl=document.createElement('img');
       imgEl.src=ev.target.result;
       imgEl.style.cssText='width:100%;height:100%;display:block;pointer-events:none;user-select:none;object-fit:fill';
@@ -1787,54 +1842,17 @@ function insertPhotoToAnno(section, input){
       // Move
       wrap.addEventListener('mousedown',(e)=>{if(e.target.dataset.dir)return;e.preventDefault();const sl=parseInt(wrap.style.left),st=parseInt(wrap.style.top),sx=e.clientX,sy=e.clientY;const mm=(e)=>{wrap.style.left=(sl+e.clientX-sx)+'px';wrap.style.top=(st+e.clientY-sy)+'px';};const up=()=>{document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',up);};document.addEventListener('mousemove',mm);document.addEventListener('mouseup',up);});
       wrap.addEventListener('touchstart',(e)=>{if(e.target.dataset.dir)return;e.preventDefault();const sl=parseInt(wrap.style.left),st=parseInt(wrap.style.top),sx=e.touches[0].clientX,sy=e.touches[0].clientY;const tm=(e)=>{e.preventDefault();wrap.style.left=(sl+e.touches[0].clientX-sx)+'px';wrap.style.top=(st+e.touches[0].clientY-sy)+'px';};const up=()=>{document.removeEventListener('touchmove',tm);document.removeEventListener('touchend',up);};document.addEventListener('touchmove',tm,{passive:false});document.addEventListener('touchend',up,{once:true});},{passive:false});
-      // Buttons
-      const btnWrap=document.createElement('div');
-      btnWrap.style.cssText='position:absolute;bottom:-52px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:102;white-space:nowrap';
-      const makeBtn=(text,bg,cb)=>{const b=document.createElement('button');b.textContent=text;b.style.cssText=`background:${bg};color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.25);touch-action:manipulation`;b.addEventListener('click',(e)=>{e.stopPropagation();cb();});b.addEventListener('touchend',(e)=>{e.stopPropagation();cb();});return b;};
-      const stamp=()=>{
-        // Save current state to anno history BEFORE drawing so undoAnno can restore
-        if(!annoState[section])initAnnoCanvas(section);
-        if(!annoHistory[section])annoHistory[section]=[];
-        annoHistory[section].push(canvas.toDataURL());
-        if(annoHistory[section].length>30)annoHistory[section].shift();
-        const ctx=canvas.getContext('2d');
-        const r=canvas.getBoundingClientRect();
-        const scX=canvas.width/r.width,scY=canvas.height/r.height;
-        const cl=parseInt(wrap.style.left),ct=parseInt(wrap.style.top);
-        ctx.drawImage(imgEl,cl*scX,ct*scY,wrap.offsetWidth*scX,wrap.offsetHeight*scY);
-        // Decrease counter since overlay is now hidden
-        _annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);
-        if(!_annoOverlayCount[section])canvas.style.pointerEvents='';
-        wrap.style.opacity='0';wrap.style.pointerEvents='none';
-        btnWrap.style.display='none';
-        const editWrap=document.createElement('div');
-        editWrap.style.cssText='position:absolute;bottom:8px;right:8px;z-index:103;display:flex;gap:6px';
-        editWrap.appendChild(makeBtn('✏️ 編輯','rgba(0,0,0,0.6)',()=>{
-          // Use undoAnno to revert last stamp
-          undoAnno(section);
-          wrap.style.opacity='';wrap.style.pointerEvents='';
-          btnWrap.style.display='flex';
-          _annoOverlayCount[section]=(_annoOverlayCount[section]||0)+1;
-          canvas.style.pointerEvents='none';
-          editWrap.remove();
-        }));
-        editWrap.appendChild(makeBtn('✓ 完成','var(--gd)',()=>{
-          wrap.remove();btnWrap.remove();editWrap.remove();
-          _annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);
-          if(!_annoOverlayCount[section])canvas.style.pointerEvents='';
-        }));
-        container.appendChild(editWrap);
-      };
-      btnWrap.appendChild(makeBtn('✅ 貼入','var(--gd)',stamp));
-      btnWrap.appendChild(makeBtn('🗑 刪除','#e53e3e',()=>{
-          wrap.remove();btnWrap.remove();
-          _annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);
-          if(!_annoOverlayCount[section])canvas.style.pointerEvents='';
-        }));
-      wrap.appendChild(btnWrap);
+      // 🗑 刪除 button per photo
+      const delBtn=document.createElement('button');
+      delBtn.textContent='🗑';
+      delBtn.style.cssText='position:absolute;top:-12px;right:-12px;background:#e53e3e;color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:102;touch-action:manipulation;padding:0;line-height:1';
+      delBtn.addEventListener('click',(e)=>{e.stopPropagation();wrap.remove();_annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);if(!_annoOverlayCount[section])canvas.style.pointerEvents='';_updateAnnoCommitBtn(section);});
+      delBtn.addEventListener('touchend',(e)=>{e.stopPropagation();delBtn.click();});
+      wrap.appendChild(delBtn);
       _annoOverlayCount[section]=(_annoOverlayCount[section]||0)+1;
       canvas.style.pointerEvents='none';
       container.appendChild(wrap);
+      _updateAnnoCommitBtn(section);
     };
     img.src=ev.target.result;
   };
@@ -1972,10 +1990,10 @@ function renderDetailIngredients(ratio){
     nameCell.innerHTML=`${ing.name||'食材'+(i+1)}<button onclick="setDetailRef(${i})" style="font-size:10px;padding:2px 6px;border-radius:6px;border:1px solid ${isRef?'var(--gd)':'var(--border)'};background:${isRef?'var(--gp)':'white'};color:${isRef?'var(--gd)':'var(--tl)'};cursor:pointer;white-space:nowrap">設為基準</button>`;
     const origCell=document.createElement('div');
     origCell.style.cssText=`padding:10px;font-size:14px;color:var(--tl);${b};text-align:right`;
-    origCell.textContent=`${ing.qty}${ing.unit}`;
+    origCell.textContent=['若干','適量'].includes(ing.unit)?(ing.qty?`${ing.qty} ${ing.unit}`:ing.unit):`${ing.qty}${ing.unit}`;
     const newCell=document.createElement('div');
     newCell.style.cssText=`padding:10px;font-size:14px;font-weight:700;color:var(--gd);${b};text-align:right`;
-    newCell.textContent=ratio===1?'—':`${newQty}${ing.unit}`;
+    newCell.textContent=['若干','適量'].includes(ing.unit)?ing.unit:(ratio===1?'—':`${newQty}${ing.unit}`);
     container.appendChild(nameCell);container.appendChild(origCell);container.appendChild(newCell);
   });
 }
@@ -2632,6 +2650,15 @@ async function loadClubNotifBadge(){
   }
 }
 
+function openFullscreenImg(src){
+  const modal=document.getElementById('fullscreen-img-modal');
+  document.getElementById('fullscreen-img').src=src;
+  modal.style.display='flex';
+}
+function closeFullscreenImg(){
+  document.getElementById('fullscreen-img-modal').style.display='none';
+}
+
 function parseFraction(s){
   if(!s)return NaN;
   s=String(s).trim();
@@ -2864,7 +2891,8 @@ function renderIngredients(){
     row.dataset.idx=i;
     row.style.cssText='display:flex;gap:7px;align-items:center;margin-bottom:8px;position:relative';
     const opts=UNITS.map(u=>`<option value="${u}"${ing.unit===u?' selected':''}>${u}</option>`).join('');
-    row.innerHTML=`<span class="drag-handle" style="cursor:grab;color:var(--tl);font-size:18px;padding:0 2px;touch-action:none;flex-shrink:0">☰</span><input type="text" value="${ing.name||''}" placeholder="食材名稱" onchange="CR.ingredients[${i}].name=this.value"><input class="qty" type="text" value="${ing.qty||''}" placeholder="份量" onchange="CR.ingredients[${i}].qty=this.value"><select onchange="CR.ingredients[${i}].unit=this.value">${opts}</select><button class="del-btn" onclick="delIng(${i})">✕</button>`;
+    const isVague=['若干','適量'].includes(ing.unit);
+    row.innerHTML=`<span class="drag-handle" style="cursor:grab;color:var(--tl);font-size:18px;padding:0 2px;touch-action:none;flex-shrink:0">☰</span><input type="text" value="${ing.name||''}" placeholder="食材名稱" onchange="CR.ingredients[${i}].name=this.value"><input class="qty" type="text" value="${ing.qty||''}" placeholder="${isVague?'（可空白）':'份量'}" style="opacity:${isVague?0.5:1}" onchange="CR.ingredients[${i}].qty=this.value"><select onchange="CR.ingredients[${i}].unit=this.value;renderIngredients()">${opts}</select><button class="del-btn" onclick="delIng(${i})">✕</button>`;
     // Drag to reorder
     const handle=row.querySelector('.drag-handle');
     setupIngDrag(handle,row,list);
@@ -4655,7 +4683,13 @@ async function viewClubRecipe(recipe,author){
   document.getElementById('club-recipe-name').textContent=recipe.name;
   document.getElementById('club-recipe-author').textContent='作者：'+author;
   document.getElementById('club-recipe-servings').textContent=recipe.servings?(recipe.servings+' '+(recipe.servings_unit||'人份')):'';
-  const steps=Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'';
+  const moldEl=document.getElementById('club-recipe-mold');
+  if(moldEl)moldEl.textContent=recipe.mold?`🥣 模具：${recipe.mold}`:'';
+  // Cover
+  const coverDiv=document.getElementById('club-recipe-cover');
+  const coverImg=document.getElementById('club-recipe-cover-img');
+  if(recipe.cover&&coverDiv&&coverImg){coverDiv.style.display='block';coverImg.src=recipe.cover;}
+  else if(coverDiv)coverDiv.style.display='none';  const steps=Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'';
   if(steps){document.getElementById('cr-steps-card').style.display='';renderStepsWithTimers(steps,'cr-steps');}
   else document.getElementById('cr-steps-card').style.display='none';
   setClubRecipeMode(0);renderClubIngredients(1);
