@@ -8,9 +8,7 @@
 <meta name="theme-color" content="#1b4332">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="食譜轉換">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<meta name="apple-mob el="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -1789,6 +1787,11 @@ function insertPhotoToAnno(section, input){
       btnWrap.style.cssText='position:absolute;bottom:-52px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:102;white-space:nowrap';
       const makeBtn=(text,bg,cb)=>{const b=document.createElement('button');b.textContent=text;b.style.cssText=`background:${bg};color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.25);touch-action:manipulation`;b.addEventListener('click',(e)=>{e.stopPropagation();cb();});b.addEventListener('touchend',(e)=>{e.stopPropagation();cb();});return b;};
       const stamp=()=>{
+        // Save current state to anno history BEFORE drawing so undoAnno can restore
+        if(!annoState[section])initAnnoCanvas(section);
+        if(!annoHistory[section])annoHistory[section]=[];
+        annoHistory[section].push(canvas.toDataURL());
+        if(annoHistory[section].length>30)annoHistory[section].shift();
         const ctx=canvas.getContext('2d');
         const r=canvas.getBoundingClientRect();
         const scX=canvas.width/r.width,scY=canvas.height/r.height;
@@ -1800,9 +1803,8 @@ function insertPhotoToAnno(section, input){
         const editWrap=document.createElement('div');
         editWrap.style.cssText='position:absolute;bottom:8px;right:8px;z-index:103;display:flex;gap:6px';
         editWrap.appendChild(makeBtn('✏️ 編輯','rgba(0,0,0,0.6)',()=>{
-          // undo the stamp
-          const st=annoState[section];
-          if(st&&st.snapshots&&st.snapshots.length>0){st.snapshots.pop();const prev=st.snapshots[st.snapshots.length-1]||'';if(prev){const i=new Image();i.onload=()=>{canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);canvas.getContext('2d').drawImage(i,0,0);};i.src=prev;}else{canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);}}
+          // Use undoAnno to revert last stamp
+          undoAnno(section);
           wrap.style.opacity='';wrap.style.pointerEvents='';
           btnWrap.style.display='flex';
           canvas.style.pointerEvents='none';
@@ -2026,8 +2028,17 @@ function backToSaved(){
   switchPage('saved');
 }
 
-function editCurrentDetail(){
-  if(detailRecipe)loadRecipeForEdit(detailRecipe);
+async function editCurrentDetail(){
+  const recipe=detailRecipe||detailRecipeCache;
+  if(!recipe){showToast('請先選取食譜');return;}
+  // Re-fetch to ensure we have the latest data with correct id
+  if(recipe.id){
+    const{data}=await sb.from('recipes').select('*').eq('id',recipe.id).single();
+    if(data)loadRecipeForEdit(data);
+    else loadRecipeForEdit(recipe);
+  }else{
+    loadRecipeForEdit(recipe);
+  }
 }
 function autoResize(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
 // ── TIMER ──
