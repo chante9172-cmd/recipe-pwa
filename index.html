@@ -8,7 +8,9 @@
 <meta name="theme-color" content="#1b4332">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mob el="stylesheet">
+<meta name="apple-mobile-web-app-title" content="食譜轉換">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -1739,6 +1741,9 @@ function smoothDrawAnno(section,newPoint){
   }
 }
 
+// Track active overlays per section so canvas pointer-events are managed correctly
+const _annoOverlayCount={steps:0,notes:0};
+
 function insertPhotoToAnno(section, input){
   const file=input.files[0];if(!file)return;input.value='';
   const canvas=document.getElementById(section+'-anno-canvas');
@@ -1797,7 +1802,9 @@ function insertPhotoToAnno(section, input){
         const scX=canvas.width/r.width,scY=canvas.height/r.height;
         const cl=parseInt(wrap.style.left),ct=parseInt(wrap.style.top);
         ctx.drawImage(imgEl,cl*scX,ct*scY,wrap.offsetWidth*scX,wrap.offsetHeight*scY);
-        canvas.style.pointerEvents='';
+        // Decrease counter since overlay is now hidden
+        _annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);
+        if(!_annoOverlayCount[section])canvas.style.pointerEvents='';
         wrap.style.opacity='0';wrap.style.pointerEvents='none';
         btnWrap.style.display='none';
         const editWrap=document.createElement('div');
@@ -1807,15 +1814,25 @@ function insertPhotoToAnno(section, input){
           undoAnno(section);
           wrap.style.opacity='';wrap.style.pointerEvents='';
           btnWrap.style.display='flex';
+          _annoOverlayCount[section]=(_annoOverlayCount[section]||0)+1;
           canvas.style.pointerEvents='none';
           editWrap.remove();
         }));
-        editWrap.appendChild(makeBtn('✓ 完成','var(--gd)',()=>{wrap.remove();btnWrap.remove();editWrap.remove();canvas.style.pointerEvents='';}));
+        editWrap.appendChild(makeBtn('✓ 完成','var(--gd)',()=>{
+          wrap.remove();btnWrap.remove();editWrap.remove();
+          _annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);
+          if(!_annoOverlayCount[section])canvas.style.pointerEvents='';
+        }));
         container.appendChild(editWrap);
       };
       btnWrap.appendChild(makeBtn('✅ 貼入','var(--gd)',stamp));
-      btnWrap.appendChild(makeBtn('🗑 刪除','#e53e3e',()=>{wrap.remove();btnWrap.remove();canvas.style.pointerEvents='';}));
+      btnWrap.appendChild(makeBtn('🗑 刪除','#e53e3e',()=>{
+          wrap.remove();btnWrap.remove();
+          _annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);
+          if(!_annoOverlayCount[section])canvas.style.pointerEvents='';
+        }));
       wrap.appendChild(btnWrap);
+      _annoOverlayCount[section]=(_annoOverlayCount[section]||0)+1;
       canvas.style.pointerEvents='none';
       container.appendChild(wrap);
     };
