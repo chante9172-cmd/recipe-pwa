@@ -261,7 +261,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         </svg>
         已儲存
       </button>
-      <button class="top-tab" id="tab-edit" onclick="switchPage('edit')">
+      <button class="top-tab" id="tab-edit" onclick="newRecipe();switchPage('edit')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 2px">
           <path d="M4 20.5l3.5-.8L19 9.2a2.1 2.1 0 00-3-3L4.8 17z"/>
           <path d="M16.2 6.3l1.3 1.3"/>
@@ -375,8 +375,8 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
         <button class="btn btn-ghost btn-sm" onclick="backToSaved()">← 返回</button>
         <div style="flex:1"></div>
-        <button class="btn btn-ghost btn-sm" onclick="duplicateRecipe()" title="複製食譜">📋</button>
         <button class="btn btn-outline btn-sm" onclick="editCurrentDetail()">✏️ 編輯</button>
+        <button class="btn btn-ghost btn-sm" onclick="duplicateRecipe()" title="複製食譜" style="font-size:11px;padding:6px 8px">📋 複製</button>
       </div>
       <!-- Cover -->
       <div id="detail-cover" style="display:none;width:100%;display:flex;justify-content:center;margin-bottom:14px">
