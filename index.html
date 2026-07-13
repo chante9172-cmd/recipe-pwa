@@ -313,7 +313,8 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div style="display:flex;flex:1;overflow:hidden">
         <!-- Left sidebar: folders -->
         <div id="folder-sidebar" style="width:100px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;padding:6px 4px;background:rgba(255,255,255,0.5)">
-          <button id="sidebar-all" onclick="selectSidebarFolder(null)" style="width:100%;padding:8px 4px;border:none;border-radius:8px;background:var(--gd);color:#fff;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:4px;text-align:center">全部食譜</button>
+          <button id="sidebar-home" onclick="selectSidebarFolder('home')" style="width:100%;padding:7px 4px;border:none;border-radius:8px;background:var(--gd);color:#fff;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:3px;text-align:center">🏠 主畫面</button>
+          <button id="sidebar-all" onclick="selectSidebarFolder('all')" style="width:100%;padding:7px 4px;border:none;border-radius:8px;background:none;color:var(--text);font-size:11px;font-weight:400;cursor:pointer;margin-bottom:3px;text-align:center">📋 所有食譜</button>
           <div id="sidebar-folders"></div>
           <button onclick="showNewFolderModal()" style="width:100%;padding:6px 4px;border:1px dashed var(--border);border-radius:8px;background:none;color:var(--tl);font-size:11px;cursor:pointer;margin-top:4px">＋ 新增<br>資料夾</button>
         </div>
@@ -501,6 +502,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <!-- Annotation mode: text display + canvas overlay -->
           <div id="steps-annotate-area" style="display:none">
             <div style="position:relative;border-radius:10px;overflow:hidden;border:1.5px solid var(--border)">
+              <img id="steps-anno-bg" style="display:none;width:100%;border-radius:10px;display:block">
               <div id="steps-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:120px;word-break:break-all"></div>
               <canvas id="steps-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:transparent"></canvas>
             </div>
@@ -526,6 +528,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           </div>
           <div id="notes-annotate-area" style="display:none">
             <div style="position:relative;border-radius:10px;overflow:hidden;border:1.5px solid var(--border)">
+              <img id="notes-anno-bg" style="display:none;width:100%;border-radius:10px;display:block">
               <div id="notes-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:80px;word-break:break-all"></div>
               <canvas id="notes-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:transparent"></canvas>
             </div>
@@ -1255,7 +1258,7 @@ function applyBrush(ctx, tool, color, size, x1, y1, x2, y2){
         const ox=(Math.random()-.5)*size*2.2;
         const oy=(Math.random()-.5)*size*2.2;
         const r=Math.random();
-        ctx.globalAlpha=r*0.4+0.1;
+        ctx.globalAlpha=r*0.6+0.3;
         ctx.fillStyle=color;
         const dotSize=Math.random()*1.2+0.3;
         ctx.beginPath();ctx.arc(px+ox,py+oy,dotSize,0,Math.PI*2);ctx.fill();
@@ -1265,8 +1268,8 @@ function applyBrush(ctx, tool, color, size, x1, y1, x2, y2){
   }else if(tool==='highlighter'){
     // Very wide, flat, semi-transparent — like a real highlighter marker
     ctx.globalCompositeOperation='multiply';
-    ctx.globalAlpha=0.5;
-    ctx.lineWidth=size*8;
+    ctx.globalAlpha=0.65;
+    ctx.lineWidth=size*4;
     ctx.lineCap='square';ctx.lineJoin='miter';
     ctx.strokeStyle=color;
     ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
@@ -1285,8 +1288,8 @@ function applyBrush(ctx, tool, color, size, x1, y1, x2, y2){
         const oy=(Math.random()-.5)*spread;
         const bSize=size*(Math.random()*1.5+0.8);
         const grad=ctx.createRadialGradient(px+ox,py+oy,0,px+ox,py+oy,bSize);
-        grad.addColorStop(0,color+'55');
-        grad.addColorStop(0.5,color+'22');
+        grad.addColorStop(0,color+'99');
+        grad.addColorStop(0.5,color+'44');
         grad.addColorStop(1,color+'00');
         ctx.globalAlpha=1;
         ctx.globalCompositeOperation='source-over';
@@ -1308,7 +1311,7 @@ function applyBrush(ctx, tool, color, size, x1, y1, x2, y2){
       for(let s=0;s<strands;s++){
         const ox=(Math.random()-.5)*size*2;
         const oy=(Math.random()-.5)*size*2;
-        ctx.globalAlpha=Math.random()*0.5+0.25;
+        ctx.globalAlpha=Math.random()*0.4+0.5;
         ctx.strokeStyle=color;
         ctx.lineWidth=size*0.7+Math.random()*size*0.8;
         ctx.beginPath();
@@ -1316,7 +1319,7 @@ function applyBrush(ctx, tool, color, size, x1, y1, x2, y2){
         ctx.stroke();
         // Rough texture dots
         if(Math.random()>0.6){
-          ctx.globalAlpha=Math.random()*0.3;
+          ctx.globalAlpha=Math.random()*0.4+0.1;
           ctx.fillStyle=color;
           ctx.beginPath();ctx.arc(px+ox+(Math.random()-.5)*size,py+oy+(Math.random()-.5)*size,Math.random()*1.5,0,Math.PI*2);ctx.fill();
         }
@@ -1345,7 +1348,7 @@ function createDrawWidget(containerId, canvasHeight=260){
     </div>
     <div class="draw-size-row" style="margin-bottom:8px">
       <span>粗細</span>
-      <input type="range" id="ds-${id}" min="1" max="30" value="5" oninput="drawWidgets['${id}'].size=parseInt(this.value);document.getElementById('dsv-${id}').textContent=this.value">
+      <input type="range" id="ds-${id}" min="0.5" max="30" step="0.5" value="3" oninput="drawWidgets['${id}'].size=parseInt(this.value);document.getElementById('dsv-${id}').textContent=this.value">
       <span id="dsv-${id}">5</span>px
       <button class="btn btn-ghost btn-sm" onclick="undoDraw('${id}')">↩ 返回</button>
       <button class="btn btn-ghost btn-sm" onclick="clearDrawWidget('${id}')">🗑 清除</button>
@@ -1648,6 +1651,8 @@ function buildAnnoTools(section, toolsContainerId){
     <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyAnnoFilter('${section}','mosaic')">馬賽克</button>
     <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyAnnoFilter('${section}','grayscale')">黑白</button>
     <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyAnnoFilter('${section}','sepia')">復古</button>
+    <label class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;cursor:pointer">📷 插入底圖<input type="file" accept="image/*" style="display:none" onchange="setAnnoBgPhoto('${section}',this)"></label>
+    <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="clearAnnoBgPhoto('${section}')">✕ 移除底圖</button>
   </div>`;
 }
 
@@ -1738,6 +1743,25 @@ function smoothDrawAnno(section,newPoint){
   }
 }
 
+function setAnnoBgPhoto(section, input){
+  const file=input.files[0];if(!file)return;input.value='';
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const bg=document.getElementById(section+'-anno-bg');
+    if(bg){bg.src=ev.target.result;bg.style.display='block';}
+    const td=document.getElementById(section+'-text-display');
+    if(td)td.style.display='none';
+    setTimeout(()=>initAnnoCanvas(section),100);
+  };
+  reader.readAsDataURL(file);
+}
+function clearAnnoBgPhoto(section){
+  const bg=document.getElementById(section+'-anno-bg');
+  if(bg){bg.src='';bg.style.display='none';}
+  const td=document.getElementById(section+'-text-display');
+  if(td)td.style.display='';
+  setTimeout(()=>initAnnoCanvas(section),60);
+}
 function setAnnoTool(section,tool){
   if(!annoState[section])return;
   const st=annoState[section];
@@ -2768,51 +2792,54 @@ function setupIngDrag(handle,row,list){
     e.preventDefault();
     _ingDragIdx=parseInt(row.dataset.idx);
     _ingDragEl=row;
-    row.style.opacity='0.5';
-    row.style.zIndex='999';
-    handle.style.cursor='grabbing';
-    // Create placeholder
+    const rect=row.getBoundingClientRect();
+    const startY=getY(e);
+    // Create placeholder with same height
     _ingPlaceholder=document.createElement('div');
-    _ingPlaceholder.style.cssText=`height:${row.offsetHeight}px;background:var(--gp);border-radius:8px;margin-bottom:8px;border:2px dashed var(--gd)`;
-    list.insertBefore(_ingPlaceholder,row.nextSibling);
-    document.addEventListener('mousemove',move);document.addEventListener('mouseup',end);
-    document.addEventListener('touchmove',move,{passive:false});document.addEventListener('touchend',end);
-  };
-  const move=(e)=>{
-    if(!_ingDragEl)return;
-    if(e.cancelable)e.preventDefault();
-    const y=getY(e);
-    const rows=[...list.querySelectorAll('.ing-row')].filter(r=>r!==_ingDragEl);
-    let target=null;
-    for(const r of rows){
-      const rect=r.getBoundingClientRect();
-      if(y<rect.top+rect.height/2){target=r;break;}
-    }
-    if(target)list.insertBefore(_ingPlaceholder,target);
-    else list.appendChild(_ingPlaceholder);
-  };
-  const end=()=>{
-    if(!_ingDragEl)return;
-    // Reorder CR.ingredients based on placeholder position
-    const rows=[...list.querySelectorAll('.ing-row,.ing-placeholder')];
-    const phIdx=Array.from(list.children).indexOf(_ingPlaceholder);
-    // Sync CR.ingredients order
-    const newOrder=[];
-    Array.from(list.children).forEach(el=>{
-      if(el===_ingPlaceholder){newOrder.push(CR.ingredients[_ingDragIdx]);}
-      else if(el.classList.contains('ing-row')){
-        const idx=parseInt(el.dataset.idx);
-        if(idx!==_ingDragIdx)newOrder.push(CR.ingredients[idx]);
+    _ingPlaceholder.style.cssText=`height:${rect.height}px;background:var(--gp);border-radius:8px;margin-bottom:8px;border:2px dashed var(--gd);flex-shrink:0`;
+    list.insertBefore(_ingPlaceholder,row);
+    // Make row fixed/absolute following finger
+    row.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:0.85;z-index:999;background:rgba(255,255,255,0.95);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.2);pointer-events:none`;
+    let offsetY=0;
+    const move=(e)=>{
+      if(!_ingDragEl)return;
+      if(e.cancelable)e.preventDefault();
+      const y=getY(e);
+      offsetY=y-startY;
+      row.style.top=(rect.top+offsetY)+'px';
+      // Find where to put placeholder
+      const midY=rect.top+offsetY+rect.height/2;
+      const rows=[...list.querySelectorAll('.ing-row')];
+      let target=null;
+      for(const r of rows){
+        const rb=r.getBoundingClientRect();
+        if(midY<rb.top+rb.height/2){target=r;break;}
       }
-    });
-    CR.ingredients=newOrder;
-    _ingDragEl.style.opacity='';_ingDragEl.style.zIndex='';
-    handle.style.cursor='grab';
-    _ingDragEl=null;_ingDragIdx=-1;
-    if(_ingPlaceholder)_ingPlaceholder.remove();_ingPlaceholder=null;
-    document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',end);
-    document.removeEventListener('touchmove',move);document.removeEventListener('touchend',end);
-    renderIngredients();
+      if(target)list.insertBefore(_ingPlaceholder,target);
+      else list.appendChild(_ingPlaceholder);
+    };
+    const end=()=>{
+      if(!_ingDragEl)return;
+      // Rebuild order from placeholder position
+      const newOrder=[];
+      Array.from(list.children).forEach(el=>{
+        if(el===_ingPlaceholder){newOrder.push(CR.ingredients[_ingDragIdx]);}
+        else if(el.classList.contains('ing-row')){
+          const idx=parseInt(el.dataset.idx);
+          if(idx!==_ingDragIdx)newOrder.push(CR.ingredients[idx]);
+        }
+      });
+      CR.ingredients=newOrder;
+      // Reset row style
+      row.style.cssText='';
+      _ingDragEl=null;_ingDragIdx=-1;
+      if(_ingPlaceholder){_ingPlaceholder.remove();_ingPlaceholder=null;}
+      document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',end);
+      document.removeEventListener('touchmove',move);document.removeEventListener('touchend',end);
+      renderIngredients();
+    };
+    document.addEventListener('mousemove',move);document.addEventListener('mouseup',end);
+    document.addEventListener('touchmove',move,{passive:false});document.addEventListener('touchend',end,{once:true});
   };
   handle.addEventListener('mousedown',start);
   handle.addEventListener('touchstart',start,{passive:false});
@@ -2971,22 +2998,78 @@ function insertPhotoToCanvas(id, input){
         const up=()=>{document.removeEventListener('touchmove',tm);document.removeEventListener('touchend',up);};
         document.addEventListener('touchmove',tm,{passive:false});document.addEventListener('touchend',up,{once:true});
       },{passive:false});
-      // Confirm button
+      const btnWrap=document.createElement('div');
+      btnWrap.style.cssText='position:absolute;bottom:-52px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:102;white-space:nowrap';
+
+      // ✅ 貼入 button
       const btn=document.createElement('button');
       btn.textContent='✅ 貼入';
-      btn.style.cssText='position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);background:var(--gd);color:#fff;border:none;border-radius:8px;padding:5px 16px;font-size:12px;cursor:pointer;white-space:nowrap;z-index:102;box-shadow:0 2px 8px rgba(0,0,0,0.2)';
-      btn.addEventListener('click',(e)=>{
-        e.stopPropagation();
+      btn.style.cssText='background:var(--gd);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:14px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);touch-action:manipulation';
+
+      const doStamp=()=>{
         saveDrawHistory(id);
         const ctx=state.ctx;
         const r=canvas.getBoundingClientRect();
         const scX=canvas.width/r.width, scY=canvas.height/r.height;
         const cl=parseInt(wrap.style.left),ct=parseInt(wrap.style.top);
-        ctx.drawImage(imgEl,cl*scX,ct*scY,wrap.offsetWidth*scX,wrap.offsetHeight*scY);
+        const cw=wrap.offsetWidth,ch=wrap.offsetHeight;
+        ctx.drawImage(imgEl,cl*scX,ct*scY,cw*scX,ch*scY);
         saveDrawHistory(id);
-        wrap.remove();
+        const cvs=document.getElementById('dc2-'+id)||container.querySelector('canvas');
+        // Hide overlay but keep for potential edit
+        wrap.style.opacity='0';wrap.style.pointerEvents='none';
+        btnWrap.style.display='none';
+        // Show Edit button near canvas
+        const editWrap=document.createElement('div');
+        editWrap.style.cssText='position:absolute;bottom:8px;right:8px;z-index:103;display:flex;gap:6px';
+        const editBtn=document.createElement('button');
+        editBtn.textContent='✏️ 編輯';
+        editBtn.style.cssText='background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;touch-action:manipulation';
+        const doneBtn=document.createElement('button');
+        doneBtn.textContent='✓ 完成';
+        doneBtn.style.cssText='background:var(--gd);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;touch-action:manipulation';
+        // Edit: undo stamp, re-show overlay
+        const doEdit=()=>{
+          undoDraw(id);
+          wrap.style.opacity='';wrap.style.pointerEvents='';
+          btnWrap.style.display='flex';
+          if(cvs)cvs.style.pointerEvents='none';
+          editWrap.remove();
+        };
+        editBtn.addEventListener('click',doEdit);
+        editBtn.addEventListener('touchend',(e)=>{e.stopPropagation();doEdit();});
+        // Done: remove overlay and edit buttons
+        const doDone=()=>{
+          wrap.remove();btnWrap.remove();editWrap.remove();
+          if(cvs)cvs.style.pointerEvents='';
+        };
+        doneBtn.addEventListener('click',doDone);
+        doneBtn.addEventListener('touchend',(e)=>{e.stopPropagation();doDone();});
+        editWrap.appendChild(editBtn);editWrap.appendChild(doneBtn);
+        container.appendChild(editWrap);
+        if(cvs)cvs.style.pointerEvents='';
+      };
+      btn.addEventListener('click',(e)=>{e.stopPropagation();doStamp();});
+      btn.addEventListener('touchend',(e)=>{e.stopPropagation();btn.click();});
+
+      // 🗑 刪除 button
+      const delBtn=document.createElement('button');
+      delBtn.textContent='🗑 刪除';
+      delBtn.style.cssText='background:#e53e3e;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);touch-action:manipulation';
+      delBtn.addEventListener('click',(e)=>{
+        e.stopPropagation();
+        wrap.remove();btnWrap.remove();
+        const cvs=document.getElementById('dc2-'+id)||container.querySelector('canvas');
+        if(cvs)cvs.style.pointerEvents='';
       });
-      wrap.appendChild(btn);
+      delBtn.addEventListener('touchend',(e)=>{e.stopPropagation();delBtn.click();});
+
+      btnWrap.appendChild(btn);
+      btnWrap.appendChild(delBtn);
+      wrap.appendChild(btnWrap);
+      // Disable canvas events so touch reaches overlay
+      const cvs=document.getElementById('dc2-'+id)||container.querySelector('canvas');
+      if(cvs)cvs.style.pointerEvents='none';
       container.appendChild(wrap);
     };
     img.src=ev.target.result;
@@ -3885,7 +3968,6 @@ let allFolders=[];
 async function renderSaved(){
   const list=document.getElementById('saved-list');
   list.innerHTML='<div class="loading">載入中…</div>';
-  // Load all folders and all recipes in parallel
   const[{data:folders},{data:recipes,error:re}]=await Promise.all([
     sb.from('folders').select('*').eq('user_id',currentUser.id).order('sort_order'),
     sb.from('recipes').select('*').eq('user_id',currentUser.id).order('sort_order')
@@ -3894,7 +3976,7 @@ async function renderSaved(){
   allFolders=folders||[];
   allRecipes=recipes||[];
   renderSidebar(allFolders);
-  renderSavedList(allRecipes);
+  selectSidebarFolder('home');
 }
 
 function renderSidebar(folders){
@@ -3960,24 +4042,62 @@ async function renameFolderById(id, newName){
 function selectSidebarFolder(folderId){
   selectedFolderId=folderId;
   // Update sidebar highlight
-  document.getElementById('sidebar-all').style.background=!folderId?'var(--gd)':'rgba(255,255,255,0.5)';
-  document.getElementById('sidebar-all').style.color=!folderId?'#fff':'var(--text)';
+  const homeBtn=document.getElementById('sidebar-home');
+  const allBtn=document.getElementById('sidebar-all');
+  const activeStyle='var(--gd)';const activeColor='#fff';
+  const inactiveStyle='none';const inactiveColor='var(--text)';
+  if(homeBtn){homeBtn.style.background=folderId==='home'?activeStyle:inactiveStyle;homeBtn.style.color=folderId==='home'?activeColor:inactiveColor;homeBtn.style.fontWeight=folderId==='home'?700:400;}
+  if(allBtn){allBtn.style.background=folderId==='all'?activeStyle:inactiveStyle;allBtn.style.color=folderId==='all'?activeColor:inactiveColor;allBtn.style.fontWeight=folderId==='all'?700:400;}
   allFolders.forEach(f=>{
     const btn=document.getElementById('sidebar-f-'+f.id);
-    if(btn){
-      btn.style.background=selectedFolderId===f.id?'var(--gp)':'none';
-      btn.style.color=selectedFolderId===f.id?'var(--gd)':'var(--text)';
-      btn.style.fontWeight=selectedFolderId===f.id?700:400;
-    }
+    if(btn){btn.style.background=selectedFolderId===f.id?'var(--gp)':'none';btn.style.color=selectedFolderId===f.id?'var(--gd)':inactiveColor;btn.style.fontWeight=selectedFolderId===f.id?700:400;}
   });
   const titleEl=document.getElementById('saved-folder-title');
-  if(titleEl){
-    if(!folderId)titleEl.textContent='全部食譜';
-    else titleEl.textContent=allFolders.find(f=>f.id===folderId)?.name||'';
+  if(folderId==='home'){
+    if(titleEl)titleEl.textContent='主畫面';
+    renderHomeView();
+  }else if(folderId==='all'){
+    if(titleEl)titleEl.textContent='所有食譜';
+    renderSavedList(allRecipes);
+  }else{
+    if(titleEl)titleEl.textContent=allFolders.find(f=>f.id===folderId)?.name||'';
+    renderSavedList(allRecipes.filter(r=>r.folder_id===folderId));
   }
-  // Filter recipes
-  if(!folderId)renderSavedList(allRecipes);
-  else renderSavedList(allRecipes.filter(r=>r.folder_id===folderId));
+}
+
+function renderHomeView(){
+  // Show folder cards + unfiled recipes
+  const list=document.getElementById('saved-list');list.innerHTML='';
+  isEditOrder=false;
+  const btn=document.getElementById('edit-order-btn');
+  if(btn){btn.textContent='✏️ 排序';btn.classList.remove('btn-primary');btn.classList.add('btn-ghost');}
+  const grid=document.createElement('div');grid.className='recipe-grid';
+  // Folder cards
+  allFolders.forEach(f=>{
+    const card=document.createElement('div');card.className='recipe-card';
+    card.style.cssText='cursor:pointer';
+    card.innerHTML=`<div class="recipe-card-img" style="font-size:22px">📁</div><div class="recipe-card-body"><div class="recipe-card-name">${f.name}</div><div class="recipe-card-meta">${allRecipes.filter(r=>r.folder_id===f.id).length} 個食譜</div></div>`;
+    card.onclick=()=>selectSidebarFolder(f.id);
+    grid.appendChild(card);
+  });
+  // Unfiled recipes
+  allRecipes.filter(r=>!r.folder_id).forEach(recipe=>{
+    const card=document.createElement('div');card.className='recipe-card';
+    card.dataset.id=recipe.id;card.dataset.type='recipe';
+    const coverHtml=recipe.cover?`<div class="recipe-card-img"><img src="${recipe.cover}" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
+    card.innerHTML=`${coverHtml}<div class="recipe-card-body"><div class="recipe-card-name">${recipe.name}</div><div class="recipe-card-meta">${recipe.servings?recipe.servings+' '+( recipe.servings_unit||'人份')+' · ':''}${(recipe.ingredients||[]).length} 食材</div></div>`;
+    let pressTimer=null;
+    card.addEventListener('touchstart',()=>{pressTimer=setTimeout(()=>{pressTimer=null;cardActionRecipeId=recipe.id;cardActionRecipe=recipe;document.getElementById('card-action-title').textContent=recipe.name;openModal('card-action-modal');},600);},{passive:true});
+    card.addEventListener('touchend',()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}});
+    card.addEventListener('touchmove',()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}});
+    card.addEventListener('contextmenu',(e)=>{e.preventDefault();cardActionRecipeId=recipe.id;cardActionRecipe=recipe;document.getElementById('card-action-title').textContent=recipe.name;openModal('card-action-modal');});
+    card.onclick=(e)=>{if(!isEditOrder)showRecipeDetail(recipe);};
+    grid.appendChild(card);
+  });
+  if(!allFolders.length&&!allRecipes.filter(r=>!r.folder_id).length){
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><p>還沒有食譜！</p></div>';return;
+  }
+  list.appendChild(grid);
 }
 
 function renderSavedList(recipes){
@@ -4021,8 +4141,15 @@ function renderSavedList(recipes){
 }
 
 function filterSaved(q){
-  const base=selectedFolderId?allRecipes.filter(r=>r.folder_id===selectedFolderId):allRecipes;
-  if(!q.trim()){renderSavedList(base);return;}
+  let base;
+  if(selectedFolderId==='home')base=allRecipes.filter(r=>!r.folder_id);
+  else if(selectedFolderId==='all')base=allRecipes;
+  else base=allRecipes.filter(r=>r.folder_id===selectedFolderId);
+  if(!q.trim()){
+    if(selectedFolderId==='home')renderHomeView();
+    else renderSavedList(base);
+    return;
+  }
   renderSavedList(base.filter(r=>r.name.toLowerCase().includes(q.toLowerCase())));
 }
 
