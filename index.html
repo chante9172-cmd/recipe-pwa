@@ -138,7 +138,9 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 .draw-color{width:34px;height:34px;padding:2px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;flex-shrink:0}
 .draw-size-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tl);flex-wrap:nowrap}
 .draw-size-row input[type=range]{width:70px;flex-shrink:0}
-canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border);cursor:crosshair;touch-action:none;background:#fff;display:block}
+canvas* {-webkit-user-select:none;user-select:none;}
+input,textarea,select {-webkit-user-select:text!important;user-select:text!important;}
+.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border);cursor:crosshair;touch-action:none;background:#fff;display:block}
 
 /* CONVERT TABS */
 .convert-tabs{display:flex;background:var(--gp);border-radius:10px;padding:4px;gap:3px;margin-bottom:16px}
@@ -534,7 +536,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <div id="steps-annotate-area" style="display:none">
             <div id="anno-wrap-steps" style="position:relative;border-radius:10px;overflow:visible;border:1.5px solid var(--border);user-select:none;-webkit-user-select:none">
               <img id="steps-anno-bg" style="display:none;width:100%;border-radius:10px;display:block">
-              <div id="steps-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:120px;word-break:break-all"></div>
+              <div id="steps-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:360px;word-break:break-all"></div>
               <canvas id="steps-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:transparent"></canvas>
             </div>
             <div id="steps-anno-tools" style="margin-top:8px"></div>
@@ -560,7 +562,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <div id="notes-annotate-area" style="display:none">
             <div id="anno-wrap-notes" style="position:relative;border-radius:10px;overflow:visible;border:1.5px solid var(--border);user-select:none;-webkit-user-select:none">
               <img id="notes-anno-bg" style="display:none;width:100%;border-radius:10px;display:block">
-              <div id="notes-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:80px;word-break:break-all"></div>
+              <div id="notes-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:240px;word-break:break-all"></div>
               <canvas id="notes-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:transparent"></canvas>
             </div>
             <div id="notes-anno-tools" style="margin-top:8px"></div>
@@ -1512,7 +1514,7 @@ function initDrawWidget(id){
       _pinchDist=Math.hypot(t0.clientX-t1.clientX,t0.clientY-t1.clientY);
       _pinchCenter={x:(t0.clientX+t1.clientX)/2,y:(t0.clientY+t1.clientY)/2};
       _isPanning=false;
-    }else if(e.touches.length===1&&_canvasScale>1){
+    }else if(e.touches.length===1&&_canvasScale>1&&!_penActive){
       _panStart={x:e.touches[0].clientX,y:e.touches[0].clientY};
       _panLastPan={..._canvasPan};
       _isPanning=true;
@@ -1878,7 +1880,7 @@ function initAnnoCanvas(section){
   if(!canvas||!textDisplay)return;
 
   // Match canvas height to text display height
-  const h=textDisplay.offsetHeight||120;
+  const h=Math.max(textDisplay.offsetHeight,section==="steps"?360:240);
   canvas.height=h;
   canvas.width=canvas.offsetWidth||canvas.parentElement.offsetWidth||340;
 
