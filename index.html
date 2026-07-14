@@ -865,6 +865,10 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <div id="dev-stats" style="font-size:14px;line-height:2.2">載入中…</div>
         </div>
         <div class="card" style="margin-bottom:12px">
+          <div class="card-title">🏆 最受歡迎食譜 Top 10（按讚數）</div>
+          <div id="dev-top-recipes" style="font-size:13px">載入中…</div>
+        </div>
+        <div class="card" style="margin-bottom:12px">
           <div class="card-title">🕐 最近新增食譜</div>
           <div id="dev-recent-recipes" style="font-size:13px">載入中…</div>
         </div>
@@ -1476,16 +1480,21 @@ function initDrawWidget(id){
   }
   const getPos=(clientX,clientY)=>{const r=c.getBoundingClientRect();const sx=c.width/r.width;const sy=c.height/r.height;return{x:(clientX-r.left)*sx,y:(clientY-r.top)*sy};};
   // Use pointer events for pressure support (Apple Pencil)
+  // Palm rejection: track if pen is active, reject touch if so
+  let _penActive=false;
   c.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='pen')_penActive=true;
+    if(e.pointerType==='touch'&&_penActive)return; // palm rejection
     if(e.pointerType==='touch'&&e.isPrimary===false)return;
     e.preventDefault();state.drawing=true;state.points=[];
-    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||0.5;
+    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||(e.pointerType==='pen'?0.5:0.6);
     state.points.push(p);state.strokeSnapshot=c.toDataURL();
     c.setPointerCapture(e.pointerId);
   });
   c.addEventListener('pointermove',e=>{
+    if(e.pointerType==='touch'&&_penActive)return;
     if(!state.drawing||e.isPrimary===false)return;
-    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||0.5;
+    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||(e.pointerType==='pen'?0.5:0.6);
     smoothDraw(id,p);
   });
   c.addEventListener('pointerup',()=>{state.drawing=false;state.points=[];saveDrawHistory(id);});
@@ -1514,42 +1523,59 @@ function smoothDraw(id, newPoint){
 
 function drawFullPath(ctx,tool,points,color,size){
   if(points.length<2)return;
+  // Smooth pressure between points to avoid jumpy width
+  // Range: 0.4x (light) ~ 1.6x (heavy) - visible but not too thick
+  const smoothedPressure=[];
+  for(let i=0;i<points.length;i++){
+    const raw=points[i].pressure||0.5;
+    const prev=smoothedPressure[i-1]||raw;
+    smoothedPressure.push(prev*0.6+raw*0.4); // exponential smoothing
+  }
+  const ps=(i)=>size*(0.4+Math.min(1,smoothedPressure[i])*1.2);
+
   if(tool==='pen'){
-    ctx.save();
-    ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
-    ctx.strokeStyle=color;ctx.lineWidth=size;ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
-    for(let i=1;i<points.length-1;i++){
-      const mid={x:(points[i].x+points[i+1].x)/2,y:(points[i].y+points[i+1].y)/2};
-      ctx.quadraticCurveTo(points[i].x,points[i].y,mid.x,mid.y);
+    ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+    ctx.strokeStyle=color;ctx.lineCap='round';ctx.lineJoin='round';
+    for(let i=1;i<points.length;i++){
+      const p0=points[i-1],p1=points[i];
+      // Sub-segments for smooth width transition
+      const steps=3;
+      for(let s=0;s<steps;s++){
+        const t0=s/steps,t1=(s+1)/steps;
+        const x0=p0.x+(p1.x-p0.x)*t0,y0=p0.y+(p1.y-p0.y)*t0;
+        const x1=p0.x+(p1.x-p0.x)*t1,y1=p0.y+(p1.y-p0.y)*t1;
+        const w=ps(i-1)*(1-t0)+ps(i)*t0;
+        ctx.beginPath();ctx.lineWidth=w;
+        ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+      }
     }
-    ctx.lineTo(points[points.length-1].x,points[points.length-1].y);
-    ctx.stroke();ctx.restore();
+    ctx.restore();
 
   }else if(tool==='highlighter'){
-    ctx.save();
-    ctx.globalCompositeOperation='source-over';ctx.globalAlpha=0.28;
-    ctx.strokeStyle=color;ctx.lineWidth=size*8;ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
-    for(let i=1;i<points.length-1;i++){
-      const mid={x:(points[i].x+points[i+1].x)/2,y:(points[i].y+points[i+1].y)/2};
-      ctx.quadraticCurveTo(points[i].x,points[i].y,mid.x,mid.y);
+    ctx.save();ctx.globalCompositeOperation='source-over';
+    ctx.strokeStyle=color;ctx.lineCap='round';ctx.lineJoin='round';
+    for(let i=1;i<points.length;i++){
+      const w=(ps(i-1)+ps(i))/2*3;
+      ctx.globalAlpha=0.25+smoothedPressure[i]*0.2;
+      ctx.beginPath();ctx.lineWidth=w;
+      ctx.moveTo(points[i-1].x,points[i-1].y);ctx.lineTo(points[i].x,points[i].y);ctx.stroke();
     }
-    ctx.lineTo(points[points.length-1].x,points[points.length-1].y);
-    ctx.stroke();ctx.restore();
+    ctx.restore();
 
   }else if(tool==='pencil'){
     ctx.save();
     for(let i=1;i<points.length;i++){
       const p0=points[i-1];const p1=points[i];
+      const pressure=smoothedPressure[i];
       const dist=Math.hypot(p1.x-p0.x,p1.y-p0.y);
       const steps=Math.max(1,Math.floor(dist/2));
+      const w=ps(i);
       for(let s=0;s<=steps;s++){
         const t=s/steps;const px=p0.x+(p1.x-p0.x)*t;const py=p0.y+(p1.y-p0.y)*t;
-        for(let g=0;g<Math.floor(size*2);g++){
-          ctx.globalAlpha=Math.random()*0.3+0.05;
+        for(let g=0;g<Math.floor(w*2);g++){
+          ctx.globalAlpha=Math.random()*0.3*pressure+0.05;
           ctx.fillStyle=color;
-          const ox=(Math.random()-.5)*size*2;const oy=(Math.random()-.5)*size*2;
+          const ox=(Math.random()-.5)*w*2;const oy=(Math.random()-.5)*w*2;
           ctx.beginPath();ctx.arc(px+ox,py+oy,Math.random()*1+0.3,0,Math.PI*2);ctx.fill();
         }
       }
@@ -1813,7 +1839,10 @@ function initAnnoCanvas(section){
     return{x:(clientX-r.left)*scaleX,y:(clientY-r.top)*scaleY};
   };
 
+  let _annoPenActive=false;
   newCanvas.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='pen')_annoPenActive=true;
+    if(e.pointerType==='touch'&&_annoPenActive)return;
     if(e.isPrimary===false)return;
     e.preventDefault();st.drawing=true;st.points=[];
     const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||0.5;
@@ -1821,6 +1850,7 @@ function initAnnoCanvas(section){
     newCanvas.setPointerCapture(e.pointerId);
   });
   newCanvas.addEventListener('pointermove',e=>{
+    if(e.pointerType==='touch'&&_annoPenActive)return;
     if(!st.drawing||e.isPrimary===false)return;
     const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||0.5;
     smoothDrawAnno(section,p);
@@ -2386,8 +2416,31 @@ async function devLoadStat(){
   ]);
   document.getElementById('dev-stats').innerHTML=
     `👤 用戶：<b>${uc||0}</b> 人<br>🍽 食譜：<b>${rc||0}</b> 份<br>🏘 社團：<b>${fc||0}</b> 個<br>💬 留言：<b>${cc||0}</b> 則`;
-  // Recent recipes
-  const{data:recent}=await sb.from('recipes').select('id,name,user_id,created_at').order('created_at',{ascending:false}).limit(15);
+  // Top 10 popular recipes by likes
+  const{data:likes}=await sb.from('club_recipe_likes').select('recipe_id');
+  const likeCounts={};
+  (likes||[]).forEach(l=>likeCounts[l.recipe_id]=(likeCounts[l.recipe_id]||0)+1);
+  const topIds=Object.entries(likeCounts).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([id])=>id);
+  const topEl=document.getElementById('dev-top-recipes');
+  if(!topIds.length){topEl.innerHTML='<div style="color:var(--tl)">還沒有按讚資料</div>';}
+  else{
+    const{data:topRecipes}=await sb.from('recipes').select('id,name,user_id').in('id',topIds);
+    const{data:ulist2}=await sb.from('users').select('id,username');
+    const umap2={};(ulist2||[]).forEach(u=>umap2[u.id]=u.username);
+    const sorted=topIds.map((id,rank)=>{
+      const r=topRecipes?.find(r=>r.id===id);
+      return{rank:rank+1,name:r?.name||'已刪除',author:umap2[r?.user_id]||'未知',likes:likeCounts[id]||0};
+    });
+    topEl.innerHTML=sorted.map(r=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:16px;font-weight:900;color:${r.rank<=3?'#f59e0b':'var(--tl)'};width:24px;flex-shrink:0">${r.rank<=3?['🥇','🥈','🥉'][r.rank-1]:r.rank}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${r.name}</div>
+          <div style="font-size:11px;color:var(--tl)">${r.author}</div>
+        </div>
+        <div style="font-size:13px;color:#e53e3e;font-weight:700;flex-shrink:0">❤️ ${r.likes}</div>
+      </div>`).join('');
+  }
   const{data:users}=await sb.from('users').select('id,username');
   const umap={};(users||[]).forEach(u=>umap[u.id]=u.username);
   const rEl=document.getElementById('dev-recent-recipes');
@@ -2873,6 +2926,12 @@ async function loadAuthScreen(){
   const list=document.getElementById('accs-list');list.innerHTML='';
   // Filter out 開發者 account from public list
   const visibleUsers=(users||[]).filter(u=>u.username!=='開發者');
+  // Sort by THIS device's last-used time (localStorage)
+  visibleUsers.sort((a,b)=>{
+    const ta=parseInt(localStorage.getItem('dev_used_'+a.username)||'0');
+    const tb=parseInt(localStorage.getItem('dev_used_'+b.username)||'0');
+    return tb-ta;
+  });
   if(visibleUsers.length){
     document.getElementById('login-or').style.display='block';
     visibleUsers.forEach(u=>{
@@ -2930,6 +2989,8 @@ async function loginSuccess(user){
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').classList.add('active');
   document.getElementById('user-av').textContent=user.username[0].toUpperCase();
+  // Remember this account was used on this device
+  localStorage.setItem('dev_used_'+user.username, Date.now());
   document.getElementById('user-name').textContent=user.username;
   await loadBgSettings();
   newRecipe();
