@@ -407,7 +407,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div class="card" style="padding:14px 18px">
         <div style="display:flex;gap:12px;align-items:flex-start">
           <!-- Cover square on left -->
-          <div id="detail-cover" style="display:none;width:80px;height:80px;flex-shrink:0;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)" onclick="openFullscreenImg(this.querySelector('img').src)">
+          <div id="detail-cover" style="display:none;width:40px;height:40px;flex-shrink:0;border-radius:6px;border:1.5px solid var(--border);overflow:hidden;cursor:pointer" onclick="openFullscreenImg(this.querySelector('img').src)">
             <img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover;display:block">
           </div>
           <!-- Info on right -->
@@ -701,7 +701,7 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <!-- Club recipe info + cover side by side -->
         <div class="card" style="padding:14px 18px">
           <div style="display:flex;gap:12px;align-items:flex-start">
-            <div id="club-recipe-cover" style="display:none;width:80px;height:80px;flex-shrink:0;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)" onclick="openFullscreenImg(this.querySelector('img').src)">
+            <div id="club-recipe-cover" style="display:none;width:40px;height:40px;flex-shrink:0;border-radius:6px;border:1.5px solid var(--border);overflow:hidden;cursor:pointer" onclick="openFullscreenImg(this.querySelector('img').src)">
               <img id="club-recipe-cover-img" style="width:100%;height:100%;object-fit:cover;display:block">
             </div>
             <div style="flex:1;min-width:0">
@@ -4796,6 +4796,43 @@ function renderClubRecipesInto(recipes, el){
   });
 }
 
+function showClubFolderMenu(id,name){
+  currentClubFolderActionId=id;currentClubFolderActionName=name;
+  const n=prompt('輸入新名稱（取消=刪除）：',name);
+  if(n===null){
+    if(confirm('刪除「'+name+'」？裡面的食譜會移到未歸檔。')){
+      sb.from('club_recipes').update({folder_id:null}).eq('club_id',currentClub.id).eq('folder_id',id)
+        .then(()=>sb.from('club_folders').delete().eq('id',id)
+        .then(()=>{showToast('已刪除');loadClubRecipes();}));
+    }
+  }else if(n.trim()&&n.trim()!==name){
+    sb.from('club_folders').update({name:n.trim()}).eq('id',id)
+      .then(()=>{showToast('✅ 已改名');loadClubRecipes();});
+  }
+}
+
+function showMoveClubRecipeModal(recipeId){
+  if(!allClubFolders.length){showToast('請先新增資料夾');return;}
+  // Show folder picker
+  const folderOptions=allClubFolders.map(f=>`<button onclick="moveClubRecipeToFolder('${recipeId}','${f.id}','${f.name.replace(/'/g,"\\'")}')" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--gp);color:var(--gd);font-size:14px;cursor:pointer;margin-bottom:6px;text-align:left">📁 ${f.name}</button>`).join('');
+  // Use confirm modal as folder picker
+  const modal=document.getElementById('confirm-modal');
+  document.getElementById('confirm-title').textContent='移動到資料夾';
+  document.getElementById('confirm-msg').innerHTML=folderOptions+`<button onclick="moveClubRecipeToFolder('${recipeId}',null,'未歸檔')" style="width:100%;padding:10px;border:none;border-radius:8px;background:#fee2e2;color:#e53e3e;font-size:14px;cursor:pointer;margin-bottom:6px;text-align:left">🏠 移回未歸檔</button>`;
+  document.getElementById('confirm-ok').style.display='none';
+  openModal('confirm-modal');
+}
+
+async function moveClubRecipeToFolder(recipeId, folderId, folderName){
+  closeModal('confirm-modal');
+  document.getElementById('confirm-ok').style.display='';
+  document.getElementById('confirm-msg').innerHTML='';
+  const{error}=await sb.from('club_recipes').update({folder_id:folderId||null}).eq('club_id',currentClub.id).eq('recipe_id',recipeId);
+  if(error){showToast('移動失敗');return;}
+  showToast(`✅ 已移動到「${folderName}」`);
+  loadClubRecipes();
+}
+
 function switchClubTab(tab){
   currentClubTab=tab;
   ['recipe','announce','member'].forEach(t=>{
@@ -5197,7 +5234,7 @@ function showClubMenu(){
   if(!currentClub)return;
   document.getElementById('club-menu-title').textContent=currentClub.name;
   const isOwner=currentClub.created_by===currentUser.id;
-  document.getElementById('club-rename-btn').style.display=isOwner?'':'none';
+  document.getElementById('club-rename-btn').style.display=(isOwner||currentClubRole==='admin')?'':'none';
   document.getElementById('club-delete-btn').style.display=isOwner?'':'none';
   document.getElementById('club-leave-btn').style.display=isOwner?'none':'';
   openModal('club-menu-modal');
