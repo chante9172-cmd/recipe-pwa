@@ -371,12 +371,12 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 </div>
 
 <!-- Club move recipe modal -->
-<div class="modal-overlay" id="club-move-recipe-modal">
+<div class="modal-overlay" id="club-move-modal">
   <div class="modal">
     <div class="modal-title">📂 移動到資料夾</div>
     <div id="club-move-folder-list" style="max-height:300px;overflow-y:auto"></div>
     <div class="modal-actions" style="margin-top:10px">
-      <button class="btn btn-ghost btn-full" onclick="closeModal('club-move-recipe-modal')">取消</button>
+      <button class="btn btn-ghost btn-full" onclick="closeModal('club-move-modal')">取消</button>
     </div>
   </div>
 </div>
@@ -1291,7 +1291,7 @@ let bgImgDataUrl='';
 let allRecipes=[];
 let allConvertRecipes=[];
 
-const UNITS=['g','kg','ml','L','杯','碗','tbsp','tsp','T','t','個','片','條','根','撮','瓣','支','顆','包','罐','兩','斤','若干','適量'];
+const UNITS=['g','kg','ml','L','杯','碗','T(大匙，15cc)','t(茶匙，5cc)','個','片','條','根','撮','瓣','支','顆','包','罐','兩','斤','若干','適量'];
 const BG_PAGES=[
   {key:'saved',icon:'📚',name:'已儲存頁面'},
   {key:'edit',icon:'✏️',name:'新增食譜頁面'},
@@ -4753,10 +4753,10 @@ function showMoveClubRecipeModal(recipeId){
   const el=document.getElementById('club-move-folder-list');
   el.innerHTML=`<button onclick="moveClubRecipeToFolder(null)" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--gp);color:var(--gd);font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left">📋 未歸檔</button>`+
     allClubFolders.map(f=>`<button onclick="moveClubRecipeToFolder('${f.id}')" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--gp);color:var(--gd);font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left">📁 ${f.name}</button>`).join('');
-  openModal('club-move-recipe-modal');
+  openModal('club-move-modal');
 }
 async function moveClubRecipeToFolder(folderId){
-  closeModal('club-move-recipe-modal');
+  closeModal('club-move-modal');
   await sb.from('club_recipes').update({folder_id:folderId}).eq('club_id',currentClub.id).eq('recipe_id',_moveClubRecipeId);
   showToast('✅ 已移動');
   loadClubRecipes();
@@ -4770,20 +4770,17 @@ function showNewClubFolderModal(){
 }
 
 function renderClubRecipesInto(recipes, el){
+  const isAdmin=currentClubRole==='admin'||currentClubRole==='owner'||currentClub?.created_by===currentUser.id;
+  const grid=document.createElement('div');grid.className='recipe-grid';
   recipes.forEach(r=>{
     const uploaderId=r._sharedBy||r.user_id;
     const author=clubUsersMap[uploaderId]?.username||'未知';
     const liked=myLikes.has(r.id);
-    const canDelete=uploaderId===currentUser.id;
-    const card=document.createElement('div');card.className='card';
-    card.style.cssText='padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer';
-    card.innerHTML=`${r.cover?`<img src="${r.cover}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0">`:'<div style="width:44px;height:44px;border-radius:8px;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🍽</div>'}
-      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${r.name}</div><div style="font-size:12px;color:var(--tl)">${author}${uploaderId===currentUser.id?' (我)':''} · ${(r.ingredients||[]).length}種食材</div></div>
-      <span style="font-size:18px">${liked?'❤️':'🤍'}</span>
-      ${canDelete?`<button class="del-club-recipe" style="border:none;background:none;color:#e53e3e;cursor:pointer;font-size:18px;padding:4px;flex-shrink:0">🗑</button>`:''}`;
-    if(canDelete){const delBtn=card.querySelector('.del-club-recipe');delBtn.addEventListener('click',(e)=>{e.stopPropagation();showConfirm('移除食譜','確定要從社團移除「'+r.name+'」嗎？',async()=>{await sb.from('club_recipes').delete().eq('club_id',currentClub.id).eq('recipe_id',r.id);showToast('已移除');loadClubRecipes();});});}
-    // Long press or right click → move to folder (admin only)
-    const isAdmin=currentClubRole==='owner'||currentClubRole==='admin'||currentClub.created_by===currentUser.id;
+    const canDelete=uploaderId===currentUser.id||isAdmin;
+    const card=document.createElement('div');card.className='recipe-card';
+    const coverHtml=r.cover?`<div class="recipe-card-img"><img src="${r.cover}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
+    card.innerHTML=`${coverHtml}<div class="recipe-card-body"><div class="recipe-card-name">${r.name}</div><div class="recipe-card-meta">${author} · ${(r.ingredients||[]).length}食材</div><div style="display:flex;gap:4px;margin-top:2px"><span style="font-size:12px">${liked?'❤️':'🤍'}</span>${canDelete?`<button class="del-club-recipe" style="border:none;background:none;color:#e53e3e;cursor:pointer;font-size:12px;padding:0;margin-left:auto">🗑</button>`:''}</div></div>`;
+    if(canDelete){const delBtn=card.querySelector('.del-club-recipe');if(delBtn)delBtn.addEventListener('click',(e)=>{e.stopPropagation();showConfirm('移除食譜','確定要從社團移除「'+r.name+'」嗎？',async()=>{await sb.from('club_recipes').delete().eq('club_id',currentClub.id).eq('recipe_id',r.id);showToast('已移除');loadClubRecipes();});});}
     if(isAdmin&&allClubFolders.length>0){
       let pressTimer=null;
       card.addEventListener('touchstart',()=>{pressTimer=setTimeout(()=>{pressTimer=null;showMoveClubRecipeModal(r.id);},600);},{passive:true});
@@ -4792,45 +4789,9 @@ function renderClubRecipesInto(recipes, el){
       card.addEventListener('contextmenu',(e)=>{e.preventDefault();showMoveClubRecipeModal(r.id);});
     }
     card.addEventListener('click',(e)=>{if(!e.target.closest('.del-club-recipe'))viewClubRecipe(r,author);});
-    el.appendChild(card);
+    grid.appendChild(card);
   });
-}
-
-function showClubFolderMenu(id,name){
-  currentClubFolderActionId=id;currentClubFolderActionName=name;
-  const n=prompt('輸入新名稱（取消=刪除）：',name);
-  if(n===null){
-    if(confirm('刪除「'+name+'」？裡面的食譜會移到未歸檔。')){
-      sb.from('club_recipes').update({folder_id:null}).eq('club_id',currentClub.id).eq('folder_id',id)
-        .then(()=>sb.from('club_folders').delete().eq('id',id)
-        .then(()=>{showToast('已刪除');loadClubRecipes();}));
-    }
-  }else if(n.trim()&&n.trim()!==name){
-    sb.from('club_folders').update({name:n.trim()}).eq('id',id)
-      .then(()=>{showToast('✅ 已改名');loadClubRecipes();});
-  }
-}
-
-function showMoveClubRecipeModal(recipeId){
-  if(!allClubFolders.length){showToast('請先新增資料夾');return;}
-  // Show folder picker
-  const folderOptions=allClubFolders.map(f=>`<button onclick="moveClubRecipeToFolder('${recipeId}','${f.id}','${f.name.replace(/'/g,"\\'")}')" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--gp);color:var(--gd);font-size:14px;cursor:pointer;margin-bottom:6px;text-align:left">📁 ${f.name}</button>`).join('');
-  // Use confirm modal as folder picker
-  const modal=document.getElementById('confirm-modal');
-  document.getElementById('confirm-title').textContent='移動到資料夾';
-  document.getElementById('confirm-msg').innerHTML=folderOptions+`<button onclick="moveClubRecipeToFolder('${recipeId}',null,'未歸檔')" style="width:100%;padding:10px;border:none;border-radius:8px;background:#fee2e2;color:#e53e3e;font-size:14px;cursor:pointer;margin-bottom:6px;text-align:left">🏠 移回未歸檔</button>`;
-  document.getElementById('confirm-ok').style.display='none';
-  openModal('confirm-modal');
-}
-
-async function moveClubRecipeToFolder(recipeId, folderId, folderName){
-  closeModal('confirm-modal');
-  document.getElementById('confirm-ok').style.display='';
-  document.getElementById('confirm-msg').innerHTML='';
-  const{error}=await sb.from('club_recipes').update({folder_id:folderId||null}).eq('club_id',currentClub.id).eq('recipe_id',recipeId);
-  if(error){showToast('移動失敗');return;}
-  showToast(`✅ 已移動到「${folderName}」`);
-  loadClubRecipes();
+  el.appendChild(grid);
 }
 
 function switchClubTab(tab){
