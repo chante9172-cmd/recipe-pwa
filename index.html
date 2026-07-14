@@ -4751,14 +4751,24 @@ let _moveClubRecipeId=null;
 function showMoveClubRecipeModal(recipeId){
   _moveClubRecipeId=recipeId;
   const el=document.getElementById('club-move-folder-list');
-  el.innerHTML=`<button onclick="moveClubRecipeToFolder(null)" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--gp);color:var(--gd);font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left">📋 未歸檔</button>`+
-    allClubFolders.map(f=>`<button onclick="moveClubRecipeToFolder('${f.id}')" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--gp);color:var(--gd);font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left">📁 ${f.name}</button>`).join('');
+  if(!el){showToast('找不到移動視窗');return;}
+  let html=`<button onclick="moveClubRecipeToFolder(null)" style="width:100%;padding:10px;border:none;border-radius:8px;background:#fee2e2;color:#e53e3e;font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left">🏠 移回未歸檔</button>`;
+  if(allClubFolders.length){
+    html+=allClubFolders.map(f=>`<button onclick="moveClubRecipeToFolder('${f.id}')" style="width:100%;padding:10px;border:none;border-radius:8px;background:var(--gp);color:var(--gd);font-weight:600;cursor:pointer;margin-bottom:6px;text-align:left">📁 ${f.name}</button>`).join('');
+  }else{
+    html+='<div style="color:var(--tl);padding:8px;font-size:13px">沒有資料夾，請先在側邊欄新增</div>';
+  }
+  el.innerHTML=html;
   openModal('club-move-modal');
 }
 async function moveClubRecipeToFolder(folderId){
   closeModal('club-move-modal');
-  await sb.from('club_recipes').update({folder_id:folderId}).eq('club_id',currentClub.id).eq('recipe_id',_moveClubRecipeId);
-  showToast('✅ 已移動');
+  if(!_moveClubRecipeId){showToast('錯誤：無法取得食譜ID');return;}
+  const rid=_moveClubRecipeId;
+  _moveClubRecipeId=null;
+  const{error}=await sb.from('club_recipes').update({folder_id:folderId||null}).eq('club_id',currentClub.id).eq('recipe_id',rid);
+  if(error){showToast('移動失敗：'+error.message);return;}
+  showToast(folderId?'✅ 已移動到資料夾':'✅ 已移回未歸檔');
   loadClubRecipes();
 }
 
