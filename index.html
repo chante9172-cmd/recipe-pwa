@@ -451,6 +451,10 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
 
     <!-- EDIT PAGE -->
     <div class="page" id="page-edit">
+      <!-- Top bar with cancel button -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn btn-ghost btn-sm" onclick="showConfirm('取消編輯','確定要清空所有內容，回到空白狀態嗎？',()=>{newRecipe();showToast('已清空');})">✕ 取消編輯</button>
+      </div>
       <div class="cover-area" id="cover-area" onclick="showCoverModal()">
         <span style="font-size:30px">🖼️</span>
         <span style="font-size:13px;color:var(--tl);margin-top:4px">點擊設定封面照片</span>
@@ -626,7 +630,21 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
             <input type="text" id="club-recipe-search" placeholder="搜尋食譜名稱…" style="flex:1" oninput="filterClubRecipes(this.value)">
             <button class="btn btn-primary btn-sm" onclick="showUploadRecipeModal()">＋ 上傳</button>
           </div>
-          <div id="club-recipe-list"><div class="loading">載入中…</div></div>
+          <!-- Split layout -->
+          <div style="display:flex;gap:0;min-height:300px">
+            <!-- Sidebar -->
+            <div id="club-folder-sidebar" style="width:88px;flex-shrink:0;border-right:1px solid var(--border);padding:4px;overflow-y:auto">
+              <button id="club-sidebar-home" onclick="selectClubFolder('home')" style="width:100%;padding:7px 4px;border:none;border-radius:8px;background:var(--gd);color:#fff;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:3px;text-align:center">🏠 主畫面</button>
+              <button id="club-sidebar-all" onclick="selectClubFolder('all')" style="width:100%;padding:7px 4px;border:none;border-radius:8px;background:none;color:var(--text);font-size:11px;cursor:pointer;margin-bottom:3px;text-align:center">📋 全部</button>
+              <div id="club-sidebar-folders"></div>
+              <div id="club-add-folder-btn"></div>
+            </div>
+            <!-- Main -->
+            <div style="flex:1;padding-left:10px;overflow-y:auto">
+              <div id="club-folder-title" style="font-size:13px;font-weight:700;color:var(--gd);margin-bottom:8px">主畫面</div>
+              <div id="club-recipe-list"><div class="loading">載入中…</div></div>
+            </div>
+          </div>
         </div>
         <!-- Announcement tab -->
         <div id="club-tab-announce" style="display:none">
@@ -727,6 +745,19 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
       <div>
         <div class="settings-label">👤 帳號設定</div>
         <div class="bg-card" style="display:flex;flex-direction:column;gap:10px">
+          <!-- Auto-login toggle -->
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0">
+            <div>
+              <div style="font-weight:600;font-size:14px">🔐 自動登入</div>
+              <div style="font-size:12px;color:var(--tl)">關閉網頁後再次開啟仍保持登入（僅限本裝置）</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+              <input type="checkbox" id="auto-login-toggle" onchange="toggleAutoLogin(this.checked)" style="opacity:0;width:0;height:0">
+              <span id="auto-login-slider" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.3s">
+                <span style="position:absolute;content:'';height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;display:block" id="auto-login-knob"></span>
+              </span>
+            </label>
+          </div>
           <button class="btn btn-outline btn-full" onclick="showChangeNameModal()">改名稱</button>
           <button class="btn btn-outline btn-full" onclick="showChangePasswordModal()">改密碼</button>
           <button class="btn btn-danger btn-full" onclick="showConfirm('刪除帳號','確定要刪除帳號嗎？所有食譜也會一併刪除，無法復原！',deleteAccount)">刪除帳號</button>
@@ -1393,30 +1424,40 @@ function initDrawWidget(id){
     const img=new Image();img.onload=()=>state.ctx.drawImage(img,0,0,c.width,c.height);img.src=state.lastData;
   }
   const getPos=(clientX,clientY)=>{const r=c.getBoundingClientRect();const sx=c.width/r.width;const sy=c.height/r.height;return{x:(clientX-r.left)*sx,y:(clientY-r.top)*sy};};
-  c.addEventListener('mousedown',e=>{state.drawing=true;state.points=[];const p=getPos(e.clientX,e.clientY);state.points.push(p);state.strokeSnapshot=c.toDataURL();});
-  c.addEventListener('mousemove',e=>{if(!state.drawing)return;const p=getPos(e.clientX,e.clientY);smoothDraw(id,p);});
-  c.addEventListener('mouseup',()=>{state.drawing=false;state.points=[];saveDrawHistory(id);});
-  c.addEventListener('mouseleave',()=>{if(state.drawing){state.drawing=false;state.points=[];saveDrawHistory(id);}});
-  c.addEventListener('touchstart',e=>{e.preventDefault();state.drawing=true;state.points=[];const t=e.touches[0];const p=getPos(t.clientX,t.clientY);state.points.push(p);state.strokeSnapshot=c.toDataURL();},{passive:false});
-  c.addEventListener('touchmove',e=>{e.preventDefault();if(!state.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);smoothDraw(id,p);},{passive:false});
-  c.addEventListener('touchend',()=>{state.drawing=false;state.points=[];saveDrawHistory(id);});
+  // Use pointer events for pressure support (Apple Pencil)
+  c.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='touch'&&e.isPrimary===false)return;
+    e.preventDefault();state.drawing=true;state.points=[];
+    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||0.5;
+    state.points.push(p);state.strokeSnapshot=c.toDataURL();
+    c.setPointerCapture(e.pointerId);
+  });
+  c.addEventListener('pointermove',e=>{
+    if(!state.drawing||e.isPrimary===false)return;
+    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||0.5;
+    smoothDraw(id,p);
+  });
+  c.addEventListener('pointerup',()=>{state.drawing=false;state.points=[];saveDrawHistory(id);});
+  c.addEventListener('pointerleave',()=>{if(state.drawing){state.drawing=false;state.points=[];saveDrawHistory(id);}});
+  c.style.touchAction='none';
 }
 
 function smoothDraw(id, newPoint){
   const state=drawWidgets[id];if(!state||!state.ctx)return;
   state.points.push(newPoint);
   if(state.points.length<2)return;
-  // All tools use snapshot+full redraw for smooth result
+  const pressure=newPoint.pressure||0.5;
+  const pressureSize=state.size*(0.5+pressure); // pressure affects size
   if(state.strokeSnapshot){
     const img=new Image();
     img.onload=()=>{
       state.ctx.clearRect(0,0,state.canvas.width,state.canvas.height);
       state.ctx.drawImage(img,0,0);
-      drawFullPath(state.ctx,state.tool,state.points,state.color,state.size);
+      drawFullPath(state.ctx,state.tool,state.points,state.color,pressureSize);
     };
     img.src=state.strokeSnapshot;
   }else{
-    drawFullPath(state.ctx,state.tool,state.points,state.color,state.size);
+    drawFullPath(state.ctx,state.tool,state.points,state.color,pressureSize);
   }
 }
 
@@ -1721,13 +1762,21 @@ function initAnnoCanvas(section){
     return{x:(clientX-r.left)*scaleX,y:(clientY-r.top)*scaleY};
   };
 
-  newCanvas.addEventListener('mousedown',e=>{st.drawing=true;st.points=[];const p=getPos(e.clientX,e.clientY);st.points.push(p);st.strokeSnapshot=newCanvas.toDataURL();});
-  newCanvas.addEventListener('mousemove',e=>{if(!st.drawing)return;const p=getPos(e.clientX,e.clientY);smoothDrawAnno(section,p);});
-  newCanvas.addEventListener('mouseup',()=>{st.drawing=false;st.points=[];saveAnnoHistory(section);});
-  newCanvas.addEventListener('mouseleave',()=>{if(st.drawing){st.drawing=false;st.points=[];saveAnnoHistory(section);}});
-  newCanvas.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);st.points=[];st.points.push(p);st.drawing=true;st.strokeSnapshot=newCanvas.toDataURL();},{passive:false});
-  newCanvas.addEventListener('touchmove',e=>{e.preventDefault();if(!st.drawing)return;const t=e.touches[0];const p=getPos(t.clientX,t.clientY);smoothDrawAnno(section,p);},{passive:false});
-  newCanvas.addEventListener('touchend',()=>{st.drawing=false;st.points=[];saveAnnoHistory(section);});
+  newCanvas.addEventListener('pointerdown',e=>{
+    if(e.isPrimary===false)return;
+    e.preventDefault();st.drawing=true;st.points=[];
+    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||0.5;
+    st.points.push(p);st.strokeSnapshot=newCanvas.toDataURL();
+    newCanvas.setPointerCapture(e.pointerId);
+  });
+  newCanvas.addEventListener('pointermove',e=>{
+    if(!st.drawing||e.isPrimary===false)return;
+    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||0.5;
+    smoothDrawAnno(section,p);
+  });
+  newCanvas.addEventListener('pointerup',()=>{st.drawing=false;st.points=[];saveAnnoHistory(section);});
+  newCanvas.addEventListener('pointerleave',()=>{if(st.drawing){st.drawing=false;st.points=[];saveAnnoHistory(section);}});
+  newCanvas.style.touchAction='none';
 
   // Build tools
   buildAnnoTools(section,`${section}-anno-tools`);
@@ -1738,16 +1787,18 @@ function smoothDrawAnno(section,newPoint){
   if(!st.points)st.points=[];
   st.points.push(newPoint);
   if(st.points.length<2)return;
+  const pressure=newPoint.pressure||0.5;
+  const pressureSize=st.size*(0.5+pressure);
   if(st.strokeSnapshot){
     const img=new Image();
     img.onload=()=>{
       st.ctx.clearRect(0,0,st.canvas.width,st.canvas.height);
       st.ctx.drawImage(img,0,0);
-      drawFullPath(st.ctx,st.tool,st.points,st.color,st.size);
+      drawFullPath(st.ctx,st.tool,st.points,st.color,pressureSize);
     };
     img.src=st.strokeSnapshot;
   }else{
-    drawFullPath(st.ctx,st.tool,st.points,st.color,st.size);
+    drawFullPath(st.ctx,st.tool,st.points,st.color,pressureSize);
   }
 }
 
@@ -2659,6 +2710,41 @@ function closeFullscreenImg(){
   document.getElementById('fullscreen-img-modal').style.display='none';
 }
 
+// ── AUTO LOGIN ──
+function toggleAutoLogin(enabled){
+  const slider=document.getElementById('auto-login-slider');
+  const knob=document.getElementById('auto-login-knob');
+  if(slider){slider.style.background=enabled?'var(--gd)':'#ccc';}
+  if(knob){knob.style.transform=enabled?'translateX(20px)':'translateX(0)';}
+  if(enabled&&currentUser){
+    localStorage.setItem('autoLoginId',currentUser.id);
+    showToast('✅ 自動登入已開啟');
+  }else{
+    localStorage.removeItem('autoLoginId');
+    showToast('自動登入已關閉');
+  }
+}
+
+function updateAutoLoginToggle(){
+  const saved=localStorage.getItem('autoLoginId');
+  const isOn=!!(saved&&currentUser&&saved===currentUser.id);
+  const toggle=document.getElementById('auto-login-toggle');
+  const slider=document.getElementById('auto-login-slider');
+  const knob=document.getElementById('auto-login-knob');
+  if(toggle)toggle.checked=isOn;
+  if(slider)slider.style.background=isOn?'var(--gd)':'#ccc';
+  if(knob)knob.style.transform=isOn?'translateX(20px)':'translateX(0)';
+}
+
+async function tryAutoLogin(){
+  const savedId=localStorage.getItem('autoLoginId');
+  if(!savedId)return false;
+  const{data,error}=await sb.from('users').select('*').eq('id',savedId).maybeSingle();
+  if(error||!data||data.banned)return false;
+  await loginSuccess(data);
+  return true;
+}
+
 function parseFraction(s){
   if(!s)return NaN;
   s=String(s).trim();
@@ -2821,6 +2907,10 @@ async function loginSuccess(user){
   }
 }
 function doLogout(){
+  // Only clear auto-login if currently saved for this user
+  if(currentUser&&localStorage.getItem('autoLoginId')===currentUser.id){
+    localStorage.removeItem('autoLoginId');
+  }
   currentUser=null;bgSettings={};currentFolderPath=[];currentFolderId=null;convertRecipe=null;allRecipes=[];allConvertRecipes=[];
   const devTab=document.getElementById('tab-dev');
   if(devTab)devTab.style.display='none';
@@ -2846,7 +2936,7 @@ function switchPage(page){
   else{const fallback=document.getElementById('tab-saved');if(fallback)fallback.classList.add('active');}
   if(page==='saved')renderSaved();
   if(page==='convert')loadConvertList();
-  if(page==='settings'){renderBgSettings();loadMyStats();}
+  if(page==='settings'){renderBgSettings();loadMyStats();updateAutoLoginToggle();}
   if(page==='club'){loadClubs();loadClubNotifBadge();}
   applyPageBg(page==='detail'?'saved':page);
 }
@@ -3026,6 +3116,22 @@ function loadCoverUrl(){
   const url=document.getElementById('cover-url').value.trim();
   if(!url){showToast('請輸入圖片網址');return;}
   showCoverPreview(url);
+}
+
+// ── SUPABASE STORAGE ──
+async function uploadToStorage(dataUrl, path){
+  try{
+    // Convert dataUrl to blob
+    const res=await fetch(dataUrl);
+    const blob=await res.blob();
+    const{data,error}=await sb.storage.from('recipe-images').upload(path,blob,{upsert:true,contentType:'image/jpeg'});
+    if(error)throw error;
+    const{data:{publicUrl}}=sb.storage.from('recipe-images').getPublicUrl(path);
+    return publicUrl;
+  }catch(e){
+    console.error('Storage upload failed:',e);
+    return null; // fallback: will use base64
+  }
 }
 
 function onCoverFile(e){
@@ -3337,7 +3443,7 @@ function resetCoverDraw(){
 
 function saveCoverDrawHistory(){}
 
-function applyCover(){
+async function applyCover(){
   cropActive=false;
   const drawImg=document.getElementById('cover-draw-img');
   const strokeCanvas=document.getElementById('cover-draw-canvas');
@@ -3379,7 +3485,13 @@ function applyCover(){
     }
     try{
       coverDataUrl=out.toDataURL('image/jpeg',0.88);
-      CR.cover=coverDataUrl;renderCoverArea();closeModal('cover-modal');
+      // Upload to Supabase Storage asynchronously
+      const path=`covers/${currentUser?.id||'guest'}/${Date.now()}.jpg`;
+      uploadToStorage(coverDataUrl,path).then(url=>{
+        if(url)CR.cover=url;
+      });
+      CR.cover=coverDataUrl; // use base64 immediately, URL updates async
+      renderCoverArea();closeModal('cover-modal');
     }catch(e){showToast('無法儲存，請從相簿上傳照片');}
   };
   baseImg.onerror=()=>showToast('圖片載入失敗');
@@ -3416,10 +3528,7 @@ let orderItems=[]; // [{type:'folder'|'recipe', id, el}]
 // ── BACKGROUND ──
 
 // ── INIT ──
-document.addEventListener('DOMContentLoaded',()=>{
-  loadAuthScreen();
-  document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});});
-});
+// DOMContentLoaded handled at end of script
 // ── COVER DRAW (two-layer: img + transparent stroke canvas) ──
 let coverTextPos={x:0.5,y:0.5};
 let coverDrawHistory=[];
@@ -4457,22 +4566,139 @@ async function loadClubMembers(){
   }).join('');
 }
 
+let currentClubFolder='home';
+let allClubFolders=[];
+
 async function loadClubRecipes(){
   if(!currentClub)return;
-  // Load only recipes that members have explicitly shared to this club
-  const[sharedRes, likesRes]= await Promise.all([
-    sb.from('club_recipes').select('recipe_id,user_id,shared_at').eq('club_id',currentClub.id),
+  const isAdmin=currentClubRole==='admin'||currentClubRole==='owner'||currentClub.created_by===currentUser.id;
+  // Load folders
+  const{data:folders}=await sb.from('club_folders').select('*').eq('club_id',currentClub.id).order('sort_order');
+  allClubFolders=folders||[];
+  renderClubSidebar(isAdmin);
+  // Load recipes
+  const[sharedRes, likesRes]=await Promise.all([
+    sb.from('club_recipes').select('recipe_id,user_id,shared_at,folder_id').eq('club_id',currentClub.id),
     sb.from('club_recipe_likes').select('recipe_id').eq('club_id',currentClub.id).eq('user_id',currentUser.id)
   ]);
   const shared=sharedRes.data||[];
   myLikes=new Set((likesRes.data||[]).map(l=>l.recipe_id));
   if(!shared.length){clubRecipesAll=[];renderClubRecipes([]);return;}
-  // Fetch actual recipe data
   const recipeIds=shared.map(s=>s.recipe_id);
   const{data:recipes}=await sb.from('recipes').select('*').in('id',recipeIds);
-  // Merge uploader info
-  clubRecipesAll=(recipes||[]).map(r=>({...r,_sharedBy:shared.find(s=>s.recipe_id===r.id)?.user_id}));
-  renderClubRecipes(clubRecipesAll);
+  clubRecipesAll=(recipes||[]).map(r=>{
+    const sr=shared.find(s=>s.recipe_id===r.id);
+    return{...r,_sharedBy:sr?.user_id,_folderId:sr?.folder_id};
+  });
+  selectClubFolder(currentClubFolder);
+}
+
+function renderClubSidebar(isAdmin){
+  // Update folder list
+  const fEl=document.getElementById('club-sidebar-folders');
+  if(fEl){
+    fEl.innerHTML=allClubFolders.map(f=>`
+      <button id="club-sf-${f.id}" onclick="selectClubFolder('${f.id}')"
+        style="width:100%;padding:6px 2px;border:none;border-radius:8px;background:none;color:var(--text);font-size:11px;cursor:pointer;margin-bottom:3px;text-align:center;word-break:break-all;line-height:1.4">
+        📁 ${f.name}
+      </button>`).join('');
+    // Long press / right click on folders for rename/delete (admin only)
+    if(isAdmin){
+      allClubFolders.forEach(f=>{
+        const btn=document.getElementById('club-sf-'+f.id);
+        if(!btn)return;
+        let t=null;
+        btn.addEventListener('touchstart',()=>{t=setTimeout(()=>{t=null;showClubFolderMenu(f.id,f.name);},600);},{passive:true});
+        btn.addEventListener('touchend',()=>{if(t){clearTimeout(t);t=null;}});
+        btn.addEventListener('contextmenu',(e)=>{e.preventDefault();showClubFolderMenu(f.id,f.name);});
+      });
+    }
+  }
+  // Add folder button (admin only)
+  const addEl=document.getElementById('club-add-folder-btn');
+  if(addEl)addEl.innerHTML=isAdmin?`<button onclick="showNewClubFolderModal()" style="width:100%;padding:6px 2px;border:1px dashed var(--border);border-radius:8px;background:none;color:var(--tl);font-size:11px;cursor:pointer;margin-top:4px">＋ 新增<br>資料夾</button>`:'';
+}
+
+function selectClubFolder(folderId){
+  currentClubFolder=folderId;
+  // Highlight sidebar
+  const homeBtn=document.getElementById('club-sidebar-home');
+  const allBtn=document.getElementById('club-sidebar-all');
+  if(homeBtn){homeBtn.style.background=folderId==='home'?'var(--gd)':'none';homeBtn.style.color=folderId==='home'?'#fff':'var(--text)';}
+  if(allBtn){allBtn.style.background=folderId==='all'?'var(--gd)':'none';allBtn.style.color=folderId==='all'?'#fff':'var(--text)';}
+  allClubFolders.forEach(f=>{
+    const btn=document.getElementById('club-sf-'+f.id);
+    if(btn){btn.style.background=folderId===f.id?'var(--gp)':'none';btn.style.color=folderId===f.id?'var(--gd)':'var(--text)';btn.style.fontWeight=folderId===f.id?700:400;}
+  });
+  const titleEl=document.getElementById('club-folder-title');
+  if(folderId==='home'){if(titleEl)titleEl.textContent='主畫面';renderClubHomeView();}
+  else if(folderId==='all'){if(titleEl)titleEl.textContent='全部食譜';renderClubRecipes(clubRecipesAll);}
+  else{
+    const f=allClubFolders.find(f=>f.id===folderId);
+    if(titleEl)titleEl.textContent=f?.name||'';
+    renderClubRecipes(clubRecipesAll.filter(r=>r._folderId===folderId));
+  }
+}
+
+function renderClubHomeView(){
+  const el=document.getElementById('club-recipe-list');
+  el.innerHTML='';
+  const grid=document.createElement('div');grid.className='recipe-grid';
+  // Folder cards
+  allClubFolders.forEach(f=>{
+    const card=document.createElement('div');card.className='recipe-card';
+    card.innerHTML=`<div class="recipe-card-img" style="font-size:22px">📁</div><div class="recipe-card-body"><div class="recipe-card-name">${f.name}</div><div class="recipe-card-meta">${clubRecipesAll.filter(r=>r._folderId===f.id).length} 個食譜</div></div>`;
+    card.onclick=()=>selectClubFolder(f.id);
+    grid.appendChild(card);
+  });
+  el.appendChild(grid);
+  // Unfiled recipes below
+  const unfiled=clubRecipesAll.filter(r=>!r._folderId);
+  if(unfiled.length){
+    const divider=document.createElement('div');divider.style.cssText='font-size:12px;color:var(--tl);margin:10px 0 6px';divider.textContent='未歸檔食譜';
+    el.appendChild(divider);
+    const subEl=document.createElement('div');
+    el.appendChild(subEl);
+    renderClubRecipesInto(unfiled,subEl);
+  }
+  if(!allClubFolders.length&&!unfiled.length){el.innerHTML='<div style="text-align:center;color:var(--tl);padding:20px">社團內還沒有食譜</div>';}
+}
+
+// Club folder management (admin only)
+let currentClubFolderActionId=null,currentClubFolderActionName=null;
+function showClubFolderMenu(id,name){
+  currentClubFolderActionId=id;currentClubFolderActionName=name;
+  showConfirm('資料夾：'+name,'',()=>{},{
+    custom:[
+      {label:'✏️ 改名',action:()=>{const n=prompt('輸入新名稱：',name);if(n&&n.trim()){sb.from('club_folders').update({name:n.trim()}).eq('id',id).then(()=>{showToast('✅ 已改名');loadClubRecipes();});}}},
+      {label:'🗑 刪除',action:()=>{if(confirm('刪除後裡面的食譜會移到未歸檔。確定？')){sb.from('club_recipes').update({folder_id:null}).eq('club_id',currentClub.id).eq('folder_id',id).then(()=>{sb.from('club_folders').delete().eq('id',id).then(()=>{showToast('已刪除');loadClubRecipes();});});}}}
+    ]
+  });
+}
+
+function showNewClubFolderModal(){
+  const name=prompt('輸入資料夾名稱：');
+  if(!name||!name.trim())return;
+  sb.from('club_folders').insert({club_id:currentClub.id,name:name.trim(),created_by:currentUser.id,sort_order:allClubFolders.length})
+    .then(()=>{showToast('✅ 已新增資料夾');loadClubRecipes();});
+}
+
+function renderClubRecipesInto(recipes, el){
+  recipes.forEach(r=>{
+    const uploaderId=r._sharedBy||r.user_id;
+    const author=clubUsersMap[uploaderId]?.username||'未知';
+    const liked=myLikes.has(r.id);
+    const canDelete=uploaderId===currentUser.id;
+    const card=document.createElement('div');card.className='card';
+    card.style.cssText='padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer';
+    card.innerHTML=`${r.cover?`<img src="${r.cover}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0">`:'<div style="width:44px;height:44px;border-radius:8px;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🍽</div>'}
+      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${r.name}</div><div style="font-size:12px;color:var(--tl)">${author}${uploaderId===currentUser.id?' (我)':''} · ${(r.ingredients||[]).length}種食材</div></div>
+      <span style="font-size:18px">${liked?'❤️':'🤍'}</span>
+      ${canDelete?`<button class="del-club-recipe" style="border:none;background:none;color:#e53e3e;cursor:pointer;font-size:18px;padding:4px;flex-shrink:0">🗑</button>`:''}`;
+    if(canDelete){const delBtn=card.querySelector('.del-club-recipe');delBtn.addEventListener('click',(e)=>{e.stopPropagation();showConfirm('移除食譜','確定要從社團移除「'+r.name+'」嗎？',async()=>{await sb.from('club_recipes').delete().eq('club_id',currentClub.id).eq('recipe_id',r.id);showToast('已移除');loadClubRecipes();});});}
+    card.addEventListener('click',(e)=>{if(!e.target.closest('.del-club-recipe'))viewClubRecipe(r,author);});
+    el.appendChild(card);
+  });
 }
 
 function switchClubTab(tab){
@@ -4488,42 +4714,15 @@ function switchClubTab(tab){
 
 function renderClubRecipes(recipes){
   const el=document.getElementById('club-recipe-list');
-  if(!recipes.length){el.innerHTML='<div style="text-align:center;color:var(--tl);padding:20px">社團內還沒有食譜<br><span style="font-size:13px">點右上角「＋ 上傳」分享你的食譜</span></div>';return;}
   el.innerHTML='';
-  recipes.forEach(r=>{
-    const uploaderId=r._sharedBy||r.user_id;
-    const author=clubUsersMap[uploaderId]?.username||clubUsersMap[r.user_id]?.username||'未知';
-    const liked=myLikes.has(r.id);
-    const canDelete=uploaderId===currentUser.id;
-    const card=document.createElement('div');card.className='card';
-    card.style.cssText='padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer';
-    card.innerHTML=`${r.cover?`<img src="${r.cover}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0">`:'<div style="width:44px;height:44px;border-radius:8px;background:var(--gp);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🍽</div>'}
-      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${r.name}</div><div style="font-size:12px;color:var(--tl)">${author}${uploaderId===currentUser.id?' (我)':''} · ${(r.ingredients||[]).length}種食材</div></div>
-      <span style="font-size:18px">${liked?'❤️':'🤍'}</span>
-      ${canDelete?`<button class="del-club-recipe" style="border:none;background:none;color:#e53e3e;cursor:pointer;font-size:18px;padding:4px;flex-shrink:0" title="從社團移除">🗑</button>`:''}`;
-    // Delete button - stop propagation so card click doesn't fire
-    if(canDelete){
-      const delBtn=card.querySelector('.del-club-recipe');
-      delBtn.addEventListener('click',(e)=>{
-        e.stopPropagation();
-        e.preventDefault();
-        showConfirm('移除食譜','確定要從社團移除「'+r.name+'」嗎？',async()=>{
-          await sb.from('club_recipes').delete().eq('club_id',currentClub.id).eq('recipe_id',r.id).eq('user_id',currentUser.id);
-          showToast('已從社團移除');
-          loadClubRecipes();
-        });
-      });
-    }
-    card.addEventListener('click',(e)=>{
-      if(!e.target.closest('.del-club-recipe'))viewClubRecipe(r,author);
-    });
-    el.appendChild(card);
-  });
+  if(!recipes.length){el.innerHTML='<div style="text-align:center;color:var(--tl);padding:20px">這裡還沒有食譜</div>';return;}
+  renderClubRecipesInto(recipes,el);
 }
 
 function filterClubRecipes(q){
-  const filtered=!q.trim()?clubRecipesAll:clubRecipesAll.filter(r=>r.name.toLowerCase().includes(q.toLowerCase()));
-  renderClubRecipes(filtered);
+  let base=currentClubFolder==='home'?clubRecipesAll.filter(r=>!r._folderId):currentClubFolder==='all'?clubRecipesAll:clubRecipesAll.filter(r=>r._folderId===currentClubFolder);
+  if(!q.trim()){selectClubFolder(currentClubFolder);return;}
+  renderClubRecipes(base.filter(r=>r.name.toLowerCase().includes(q.toLowerCase())));
 }
 
 let memberRecipesCache=[];
@@ -5023,13 +5222,26 @@ function renderBgSettings(){
 function setBgType(k,type){if(!bgSettings[k])bgSettings[k]={type:'none',value:''};bgSettings[k].type=type;if(type==='none')bgSettings[k].value='';saveBgSettings();applyPageBg(k);renderBgSettings();}
 function setBgColor(k,color){if(!bgSettings[k])bgSettings[k]={};bgSettings[k].type='color';bgSettings[k].value=color;saveBgSettings();applyPageBg(k);const p=document.getElementById('bgprev-'+k);if(p){p.style.backgroundColor=color;p.style.backgroundImage='';}}
 function showBgImgModal(k){bgEditTarget=k;bgImgDataUrl='';document.getElementById('bg-file').value='';document.getElementById('bg-url').value='';const s=bgSettings[k];document.getElementById('bg-img-preview').style.backgroundImage=s&&s.type==='image'&&s.value?`url(${s.value})`:'';openModal('bg-img-modal');}
-function onBgFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{bgImgDataUrl=ev.target.result;document.getElementById('bg-img-preview').style.backgroundImage=`url(${bgImgDataUrl})`;};r.readAsDataURL(f);}
+async function onBgFile(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=async ev=>{
+    bgImgDataUrl=ev.target.result;
+    document.getElementById('bg-img-preview').style.backgroundImage=`url(${bgImgDataUrl})`;
+    // Upload to storage
+    const path=`backgrounds/${currentUser?.id||'guest'}/${Date.now()}.jpg`;
+    const url=await uploadToStorage(bgImgDataUrl,path);
+    if(url)bgImgDataUrl=url; // use URL instead of base64
+  };
+  r.readAsDataURL(f);
+}
 function applyBgImg(){const url=document.getElementById('bg-url').value.trim();const val=url||bgImgDataUrl;if(!val){showToast('請選擇圖片或輸入網址');return;}if(!bgSettings[bgEditTarget])bgSettings[bgEditTarget]={};bgSettings[bgEditTarget].type='image';bgSettings[bgEditTarget].value=val;bgImgDataUrl='';saveBgSettings();applyPageBg(bgEditTarget);closeModal('bg-img-modal');renderBgSettings();}
 function clearBgImg(k){if(bgSettings[k]){bgSettings[k].type='none';bgSettings[k].value='';}saveBgSettings();applyPageBg(k);renderBgSettings();}
 
 // ── INIT ──
-document.addEventListener('DOMContentLoaded',()=>{
-  loadAuthScreen();
+document.addEventListener('DOMContentLoaded',async()=>{
+  const autoLogged=await tryAutoLogin();
+  if(!autoLogged)loadAuthScreen();
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});});
 });
 
