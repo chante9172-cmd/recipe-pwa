@@ -4703,7 +4703,7 @@ function renderClubHomeView(){
   // Folder cards
   allClubFolders.forEach(f=>{
     const card=document.createElement('div');card.className='recipe-card';
-    card.innerHTML=`<div class="recipe-card-img" style="font-size:22px">📁</div><div class="recipe-card-body"><div class="recipe-card-name">${f.name}</div><div class="recipe-card-meta">${clubRecipesAll.filter(r=>r._folderId===f.id).length} 個食譜</div></div>`;
+    card.innerHTML=`<div class="recipe-card-img" style="font-size:24px">📁</div><div class="recipe-card-body"><div class="recipe-card-name">${f.name}</div><div class="recipe-card-meta">${clubRecipesAll.filter(r=>r._folderId===f.id).length} 個食譜</div></div>`;
     card.onclick=()=>selectClubFolder(f.id);
     grid.appendChild(card);
   });
@@ -4711,13 +4711,17 @@ function renderClubHomeView(){
   // Unfiled recipes below
   const unfiled=clubRecipesAll.filter(r=>!r._folderId);
   if(unfiled.length){
-    const divider=document.createElement('div');divider.style.cssText='font-size:12px;color:var(--tl);margin:10px 0 6px';divider.textContent='未歸檔食譜';
+    const divider=document.createElement('div');
+    divider.style.cssText='font-size:12px;color:var(--tl);margin:10px 0 6px;padding-left:2px';
+    divider.textContent='未歸檔食譜';
     el.appendChild(divider);
     const subEl=document.createElement('div');
     el.appendChild(subEl);
     renderClubRecipesInto(unfiled,subEl);
   }
-  if(!allClubFolders.length&&!unfiled.length){el.innerHTML='<div style="text-align:center;color:var(--tl);padding:20px">社團內還沒有食譜</div>';}
+  if(!allClubFolders.length&&!unfiled.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><p>社團內還沒有食譜</p></div>';
+  }
 }
 
 // Club folder management (admin only)
@@ -4806,7 +4810,7 @@ function switchClubTab(tab){
 function renderClubRecipes(recipes){
   const el=document.getElementById('club-recipe-list');
   el.innerHTML='';
-  if(!recipes.length){el.innerHTML='<div style="text-align:center;color:var(--tl);padding:20px">這裡還沒有食譜</div>';return;}
+  if(!recipes.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><p>這裡還沒有食譜</p></div>';return;}
   renderClubRecipesInto(recipes,el);
 }
 
