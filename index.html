@@ -4779,21 +4779,18 @@ function renderClubRecipesInto(recipes, el){
     const canDelete=uploaderId===currentUser.id||isAdmin;
     const card=document.createElement('div');card.className='recipe-card';
     const coverHtml=r.cover?`<div class="recipe-card-img"><img src="${r.cover}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.innerHTML='🍽'"></div>`:`<div class="recipe-card-img">🍽</div>`;
-    card.innerHTML=`${coverHtml}<div class="recipe-card-body"><div class="recipe-card-name">${r.name}</div><div class="recipe-card-meta">${author} · ${(r.ingredients||[]).length}食材</div><div style="display:flex;gap:4px;margin-top:2px"><span style="font-size:12px">${liked?'❤️':'🤍'}</span>${canDelete?`<button class="del-club-recipe" style="border:none;background:none;color:#e53e3e;cursor:pointer;font-size:12px;padding:0;margin-left:auto">🗑</button>`:''}</div></div>`;
-    if(canDelete){const delBtn=card.querySelector('.del-club-recipe');if(delBtn)delBtn.addEventListener('click',(e)=>{e.stopPropagation();showConfirm('移除食譜','確定要從社團移除「'+r.name+'」嗎？',async()=>{await sb.from('club_recipes').delete().eq('club_id',currentClub.id).eq('recipe_id',r.id);showToast('已移除');loadClubRecipes();});});}
-    if(isAdmin&&allClubFolders.length>0){
-      let pressTimer=null;
-      card.addEventListener('touchstart',()=>{pressTimer=setTimeout(()=>{pressTimer=null;showMoveClubRecipeModal(r.id);},600);},{passive:true});
-      card.addEventListener('touchend',()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}});
-      card.addEventListener('touchmove',()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}});
-      card.addEventListener('contextmenu',(e)=>{e.preventDefault();showMoveClubRecipeModal(r.id);});
-    }
-    card.addEventListener('click',(e)=>{if(!e.target.closest('.del-club-recipe'))viewClubRecipe(r,author);});
+    const moveBtn=isAdmin?`<button class="move-club-recipe" style="border:none;background:none;color:var(--gd);cursor:pointer;font-size:12px;padding:0">📂</button>`:'';
+    const delBtn2=canDelete?`<button class="del-club-recipe" style="border:none;background:none;color:#e53e3e;cursor:pointer;font-size:12px;padding:0;margin-left:auto">🗑</button>`:'';
+    card.innerHTML=`${coverHtml}<div class="recipe-card-body"><div class="recipe-card-name">${r.name}</div><div class="recipe-card-meta">${author} · ${(r.ingredients||[]).length}食材</div><div style="display:flex;gap:6px;margin-top:2px;align-items:center"><span style="font-size:12px">${liked?'❤️':'🤍'}</span>${moveBtn}${delBtn2}</div></div>`;
+    const mb=card.querySelector('.move-club-recipe');
+    if(mb)mb.addEventListener('click',(e)=>{e.stopPropagation();showMoveClubRecipeModal(r.id);});
+    const db=card.querySelector('.del-club-recipe');
+    if(db)db.addEventListener('click',(e)=>{e.stopPropagation();showConfirm('移除食譜','確定要從社團移除「'+r.name+'」嗎？',async()=>{await sb.from('club_recipes').delete().eq('club_id',currentClub.id).eq('recipe_id',r.id);showToast('已移除');loadClubRecipes();});});
+    card.addEventListener('click',(e)=>{if(!e.target.closest('.del-club-recipe')&&!e.target.closest('.move-club-recipe'))viewClubRecipe(r,author);});
     grid.appendChild(card);
   });
   el.appendChild(grid);
 }
-
 function switchClubTab(tab){
   currentClubTab=tab;
   ['recipe','announce','member'].forEach(t=>{
