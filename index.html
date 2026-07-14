@@ -718,6 +718,24 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <div id="cr-steps-card" class="card" style="display:none">
           <div class="card-title">做法</div>
           <div id="cr-steps" style="font-size:15px;line-height:1.8"></div>
+          <!-- Steps drawing -->
+          <div id="cr-steps-drawing" style="display:none;margin-top:10px;border-radius:8px;overflow:hidden">
+            <img id="cr-steps-drawing-img" style="width:100%;display:block;border-radius:8px" onclick="openFullscreenImg(this.src)">
+          </div>
+        </div>
+        <!-- Notes -->
+        <div id="cr-notes-card" class="card" style="display:none">
+          <div class="card-title">備註</div>
+          <div id="cr-notes" style="font-size:15px;line-height:1.8;white-space:pre-wrap"></div>
+          <!-- Notes drawing -->
+          <div id="cr-notes-drawing" style="display:none;margin-top:10px;border-radius:8px;overflow:hidden">
+            <img id="cr-notes-drawing-img" style="width:100%;display:block;border-radius:8px" onclick="openFullscreenImg(this.src)">
+          </div>
+        </div>
+        <!-- Recipe drawing (手繪筆記) -->
+        <div id="cr-drawing-card" class="card" style="display:none">
+          <div class="card-title">✏️ 手繪筆記</div>
+          <img id="cr-drawing-img" style="width:100%;border-radius:8px;cursor:pointer" onclick="openFullscreenImg(this.src)">
         </div>
         <!-- Comments -->
         <div class="card">
@@ -4896,6 +4914,27 @@ async function viewClubRecipe(recipe,author){
   else if(coverDiv)coverDiv.style.display='none';  const steps=Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'';
   if(steps){document.getElementById('cr-steps-card').style.display='';renderStepsWithTimers(steps,'cr-steps');}
   else document.getElementById('cr-steps-card').style.display='none';
+  // Steps drawing
+  const stepsDrawEl=document.getElementById('cr-steps-drawing');
+  const stepsDrawImg=document.getElementById('cr-steps-drawing-img');
+  if(recipe.steps_drawing&&stepsDrawEl&&stepsDrawImg){stepsDrawEl.style.display='';stepsDrawImg.src=recipe.steps_drawing;}
+  else if(stepsDrawEl)stepsDrawEl.style.display='none';
+  // Notes
+  const notesEl=document.getElementById('cr-notes-card');
+  const notes=recipe.notes||'';
+  if(notesEl){
+    if(notes||recipe.notes_drawing){notesEl.style.display='';document.getElementById('cr-notes').textContent=notes;}
+    else notesEl.style.display='none';
+  }
+  const notesDrawEl=document.getElementById('cr-notes-drawing');
+  const notesDrawImg=document.getElementById('cr-notes-drawing-img');
+  if(recipe.notes_drawing&&notesDrawEl&&notesDrawImg){notesDrawEl.style.display='';notesDrawImg.src=recipe.notes_drawing;}
+  else if(notesDrawEl)notesDrawEl.style.display='none';
+  // Hand-drawn notes
+  const drawCard=document.getElementById('cr-drawing-card');
+  const drawImg=document.getElementById('cr-drawing-img');
+  if(recipe.drawing&&drawCard&&drawImg){drawCard.style.display='';drawImg.src=recipe.drawing;}
+  else if(drawCard)drawCard.style.display='none';
   setClubRecipeMode(0);renderClubIngredients(1);
   // Like button
   const liked=myLikes.has(recipe.id);
