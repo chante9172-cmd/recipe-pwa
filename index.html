@@ -4493,6 +4493,7 @@ function doConvert(){
 
 // ── CLUBS ──
 let currentClub=null;
+let currentClubRole='member';
 let clubRecipesAll=[];
 let currentClubRecipe=null;
 let crRefIdx=null;
@@ -4531,11 +4532,15 @@ async function loadClubs(){
 
 async function enterClub(club){
   currentClub=club;
+  currentClubFolder='home';
   document.getElementById('club-home').style.display='none';
   document.getElementById('club-detail').style.display='';
   document.getElementById('club-recipe-detail').style.display='none';
   document.getElementById('club-detail-name').textContent=club.name;
   document.getElementById('club-recipe-list').innerHTML='<div class="loading">載入中…</div>';
+  // Determine current user's role
+  const{data:myMem}=await sb.from('club_members').select('role').eq('club_id',club.id).eq('user_id',currentUser.id).maybeSingle();
+  currentClubRole=club.created_by===currentUser.id?'owner':(myMem?.role||'member');
   // Load members and recipes in parallel
   await loadClubMembers();
   await loadClubRecipes();
