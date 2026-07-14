@@ -403,16 +403,20 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
         <button class="btn btn-outline btn-sm" onclick="editCurrentDetail()">✏️ 編輯</button>
         <button class="btn btn-ghost btn-sm" onclick="duplicateRecipe()" title="複製食譜" style="font-size:11px;padding:6px 8px">📋 複製</button>
       </div>
-      <!-- Cover -->
-      <!-- Cover full-width banner -->
-      <div id="detail-cover" style="display:none;position:absolute;top:14px;right:14px;width:80px;height:80px;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10" onclick="openFullscreenImg(this.querySelector('img').src)">
-        <img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover;display:block">
-      </div>
-      <!-- Info -->
+      <!-- Info + Cover side by side -->
       <div class="card" style="padding:14px 18px">
-        <div style="font-size:22px;font-weight:700" id="detail-name"></div>
-        <div style="font-size:13px;color:var(--tl);margin-top:4px" id="detail-servings"></div>
-        <div style="font-size:13px;color:var(--tl);margin-top:2px" id="detail-mold"></div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <!-- Cover square on left -->
+          <div id="detail-cover" style="display:none;width:80px;height:80px;flex-shrink:0;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)" onclick="openFullscreenImg(this.querySelector('img').src)">
+            <img id="detail-cover-img" style="width:100%;height:100%;object-fit:cover;display:block">
+          </div>
+          <!-- Info on right -->
+          <div style="flex:1;min-width:0">
+            <div style="font-size:22px;font-weight:700" id="detail-name"></div>
+            <div style="font-size:13px;color:var(--tl);margin-top:4px" id="detail-servings"></div>
+            <div style="font-size:13px;color:var(--tl);margin-top:2px" id="detail-mold"></div>
+          </div>
+        </div>
       </div>
       <!-- Conversion -->
       <div class="card">
@@ -694,15 +698,19 @@ canvas.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border
           <button class="btn btn-outline btn-sm" onclick="copyRecipeToMine()" title="複製到我的食譜">📥 複製食譜</button>
           <button class="btn btn-ghost btn-sm" id="like-btn" onclick="toggleLike()">🤍</button>
         </div>
-        <!-- Club recipe cover - small square top right -->
-        <div id="club-recipe-cover" style="display:none;position:absolute;top:14px;right:14px;width:80px;height:80px;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10" onclick="openFullscreenImg(this.querySelector('img').src)">
-          <img id="club-recipe-cover-img" style="width:100%;height:100%;object-fit:cover;display:block">
-        </div>
+        <!-- Club recipe info + cover side by side -->
         <div class="card" style="padding:14px 18px">
-          <div style="font-size:20px;font-weight:700" id="club-recipe-name"></div>
-          <div style="font-size:12px;color:var(--tl);margin-top:4px" id="club-recipe-author"></div>
-          <div style="font-size:12px;color:var(--tl)" id="club-recipe-servings"></div>
-          <div style="font-size:12px;color:var(--tl)" id="club-recipe-mold"></div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div id="club-recipe-cover" style="display:none;width:80px;height:80px;flex-shrink:0;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15)" onclick="openFullscreenImg(this.querySelector('img').src)">
+              <img id="club-recipe-cover-img" style="width:100%;height:100%;object-fit:cover;display:block">
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:20px;font-weight:700" id="club-recipe-name"></div>
+              <div style="font-size:12px;color:var(--tl);margin-top:4px" id="club-recipe-author"></div>
+              <div style="font-size:12px;color:var(--tl)" id="club-recipe-servings"></div>
+              <div style="font-size:12px;color:var(--tl)" id="club-recipe-mold"></div>
+            </div>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">比例換算</div>
