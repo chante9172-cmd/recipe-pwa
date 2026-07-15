@@ -1504,6 +1504,12 @@ function initDrawWidget(id){
   c.addEventListener('selectstart',(e)=>e.preventDefault());
   c.addEventListener('contextmenu',(e)=>e.preventDefault());
   c.style.webkitTouchCallout='none';
+  // Prevent iOS long-press selection on parent container
+  const wrap2=document.getElementById('dc-wrap-'+id);
+  if(wrap2){
+    wrap2.addEventListener('selectstart',(e)=>e.preventDefault());
+    wrap2.addEventListener('contextmenu',(e)=>e.preventDefault());
+  }
   // Pinch to zoom + pan simultaneously (like maps)
   let _t2={dist:null,midX:0,midY:0,scale:1,panX:0,panY:0};
   const getWrap=()=>document.getElementById('dc-wrap-'+id);
@@ -1662,8 +1668,9 @@ function drawFullPath(ctx,tool,points,color,size){
 
   }else if(tool==='eraser'){
     ctx.save();
-    ctx.globalCompositeOperation='source-over';ctx.strokeStyle='rgba(255,255,255,1)';ctx.globalAlpha=1;
-    ctx.strokeStyle='rgba(0,0,0,1)';ctx.lineWidth=size*4;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.globalCompositeOperation='source-over';
+    ctx.strokeStyle='rgba(255,255,255,1)';ctx.globalAlpha=1;
+    ctx.lineWidth=size*4;ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
     for(let i=1;i<points.length-1;i++){
       const mid={x:(points[i].x+points[i+1].x)/2,y:(points[i].y+points[i+1].y)/2};
@@ -1909,6 +1916,10 @@ function initAnnoCanvas(section){
   });
   newCanvas.addEventListener('pointerup',()=>{st.drawing=false;st.points=[];saveAnnoHistory(section);});
   newCanvas.addEventListener('pointerleave',()=>{if(st.drawing){st.drawing=false;st.points=[];saveAnnoHistory(section);}});
+  newCanvas.addEventListener('selectstart',(e)=>e.preventDefault());
+  newCanvas.addEventListener('contextmenu',(e)=>e.preventDefault());
+  const aw=document.getElementById('anno-wrap-'+section);
+  if(aw){aw.addEventListener('selectstart',(e)=>e.preventDefault());aw.addEventListener('contextmenu',(e)=>e.preventDefault());}
   newCanvas.style.touchAction='none';
 
   // Build tools
@@ -1938,18 +1949,23 @@ function smoothDrawAnno(section,newPoint){
 // Track active overlays per section so canvas pointer-events are managed correctly
 function _commitSinglePhoto(wrap, canvas, section, container){
   const img=wrap.querySelector('img');if(!img)return;
-  const r=canvas.getBoundingClientRect();
-  const scX=canvas.width/r.width,scY=canvas.height/r.height;
-  const cl=parseInt(wrap.style.left),ct=parseInt(wrap.style.top);
-  const ph=wrap.offsetHeight;
-  // Auto-expand if needed
-  if(ct+ph>r.height){
+  // Use canvas natural dimensions vs offsetWidth (not affected by CSS transform)
+  const scX=canvas.width/(canvas.offsetWidth||canvas.width);
+  const scY=canvas.height/(canvas.offsetHeight||canvas.height);
+  const cl=parseInt(wrap.style.left)||0;
+  const ct=parseInt(wrap.style.top)||0;
+  const pw=wrap.offsetWidth;const ph=wrap.offsetHeight;
+  // Auto-expand canvas if photo extends below
+  const newH=ct+ph;
+  if(newH*scY>canvas.height){
     const oldData=canvas.toDataURL();
-    canvas.height=Math.round((ct+ph)*scY);
-    const img2=new Image();img2.onload=()=>{canvas.getContext('2d').drawImage(img2,0,0);stamp();};img2.src=oldData;
-  }else stamp();
+    canvas.height=Math.ceil(newH*scY)+20;
+    const img2=new Image();
+    img2.onload=()=>{canvas.getContext('2d').drawImage(img2,0,0);stamp();};
+    img2.src=oldData;
+  }else{stamp();}
   function stamp(){
-    canvas.getContext('2d').drawImage(img,cl*scX,ct*scY,wrap.offsetWidth*scX,wrap.offsetHeight*scY);
+    canvas.getContext('2d').drawImage(img,cl*scX,ct*scY,pw*scX,ph*scY);
     wrap.remove();
     _annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);
     if(!_annoOverlayCount[section])canvas.style.pointerEvents='';
