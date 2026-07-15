@@ -3019,12 +3019,10 @@ async function doLogin(){
     if(error){showToast('連線錯誤，請確認網路或稍後再試');console.error('Login error:',error);return;}
     if(!data){showToast('找不到此帳號，請確認名稱或建立新帳號');return;}
     if(data.banned){showToast('此帳號已被封鎖，請聯絡管理員');return;}
-    // Check maintenance mode (skip for dev)
+    // Check maintenance mode (skip for 開發者 account)
     const{data:maint}=await sb.from('site_settings').select('value').eq('key','maintenance').maybeSingle();
-    if(maint?.value==='true'){
-      const devHash='97dbcf4cd6514d2ad80eb5fc50e132d03b2d7a7355e7e5f8212c0d3840945170';
-      const pwHash=await hashPw(document.getElementById('login-p').value);
-      if(pwHash!==devHash){showToast('🔧 系統維護中，請稍後再試');return;}
+    if(maint?.value==='true'&&data.username!=='開發者'){
+      showToast('🔧 系統維護中，請稍後再試');return;
     }
     const hash=await hashPw(p);
     if(hash!==data.password_hash){showToast('密碼錯誤');return;}
