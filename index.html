@@ -1331,7 +1331,6 @@ function applyBrush(ctx, tool, color, size, x1, y1, x2, y2){
     ctx.globalAlpha=1;
     ctx.lineWidth=size*4;
     ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.strokeStyle='rgba(0,0,0,1)';
     ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
 
   }else if(tool==='pen'){
@@ -1750,7 +1749,6 @@ function applyBrushSmooth(ctx,tool,color,size,p0,p1,mid){
     ctx.globalAlpha=1;
     ctx.lineWidth=size*4;
     ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.strokeStyle='rgba(0,0,0,1)';
     ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.quadraticCurveTo(p0.x,p0.y,mid.x,mid.y);ctx.stroke();
   }
   ctx.restore();
@@ -1949,9 +1947,12 @@ function smoothDrawAnno(section,newPoint){
 // Track active overlays per section so canvas pointer-events are managed correctly
 function _commitSinglePhoto(wrap, canvas, section, container){
   const img=wrap.querySelector('img');if(!img)return;
-  // Use canvas natural dimensions vs offsetWidth (not affected by CSS transform)
+  // Reset transform temporarily to get accurate measurements
+  const savedTransform=canvas.parentElement?.style?.transform||'';
+  if(canvas.parentElement)canvas.parentElement.style.transform='';
   const scX=canvas.width/(canvas.offsetWidth||canvas.width);
   const scY=canvas.height/(canvas.offsetHeight||canvas.height);
+  if(canvas.parentElement)canvas.parentElement.style.transform=savedTransform;
   const cl=parseInt(wrap.style.left)||0;
   const ct=parseInt(wrap.style.top)||0;
   const pw=wrap.offsetWidth;const ph=wrap.offsetHeight;
@@ -5534,6 +5535,8 @@ function clearBgImg(k){if(bgSettings[k]){bgSettings[k].type='none';bgSettings[k]
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',async()=>{
+  // Prevent iOS text selection globally for canvas areas
+  document.addEventListener('selectstart',(e)=>{if(e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA')e.preventDefault();});
   const autoLogged=await tryAutoLogin();
   if(!autoLogged)loadAuthScreen();
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});});
