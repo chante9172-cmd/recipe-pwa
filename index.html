@@ -138,9 +138,9 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 .draw-color{width:34px;height:34px;padding:2px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;flex-shrink:0}
 .draw-size-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tl);flex-wrap:nowrap}
 .draw-size-row input[type=range]{width:70px;flex-shrink:0}
-canvas* {-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;}
-input,textarea,select,label {-webkit-user-select:text!important;user-select:text!important;}
-.draw-canvas{width:100%;border-radius:10px;border:1.5px solid var(--border);cursor:crosshair;touch-action:none;background:#fff;display:block}
+canvas* {-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent!important;}
+input,textarea,select {-webkit-user-select:text!important;user-select:text!important;}
+.draw-canvas{background:#f0f4f8;width:100%;border-radius:10px;border:1.5px solid var(--border);cursor:crosshair;touch-action:none;background:#fff;display:block}
 
 /* CONVERT TABS */
 .convert-tabs{display:flex;background:var(--gp);border-radius:10px;padding:4px;gap:3px;margin-bottom:16px}
@@ -537,7 +537,7 @@ input,textarea,select,label {-webkit-user-select:text!important;user-select:text
             <div id="anno-wrap-steps" style="position:relative;border-radius:10px;overflow:visible!important;border:1.5px solid var(--border);user-select:none;-webkit-user-select:none;min-height:360px">
               <img id="steps-anno-bg" style="display:none;width:100%;border-radius:10px;display:block">
               <div id="steps-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:360px;word-break:break-all"></div>
-              <canvas id="steps-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:transparent"></canvas>
+              <canvas id="steps-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:#f8f9fa"></canvas>
             </div>
             <div id="steps-anno-tools" style="margin-top:8px"></div>
           </div>
@@ -563,7 +563,7 @@ input,textarea,select,label {-webkit-user-select:text!important;user-select:text
             <div id="anno-wrap-notes" style="position:relative;border-radius:10px;overflow:visible!important;border:1.5px solid var(--border);user-select:none;-webkit-user-select:none;min-height:240px">
               <img id="notes-anno-bg" style="display:none;width:100%;border-radius:10px;display:block">
               <div id="notes-text-display" style="padding:12px 14px;font-size:15px;line-height:1.7;color:var(--text);background:#fff;white-space:pre-wrap;min-height:240px;word-break:break-all"></div>
-              <canvas id="notes-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:transparent"></canvas>
+              <canvas id="notes-anno-canvas" style="position:absolute;inset:0;width:100%;touch-action:none;cursor:crosshair;background:#f8f9fa"></canvas>
             </div>
             <div id="notes-anno-tools" style="margin-top:8px"></div>
           </div>
@@ -1327,7 +1327,7 @@ function applyBrush(ctx, tool, color, size, x1, y1, x2, y2){
   const dist=Math.sqrt(dx*dx+dy*dy)||1;
 
   if(tool==='eraser'){
-    ctx.globalCompositeOperation='source-over';ctx.strokeStyle='rgba(255,255,255,1)';
+    ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='rgba(0,0,0,1)';
     ctx.globalAlpha=1;
     ctx.lineWidth=size*4;
     ctx.lineCap='round';ctx.lineJoin='round';
@@ -1457,8 +1457,9 @@ function createDrawWidget(containerId, canvasHeight=780){
       <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="applyDrawFilter('${id}','sepia')">復古</button>
       <label class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px;cursor:pointer">📷 插入照片<input type="file" accept="image/*" style="display:none" onchange="insertPhotoToCanvas('${id}',this)"></label>
     </div>
-    <div style="position:relative;line-height:0" id="dc-wrap-${id}">
-    <canvas class="draw-canvas" id="dc2-${id}" height="${canvasHeight}"></canvas>
+    <div style="position:relative;line-height:0;user-select:none;-webkit-user-select:none;overflow:visible" id="dc-wrap-${id}" oncontextmenu="return false">
+    <canvas id="dc-bg-${id}" height="${canvasHeight}" style="position:absolute;top:0;left:0;width:100%;pointer-events:none;border-radius:0 0 8px 8px"></canvas>
+    <canvas class="draw-canvas" id="dc2-${id}" height="${canvasHeight}" style="background:transparent;position:relative"></canvas>
     </div>`;
 
   setTimeout(()=>initDrawWidget(id),50);
@@ -1667,8 +1668,7 @@ function drawFullPath(ctx,tool,points,color,size){
 
   }else if(tool==='eraser'){
     ctx.save();
-    ctx.globalCompositeOperation='source-over';
-    ctx.strokeStyle='rgba(255,255,255,1)';ctx.globalAlpha=1;
+    ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='rgba(0,0,0,1)';ctx.globalAlpha=1;
     ctx.lineWidth=size*4;ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
     for(let i=1;i<points.length-1;i++){
@@ -1745,7 +1745,7 @@ function applyBrushSmooth(ctx,tool,color,size,p0,p1,mid){
     }
 
   }else if(tool==='eraser'){
-    ctx.globalCompositeOperation='source-over';ctx.strokeStyle='rgba(255,255,255,1)';
+    ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='rgba(0,0,0,1)';
     ctx.globalAlpha=1;
     ctx.lineWidth=size*4;
     ctx.lineCap='round';ctx.lineJoin='round';
@@ -1980,6 +1980,17 @@ const _annoOverlayCount={steps:0,notes:0};
 function _updateAnnoCommitBtn(section){
   const container=document.getElementById('anno-wrap-'+section);
   if(!container)return;
+  // Auto-expand canvas if overlay extends beyond
+  const canvas=document.getElementById(section+'-anno-canvas');
+  if(canvas){
+    container.querySelectorAll('.photo-overlay-wrap').forEach(wrap=>{
+      const bottom=parseInt(wrap.style.top||0)+wrap.offsetHeight;
+      if(bottom>canvas.offsetHeight){
+        canvas.style.minHeight=bottom+'px';
+        container.style.minHeight=bottom+'px';
+      }
+    });
+  }
   let btn=document.getElementById('anno-commit-btn-'+section);
   const count=_annoOverlayCount[section]||0;
   if(count>0){
@@ -3526,7 +3537,8 @@ function insertPhotoToCanvas(id, input){
 function saveDrawHistory(id){
   const state=drawWidgets[id];if(!state||!state.canvas||!state.ctx)return;
   if(!drawHistory[id])drawHistory[id]=[];
-  drawHistory[id].push(state.canvas.toDataURL());
+  const bgC2=document.getElementById('dc-bg-'+id);
+  if(bgC2&&bgC2.width>0){const m=document.createElement('canvas');m.width=state.canvas.width;m.height=state.canvas.height;const mx=m.getContext('2d');mx.drawImage(bgC2,0,0);mx.drawImage(state.canvas,0,0);drawHistory[id].push(m.toDataURL());}else{drawHistory[id].push(state.canvas.toDataURL());}
   if(drawHistory[id].length>20)drawHistory[id].shift();
 }
 
@@ -4171,7 +4183,7 @@ function applyFilterToCtx(ctx,img,sx,sy,sw,sh,dx,dy,dw,dh,filter){
 function applyDrawFilter(id,filter){
   const state=drawWidgets[id];if(!state||!state.canvas||!state.ctx)return;
   const c=state.canvas;const ctx=state.ctx;
-  const imgData=c.toDataURL();
+  const bgC3=document.getElementById('dc-bg-'+id);let imgData;if(bgC3&&bgC3.width>0){const m=document.createElement('canvas');m.width=c.width;m.height=c.height;const mx=m.getContext('2d');mx.drawImage(bgC3,0,0);mx.drawImage(c,0,0);imgData=m.toDataURL();}else{imgData=c.toDataURL();}
   const img=new Image();
   img.onload=()=>{
     ctx.clearRect(0,0,c.width,c.height);
@@ -4184,7 +4196,7 @@ function applyDrawFilter(id,filter){
 function applyAnnoFilter(section,filter){
   const st=annoState[section];if(!st||!st.canvas||!st.ctx)return;
   const c=st.canvas;const ctx=st.ctx;
-  const imgData=c.toDataURL();
+  const bgC3=document.getElementById('dc-bg-'+id);let imgData;if(bgC3&&bgC3.width>0){const m=document.createElement('canvas');m.width=c.width;m.height=c.height;const mx=m.getContext('2d');mx.drawImage(bgC3,0,0);mx.drawImage(c,0,0);imgData=m.toDataURL();}else{imgData=c.toDataURL();}
   const img=new Image();
   img.onload=()=>{
     ctx.clearRect(0,0,c.width,c.height);
@@ -5535,8 +5547,14 @@ function clearBgImg(k){if(bgSettings[k]){bgSettings[k].type='none';bgSettings[k]
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',async()=>{
-  // Prevent iOS text selection globally for canvas areas
-  document.addEventListener('selectstart',(e)=>{if(e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA')e.preventDefault();});
+  // Prevent iOS text selection globally
+  document.addEventListener('selectstart',(e)=>{
+    if(e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA')e.preventDefault();
+  });
+  // Prevent iOS context menu (long press menu) on non-input elements
+  document.addEventListener('contextmenu',(e)=>{
+    if(e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA')e.preventDefault();
+  });
   const autoLogged=await tryAutoLogin();
   if(!autoLogged)loadAuthScreen();
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');});});
