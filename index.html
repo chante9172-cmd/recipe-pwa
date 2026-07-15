@@ -1327,7 +1327,7 @@ function applyBrush(ctx, tool, color, size, x1, y1, x2, y2){
   const dist=Math.sqrt(dx*dx+dy*dy)||1;
 
   if(tool==='eraser'){
-    ctx.globalCompositeOperation='destination-out';
+    ctx.globalCompositeOperation='source-over';ctx.strokeStyle='rgba(255,255,255,1)';
     ctx.globalAlpha=1;
     ctx.lineWidth=size*4;
     ctx.lineCap='round';ctx.lineJoin='round';
@@ -1486,22 +1486,24 @@ function initDrawWidget(id){
   let _penActive=false;
   c.addEventListener('pointerdown',e=>{
     if(e.pointerType==='pen')_penActive=true;
-    if(e.pointerType==='touch'&&_penActive)return; // palm rejection
+    if(e.pointerType==='touch'&&e.isPrimary===false&&_penActive)return;
     if(e.pointerType==='touch'&&e.isPrimary===false)return;
     e.preventDefault();state.drawing=true;state.points=[];
-    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure>0?e.pressure:(e.pointerType==='pen'?0.5:0.5);
+    const p=getPos(e.clientX,e.clientY);p.pressure=(typeof e.pressure==='number'&&e.pressure>=0)?e.pressure:0.5;
     state.points.push(p);state.strokeSnapshot=c.toDataURL();
     c.setPointerCapture(e.pointerId);
   });
   c.addEventListener('pointermove',e=>{
     if(e.pointerType==='touch'&&_penActive)return;
     if(!state.drawing||e.isPrimary===false)return;
-    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure>0?e.pressure:(e.pointerType==='pen'?0.5:0.5);
+    const p=getPos(e.clientX,e.clientY);p.pressure=(typeof e.pressure==='number'&&e.pressure>=0)?e.pressure:0.5;
     smoothDraw(id,p);
   });
   c.addEventListener('pointerup',()=>{state.drawing=false;state.points=[];saveDrawHistory(id);});
   c.addEventListener('pointerleave',()=>{if(state.drawing){state.drawing=false;state.points=[];saveDrawHistory(id);}});
   c.addEventListener('selectstart',(e)=>e.preventDefault());
+  c.addEventListener('contextmenu',(e)=>e.preventDefault());
+  c.style.webkitTouchCallout='none';
   // Pinch to zoom + pan simultaneously (like maps)
   let _t2={dist:null,midX:0,midY:0,scale:1,panX:0,panY:0};
   const getWrap=()=>document.getElementById('dc-wrap-'+id);
@@ -1573,17 +1575,17 @@ function drawFullPath(ctx,tool,points,color,size){
   if(tool==='pen'){
     ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
     ctx.strokeStyle=color;ctx.lineCap='round';ctx.lineJoin='round';
-    for(let i=1;i<points.length;i++){
-      const p0=points[i-1],p1=points[i];
-      // Sub-segments for smooth width transition
-      const steps=3;
-      for(let s=0;s<steps;s++){
-        const t0=s/steps,t1=(s+1)/steps;
-        const x0=p0.x+(p1.x-p0.x)*t0,y0=p0.y+(p1.y-p0.y)*t0;
-        const x1=p0.x+(p1.x-p0.x)*t1,y1=p0.y+(p1.y-p0.y)*t1;
-        const w=ps(i-1)*(1-t0)+ps(i)*t0;
+    if(points.length===2){
+      ctx.beginPath();ctx.lineWidth=(ps(0)+ps(1))/2;
+      ctx.moveTo(points[0].x,points[0].y);ctx.lineTo(points[1].x,points[1].y);ctx.stroke();
+    }else{
+      for(let i=1;i<points.length-1;i++){
+        const p0=points[i-1],p1=points[i],p2=points[i+1];
+        const mid1={x:(p0.x+p1.x)/2,y:(p0.y+p1.y)/2};
+        const mid2={x:(p1.x+p2.x)/2,y:(p1.y+p2.y)/2};
+        const w=ps(i);
         ctx.beginPath();ctx.lineWidth=w;
-        ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+        ctx.moveTo(mid1.x,mid1.y);ctx.quadraticCurveTo(p1.x,p1.y,mid2.x,mid2.y);ctx.stroke();
       }
     }
     ctx.restore();
@@ -1660,7 +1662,7 @@ function drawFullPath(ctx,tool,points,color,size){
 
   }else if(tool==='eraser'){
     ctx.save();
-    ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=1;
+    ctx.globalCompositeOperation='source-over';ctx.strokeStyle='rgba(255,255,255,1)';ctx.globalAlpha=1;
     ctx.strokeStyle='rgba(0,0,0,1)';ctx.lineWidth=size*4;ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
     for(let i=1;i<points.length-1;i++){
@@ -1737,7 +1739,7 @@ function applyBrushSmooth(ctx,tool,color,size,p0,p1,mid){
     }
 
   }else if(tool==='eraser'){
-    ctx.globalCompositeOperation='destination-out';
+    ctx.globalCompositeOperation='source-over';ctx.strokeStyle='rgba(255,255,255,1)';
     ctx.globalAlpha=1;
     ctx.lineWidth=size*4;
     ctx.lineCap='round';ctx.lineJoin='round';
@@ -1934,6 +1936,27 @@ function smoothDrawAnno(section,newPoint){
 }
 
 // Track active overlays per section so canvas pointer-events are managed correctly
+function _commitSinglePhoto(wrap, canvas, section, container){
+  const img=wrap.querySelector('img');if(!img)return;
+  const r=canvas.getBoundingClientRect();
+  const scX=canvas.width/r.width,scY=canvas.height/r.height;
+  const cl=parseInt(wrap.style.left),ct=parseInt(wrap.style.top);
+  const ph=wrap.offsetHeight;
+  // Auto-expand if needed
+  if(ct+ph>r.height){
+    const oldData=canvas.toDataURL();
+    canvas.height=Math.round((ct+ph)*scY);
+    const img2=new Image();img2.onload=()=>{canvas.getContext('2d').drawImage(img2,0,0);stamp();};img2.src=oldData;
+  }else stamp();
+  function stamp(){
+    canvas.getContext('2d').drawImage(img,cl*scX,ct*scY,wrap.offsetWidth*scX,wrap.offsetHeight*scY);
+    wrap.remove();
+    _annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);
+    if(!_annoOverlayCount[section])canvas.style.pointerEvents='';
+    _updateAnnoCommitBtn(section);
+  }
+}
+
 const _annoOverlayCount={steps:0,notes:0};
 
 // Show/hide the "全部完成" button based on overlay count
@@ -2021,9 +2044,34 @@ function insertPhotoToAnno(section, input){
         h.addEventListener('mousedown',(e)=>{e.stopPropagation();e.preventDefault();startResize(e.clientX,e.clientY);});
         h.addEventListener('touchstart',(e)=>{e.stopPropagation();e.preventDefault();startResize(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
       });
-      // Move
-      wrap.addEventListener('mousedown',(e)=>{if(e.target.dataset.dir)return;e.preventDefault();const sl=parseInt(wrap.style.left),st=parseInt(wrap.style.top),sx=e.clientX,sy=e.clientY;const mm=(e)=>{wrap.style.left=(sl+e.clientX-sx)+'px';wrap.style.top=(st+e.clientY-sy)+'px';};const up=()=>{document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',up);};document.addEventListener('mousemove',mm);document.addEventListener('mouseup',up);});
-      wrap.addEventListener('touchstart',(e)=>{if(e.target.dataset.dir)return;e.preventDefault();const sl=parseInt(wrap.style.left),st=parseInt(wrap.style.top),sx=e.touches[0].clientX,sy=e.touches[0].clientY;const tm=(e)=>{e.preventDefault();wrap.style.left=(sl+e.touches[0].clientX-sx)+'px';wrap.style.top=(st+e.touches[0].clientY-sy)+'px';};const up=()=>{document.removeEventListener('touchmove',tm);document.removeEventListener('touchend',up);};document.addEventListener('touchmove',tm,{passive:false});document.addEventListener('touchend',up,{once:true});},{passive:false});
+      // Long press on photo = show options menu
+      let _photoLongPress=null;
+      wrap.addEventListener('touchstart',(e)=>{
+        if(e.target.dataset.dir)return; // corner handle
+        _photoLongPress=setTimeout(()=>{
+          _photoLongPress=null;
+          // Show options
+          const menu=document.createElement('div');
+          menu.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:200;display:flex;flex-direction:column;gap:0;overflow:hidden;min-width:140px';
+          const mkBtn=(txt,bg,cb)=>{const b=document.createElement('button');b.textContent=txt;b.style.cssText=`background:${bg};color:${bg==='#e53e3e'?'#fff':'#333'};border:none;padding:14px 20px;font-size:15px;cursor:pointer;width:100%;text-align:center;border-bottom:1px solid #eee`;b.addEventListener('click',(e)=>{e.stopPropagation();menu.remove();cb();});return b;};
+          menu.appendChild(mkBtn('✅ 貼入','#f0fdf4',()=>{
+            _commitSinglePhoto(wrap,canvas,section,container);
+          }));
+          menu.appendChild(mkBtn('🗑 刪除','#fff2f2',()=>{
+            wrap.remove();
+            _annoOverlayCount[section]=Math.max(0,(_annoOverlayCount[section]||1)-1);
+            if(!_annoOverlayCount[section])canvas.style.pointerEvents='';
+            _updateAnnoCommitBtn(section);
+          }));
+          const cancelBtn=document.createElement('button');cancelBtn.textContent='取消';cancelBtn.style.cssText='background:#f5f5f5;color:#666;border:none;padding:12px 20px;font-size:14px;cursor:pointer;width:100%';cancelBtn.addEventListener('click',()=>menu.remove());
+          menu.appendChild(cancelBtn);
+          wrap.appendChild(menu);
+          // Auto-remove after 4 seconds
+          setTimeout(()=>menu.remove(),4000);
+        },600);
+      },{passive:true});
+      wrap.addEventListener('touchend',()=>{if(_photoLongPress){clearTimeout(_photoLongPress);_photoLongPress=null;}});
+      wrap.addEventListener('touchmove',()=>{if(_photoLongPress){clearTimeout(_photoLongPress);_photoLongPress=null;}});
       // 🗑 刪除 button per photo
       const delBtn=document.createElement('button');
       delBtn.textContent='🗑';
@@ -3530,7 +3578,7 @@ function bindCoverDraw(canvas,ctx,w,h){
       const color=document.getElementById('cover-draw-color')?.value||'#000';
       const size=parseInt(document.getElementById('cover-draw-size')?.value)||5;
       if(tool==='eraser'){
-        ctx.save();ctx.globalCompositeOperation='destination-out';
+        ctx.save();ctx.globalCompositeOperation='source-over';ctx.strokeStyle='rgba(255,255,255,1)';
         drawFullPath(ctx,'pen',coverDrawState.points,color,size*2);
         ctx.restore();
       }else{
