@@ -75,7 +75,7 @@ label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(-
 #page-saved.active{display:flex!important;flex-direction:column;padding:0}
 
 /* CARDS */
-.card{background:rgba(255,255,255,0.75);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--gp)}
+.card{background:rgba(255,255,255,0.75);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);border:1px solid var(--gp);overflow:visible}
 .card-title{font-size:12px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px}
 
 /* INGREDIENTS */
@@ -454,7 +454,7 @@ input,textarea,select,label {-webkit-user-select:text!important;user-select:text
             </div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-radius:10px;overflow:visible;border:1px solid var(--border)">
           <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--tl);background:var(--gu);border-bottom:1px solid var(--border)">食材</div>
           <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--tl);background:var(--gu);border-bottom:1px solid var(--border);text-align:right">原始</div>
           <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--gd);background:var(--gu);border-bottom:1px solid var(--border);text-align:right">換算後</div>
@@ -743,7 +743,7 @@ input,textarea,select,label {-webkit-user-select:text!important;user-select:text
               </div>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-radius:10px;overflow:visible;border:1px solid var(--border)">
             <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--tl);background:var(--gu);border-bottom:1px solid var(--border)">食材</div>
             <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--tl);background:var(--gu);border-bottom:1px solid var(--border);text-align:right">原始</div>
             <div style="padding:8px 10px;font-size:11px;font-weight:700;color:var(--gd);background:var(--gu);border-bottom:1px solid var(--border);text-align:right">換算後</div>
@@ -1489,71 +1489,53 @@ function initDrawWidget(id){
     if(e.pointerType==='touch'&&_penActive)return; // palm rejection
     if(e.pointerType==='touch'&&e.isPrimary===false)return;
     e.preventDefault();state.drawing=true;state.points=[];
-    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||(e.pointerType==='pen'?0.5:0.6);
+    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure>0?e.pressure:(e.pointerType==='pen'?0.5:0.5);
     state.points.push(p);state.strokeSnapshot=c.toDataURL();
     c.setPointerCapture(e.pointerId);
   });
   c.addEventListener('pointermove',e=>{
     if(e.pointerType==='touch'&&_penActive)return;
     if(!state.drawing||e.isPrimary===false)return;
-    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure||(e.pointerType==='pen'?0.5:0.6);
+    const p=getPos(e.clientX,e.clientY);p.pressure=e.pressure>0?e.pressure:(e.pointerType==='pen'?0.5:0.5);
     smoothDraw(id,p);
   });
   c.addEventListener('pointerup',()=>{state.drawing=false;state.points=[];saveDrawHistory(id);});
   c.addEventListener('pointerleave',()=>{if(state.drawing){state.drawing=false;state.points=[];saveDrawHistory(id);}});
-  // Pinch to zoom (centered at fingers) + pan after zoom
-  let _pinchDist=null,_pinchCenter=null;
-  let _canvasScale=1,_canvasPan={x:0,y:0};
-  let _panStart=null,_panLastPan=null,_isPanning=false;
+  c.addEventListener('selectstart',(e)=>e.preventDefault());
+  // Pinch to zoom + pan simultaneously (like maps)
+  let _t2={dist:null,midX:0,midY:0,scale:1,panX:0,panY:0};
   const getWrap=()=>document.getElementById('dc-wrap-'+id);
-  const applyTransform=()=>{const w=getWrap();if(w)w.style.transform=`translate(${_canvasPan.x}px,${_canvasPan.y}px) scale(${_canvasScale})`;w&&(w.style.transformOrigin='0 0');};
+  const applyTransform=()=>{const w=getWrap();if(w){w.style.transform=`translate(${_t2.panX}px,${_t2.panY}px) scale(${_t2.scale})`;w.style.transformOrigin='0 0';}};
   c.addEventListener('touchstart',(e)=>{
-    if(e.touches.length===2){
-      e.preventDefault();state.drawing=false;
+    if(e.touches.length===2){e.preventDefault();state.drawing=false;
       const t0=e.touches[0],t1=e.touches[1];
-      _pinchDist=Math.hypot(t0.clientX-t1.clientX,t0.clientY-t1.clientY);
-      _pinchCenter={x:(t0.clientX+t1.clientX)/2,y:(t0.clientY+t1.clientY)/2};
-      _isPanning=false;
-    }else if(e.touches.length===2&&_pinchDist===null){
-      // 2-finger pan (when not pinching)
-      const midX=(e.touches[0].clientX+e.touches[1].clientX)/2;
-      const midY=(e.touches[0].clientY+e.touches[1].clientY)/2;
-      _panStart={x:midX,y:midY};
-      _panLastPan={..._canvasPan};
-      _isPanning=true;
+      _t2.dist=Math.hypot(t0.clientX-t1.clientX,t0.clientY-t1.clientY);
+      _t2.midX=(t0.clientX+t1.clientX)/2;_t2.midY=(t0.clientY+t1.clientY)/2;
     }
   },{passive:false});
   c.addEventListener('touchmove',(e)=>{
-    if(e.touches.length===2&&_pinchDist&&_pinchCenter){
+    if(e.touches.length===2&&_t2.dist!==null){
       e.preventDefault();
       const t0=e.touches[0],t1=e.touches[1];
       const newDist=Math.hypot(t0.clientX-t1.clientX,t0.clientY-t1.clientY);
-      const ratio=newDist/_pinchDist;
-      const newScale=Math.min(5,Math.max(0.5,_canvasScale*ratio));
-      // Zoom centered at pinch midpoint
+      const newMidX=(t0.clientX+t1.clientX)/2;
+      const newMidY=(t0.clientY+t1.clientY)/2;
+      const ratio=newDist/_t2.dist;
+      const newScale=Math.min(5,Math.max(0.5,_t2.scale*ratio));
+      // Pan: follow midpoint movement
       const wrap=getWrap();
       if(wrap){
         const rect=wrap.parentElement.getBoundingClientRect();
-        const cx=_pinchCenter.x-rect.left;
-        const cy=_pinchCenter.y-rect.top;
-        _canvasPan.x=cx-(cx-_canvasPan.x)*(newScale/_canvasScale);
-        _canvasPan.y=cy-(cy-_canvasPan.y)*(newScale/_canvasScale);
+        const cx=_t2.midX-rect.left;const cy=_t2.midY-rect.top;
+        // Zoom around old midpoint + pan to new midpoint
+        _t2.panX=_t2.panX+(cx-cx*ratio)+(newMidX-_t2.midX);
+        _t2.panY=_t2.panY+(cy-cy*ratio)+(newMidY-_t2.midY);
       }
-      _canvasScale=newScale;
-      _pinchDist=newDist;
-      applyTransform();
-    }else if(e.touches.length===2&&_isPanning&&_panStart&&_pinchDist===null){
-      e.preventDefault();
-      const midX=(e.touches[0].clientX+e.touches[1].clientX)/2;
-      const midY=(e.touches[0].clientY+e.touches[1].clientY)/2;
-      _canvasPan={x:_panLastPan.x+(midX-_panStart.x),y:_panLastPan.y+(midY-_panStart.y)};
+      _t2.scale=newScale;_t2.dist=newDist;_t2.midX=newMidX;_t2.midY=newMidY;
       applyTransform();
     }
   },{passive:false});
-  c.addEventListener('touchend',(e)=>{
-    if(e.touches.length<2){_pinchDist=null;_pinchCenter=null;}
-    if(e.touches.length===0){_isPanning=false;_panStart=null;}
-  });
+  c.addEventListener('touchend',(e)=>{if(e.touches.length<2)_t2.dist=null;});
   c.style.touchAction='none';
 }
 
@@ -1586,7 +1568,7 @@ function drawFullPath(ctx,tool,points,color,size){
     const prev=smoothedPressure[i-1]||raw;
     smoothedPressure.push(prev*0.25+raw*0.75); // faster response
   }
-  const ps=(i)=>size*(0.05+Math.min(1,smoothedPressure[i])*2.2);
+  const ps=(i)=>{const p=smoothedPressure[i];return size*(0.05+Math.min(1,p)*2.5);};
 
   if(tool==='pen'){
     ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
