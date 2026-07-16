@@ -2287,7 +2287,7 @@ function recalcDetailAuto(){
   const ings=detailRecipe?.ingredients||[];
   if(!ings.length)return;
   if(detailMode===0){
-    const orig=parseFraction(detailRecipe.servings);
+    const orig=parseServings(detailRecipe.servings);
     const target=parseFraction(document.getElementById('detail-target-servings').value);
     if(!detailRecipe.servings){showToast('此食譜未設定人數');return;}
     if(isNaN(target)||target<=0)return;
@@ -2987,6 +2987,16 @@ async function tryAutoLogin(){
   if(error||!data||data.banned)return false;
   await loginSuccess(data);
   return true;
+}
+
+// Parse servings - handles ranges like "10~15" or "10-15" by taking average
+function parseServings(s){
+  if(!s)return NaN;
+  s=String(s).trim();
+  // Range format: 10~15, 10-15, 10～15, 10至15
+  const rangeMatch=s.match(/^([\d.]+)\s*[~\-～至到]\s*([\d.]+)$/);
+  if(rangeMatch)return(parseFloat(rangeMatch[1])+parseFloat(rangeMatch[2]))/2;
+  return parseFraction(s);
 }
 
 function parseFraction(s){
@@ -4710,7 +4720,7 @@ function setConvertMode(mode){
 }
 function doConvert(){
   const ings=convertRecipe?.ingredients||[];if(!ings.length)return;
-  let ratio=1;const orig=parseFraction(convertRecipe.servings)||1;
+  let ratio=1;const orig=parseServings(convertRecipe.servings)||1;
   if(convertMode===0){
     if(!String(convertRecipe.servings||'').trim()){showToast('此食譜未設定人數，請改用其他換算方式');return;}
     const t=parseFraction(document.getElementById('target-servings').value);
@@ -5352,7 +5362,7 @@ function setClubRecipeMode(m){
 function recalcClubRecipe(){
   const ings=currentClubRecipe?.ingredients||[];if(!ings.length)return;
   if(crMode===0){
-    const orig=parseFraction(currentClubRecipe.servings);
+    const orig=parseServings(currentClubRecipe.servings);
     const t=parseFraction(document.getElementById('cr-target-servings').value);
     if(!currentClubRecipe.servings){showToast('此食譜未設定人數');return;}
     if(isNaN(t)||t<=0)return;renderClubIngredients(t/orig);
