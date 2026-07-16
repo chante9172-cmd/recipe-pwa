@@ -191,7 +191,7 @@ input,textarea,select {-webkit-user-select:text!important;user-select:text!impor
 .edit-order-active .icon-btn{pointer-events:none;opacity:.3}
 </style>
 </head>
-<body>
+<body style="-webkit-user-select:none;user-select:none;-webkit-touch-callout:none">
 <!-- Full-screen background layer -->
 <div id="bg-overlay" style="position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center;transition:background .3s"></div>
 <!-- Watermark -->
@@ -1474,6 +1474,9 @@ function initDrawWidget(id){
   canvas.parentNode.replaceChild(newCanvas,canvas);
   const c=newCanvas;
   c.width=c.offsetWidth||c.parentElement.offsetWidth||340;
+  // Sync bg canvas dimensions
+  const bgCanvas=document.getElementById('dc-bg-'+id);
+  if(bgCanvas){bgCanvas.width=c.width;bgCanvas.height=c.height;}
   state.canvas=c;
   state.ctx=c.getContext('2d');
   state.points=[];// smooth point buffer
@@ -2110,6 +2113,17 @@ function insertPhotoToAnno(section, input){
       _annoOverlayCount[section]=(_annoOverlayCount[section]||0)+1;
       canvas.style.pointerEvents='none';
       container.appendChild(wrap);
+      // Auto-expand: if photo bottom extends beyond canvas, grow canvas
+      const photoBottom=py+ph+20;
+      if(photoBottom>canvas.offsetHeight){
+        const oldH=canvas.height;
+        const newH=Math.ceil(photoBottom*(canvas.width/(canvas.offsetWidth||canvas.width)));
+        if(newH>oldH){
+          const snap=canvas.toDataURL();
+          canvas.height=newH;
+          const img2=new Image();img2.onload=()=>canvas.getContext('2d').drawImage(img2,0,0);img2.src=snap;
+        }
+      }
       _updateAnnoCommitBtn(section);
     };
     img.src=ev.target.result;
@@ -5162,48 +5176,47 @@ async function deleteAnnouncement(id){
 
 // ── RECIPE DETAIL ──
 async function viewClubRecipe(recipe,author){
-  currentClubRecipe=recipe;crRefIdx=null;crMode=0;
+  // Always fetch latest version from Supabase
+  const{data:latest}=await sb.from('recipes').select('*').eq('id',recipe.id).single();
+  const r=latest||recipe; // fallback to cached if fetch fails
+  currentClubRecipe=r;crRefIdx=null;crMode=0;
   document.getElementById('club-detail').style.display='none';
   document.getElementById('club-recipe-detail').style.display='';
-  document.getElementById('club-recipe-name').textContent=recipe.name;
+  document.getElementById('club-recipe-name').textContent=r.name;
   document.getElementById('club-recipe-author').textContent='作者：'+author;
-  document.getElementById('club-recipe-servings').textContent=recipe.servings?(recipe.servings+' '+(recipe.servings_unit||'人份')):'';
+  document.getElementById('club-recipe-servings').textContent=r.servings?(r.servings+' '+(r.servings_unit||'人份')):'';
   const moldEl=document.getElementById('club-recipe-mold');
-  if(moldEl)moldEl.textContent=recipe.mold?`🥣 模具：${recipe.mold}`:'';
-  // Cover
+  if(moldEl)moldEl.textContent=r.mold?`🥣 模具：${r.mold}`:'';
   const coverDiv=document.getElementById('club-recipe-cover');
   const coverImg=document.getElementById('club-recipe-cover-img');
-  if(recipe.cover&&coverDiv&&coverImg){coverDiv.style.display='block';coverImg.src=recipe.cover;}
-  else if(coverDiv)coverDiv.style.display='none';  const steps=Array.isArray(recipe.steps)?recipe.steps.join('\n'):recipe.steps||'';
+  if(r.cover&&coverDiv&&coverImg){coverDiv.style.display='block';coverImg.src=r.cover;}
+  else if(coverDiv)coverDiv.style.display='none';
+  const steps=Array.isArray(r.steps)?r.steps.join('\n'):r.steps||'';
   if(steps){document.getElementById('cr-steps-card').style.display='';renderStepsWithTimers(steps,'cr-steps');}
   else document.getElementById('cr-steps-card').style.display='none';
   // Steps drawing
   const stepsDrawEl=document.getElementById('cr-steps-drawing');
   const stepsDrawImg=document.getElementById('cr-steps-drawing-img');
-  if(recipe.steps_drawing&&stepsDrawEl&&stepsDrawImg){stepsDrawEl.style.display='';stepsDrawImg.src=recipe.steps_drawing;}
+  if(r.steps_drawing&&stepsDrawEl&&stepsDrawImg){stepsDrawEl.style.display='';stepsDrawImg.src=r.steps_drawing;}
   else if(stepsDrawEl)stepsDrawEl.style.display='none';
-  // Notes
   const notesEl=document.getElementById('cr-notes-card');
-  const notes=recipe.notes||'';
+  const notes=r.notes||'';
   if(notesEl){
-    if(notes||recipe.notes_drawing){notesEl.style.display='';document.getElementById('cr-notes').textContent=notes;}
+    if(notes||r.notes_drawing){notesEl.style.display='';document.getElementById('cr-notes').textContent=notes;}
     else notesEl.style.display='none';
   }
   const notesDrawEl=document.getElementById('cr-notes-drawing');
   const notesDrawImg=document.getElementById('cr-notes-drawing-img');
-  if(recipe.notes_drawing&&notesDrawEl&&notesDrawImg){notesDrawEl.style.display='';notesDrawImg.src=recipe.notes_drawing;}
+  if(r.notes_drawing&&notesDrawEl&&notesDrawImg){notesDrawEl.style.display='';notesDrawImg.src=r.notes_drawing;}
   else if(notesDrawEl)notesDrawEl.style.display='none';
-  // Hand-drawn notes
   const drawCard=document.getElementById('cr-drawing-card');
   const drawImg=document.getElementById('cr-drawing-img');
-  if(recipe.drawing&&drawCard&&drawImg){drawCard.style.display='';drawImg.src=recipe.drawing;}
+  if(r.drawing&&drawCard&&drawImg){drawCard.style.display='';drawImg.src=r.drawing;}
   else if(drawCard)drawCard.style.display='none';
   setClubRecipeMode(0);renderClubIngredients(1);
-  // Like button
-  const liked=myLikes.has(recipe.id);
+  const liked=myLikes.has(r.id);
   document.getElementById('like-btn').textContent=liked?'❤️':'🤍';
-  // Load comments
-  loadComments(recipe.id);
+  loadComments(r.id);
 }
 
 // ── LIKES ──
